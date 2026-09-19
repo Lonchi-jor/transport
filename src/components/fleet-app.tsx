@@ -321,8 +321,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-[#10143a] text-white">
-      <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <div className="pointer-events-auto rounded-2xl border border-white/15 bg-[#151a45]/90 px-3 py-2 shadow-lg backdrop-blur-md">
+      <header className="pointer-events-none absolute inset-x-0 top-0 z-50 flex items-start justify-between gap-3 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <div className="pointer-events-auto rounded-2xl border border-white/20 bg-[#151a45] px-3 py-2 shadow-lg">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <BrandLogo variant="mark" className="size-8 rounded-md bg-white p-0.5 object-contain" />
             CCMM Flotte
@@ -343,7 +343,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         </Button>
       </header>
 
-      <div className="absolute inset-0">
+      <div className="absolute inset-0 z-0 isolate">
         <FleetMap
           googleMapsApiKey={googleMapsApiKey}
           devices={devices}
@@ -359,7 +359,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       </div>
 
       {gpsState !== "live" && session.role === "driver" ? (
-        <div className="absolute top-[5.5rem] right-3 z-20 max-w-[17rem] rounded-xl border border-[#00a4e8]/40 bg-[#151a45]/92 p-3 text-xs leading-5 text-white shadow-lg backdrop-blur">
+        <div className="absolute top-[5.5rem] right-3 z-50 max-w-[17rem] rounded-xl border border-[#00a4e8]/40 bg-[#151a45] p-3 text-xs leading-5 text-white shadow-lg">
           <div className="font-semibold text-[#7dd8f7]">
             {gpsState === "simulated" ? "Not your real position" : "Waiting for your GPS"}
           </div>
@@ -385,10 +385,10 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute right-3 bottom-28 z-20 flex flex-col gap-2">
+      <div className="pointer-events-none absolute right-3 bottom-28 z-50 flex flex-col gap-2">
         <Button
           variant="secondary"
-          className="pointer-events-auto h-11 rounded-full bg-[#151a45]/90 px-3 text-white shadow-lg"
+          className="pointer-events-auto h-11 rounded-full bg-[#151a45] px-3 text-white shadow-lg"
           onClick={() => setPhoneOpen(true)}
         >
           <Smartphone className="size-4" />
@@ -396,7 +396,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         </Button>
         <Button
           variant="secondary"
-          className="pointer-events-auto h-11 rounded-full bg-[#151a45]/90 px-3 text-white shadow-lg"
+          className="pointer-events-auto h-11 rounded-full bg-[#151a45] px-3 text-white shadow-lg"
           onClick={() => void toggleDemo()}
         >
           <Route className="size-4" />
@@ -406,7 +406,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           <Button
             size="icon"
             variant="secondary"
-            className="pointer-events-auto size-11 rounded-full bg-[#151a45]/90 text-white shadow-lg"
+            className="pointer-events-auto size-11 rounded-full bg-[#151a45] text-white shadow-lg"
             onClick={() => {
               setSelectedId(session.id);
               setStickToMe(true);
@@ -418,8 +418,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         ) : null}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="pointer-events-auto rounded-3xl border border-white/15 bg-[#151a45]/92 p-4 text-white shadow-2xl backdrop-blur-md">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-auto rounded-3xl border border-white/20 bg-[#151a45] p-4 text-white shadow-2xl">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">

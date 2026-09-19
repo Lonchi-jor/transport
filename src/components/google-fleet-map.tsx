@@ -97,7 +97,7 @@ function GoogleMapInner({
       mapTypeControl={false}
       streetViewControl={false}
       fullscreenControl={false}
-      className="h-full w-full"
+      className="z-0 h-full w-full"
     >
       <Camera
         devices={devices}

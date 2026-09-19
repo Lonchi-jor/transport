@@ -134,7 +134,21 @@
 .leaflet-container {
   background: #d7e8f8;
   font-family: inherit;
+  z-index: 0 !important;
 }
+
+.leaflet-pane,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control {
+  z-index: auto;
+}
+
+.leaflet-tile-pane { z-index: 1 !important; }
+.leaflet-overlay-pane { z-index: 2 !important; }
+.leaflet-marker-pane { z-index: 3 !important; }
+.leaflet-tooltip-pane { z-index: 4 !important; }
+.leaflet-popup-pane { z-index: 5 !important; }
 
 .fleet-pin {
   background: transparent !important;

@@ -110,7 +110,7 @@ export default function LeafletFleetMap({
     <MapContainer
       center={[DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]}
       zoom={3}
-      className="h-full w-full"
+      className="z-0 h-full w-full"
       zoomControl={false}
       attributionControl
     >
