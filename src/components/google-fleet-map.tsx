@@ -115,14 +115,14 @@ function GoogleMapInner({
             title={isSelf ? `You · ${device.callSign}` : `${device.callSign} · ${device.driverName}`}
             label={{
               text: isSelf ? "YOU" : device.callSign,
-              color: "#0b1220",
+              color: isSelf ? "#ffffff" : "#0b1220",
               fontSize: "11px",
               fontWeight: "800",
             }}
             icon={{
               path: google.maps.SymbolPath.CIRCLE,
               scale: isSelf || device.id === selectedId ? 14 : 11,
-              fillColor: isSelf ? "#ef4444" : VEHICLE_META[device.vehicleType].color,
+              fillColor: isSelf ? "#00a4e8" : VEHICLE_META[device.vehicleType].color,
               fillOpacity: 1,
               strokeColor: "#ffffff",
               strokeWeight: 2,

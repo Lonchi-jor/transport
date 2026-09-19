@@ -44,9 +44,9 @@ export const VEHICLE_META: Record<
   VehicleType,
   { label: string; color: string; short: string }
 > = {
-  bus: { label: "City bus", color: "#f5b942", short: "BUS" },
-  taxi: { label: "Taxi", color: "#f4d35e", short: "TXI" },
-  truck: { label: "Freight truck", color: "#5b8def", short: "TRK" },
-  van: { label: "Shuttle van", color: "#3ecfb2", short: "VAN" },
-  bike: { label: "Courier bike", color: "#7ad16a", short: "BKE" },
+  bus: { label: "City bus", color: "#00a4e8", short: "BUS" },
+  taxi: { label: "Taxi", color: "#2b308f", short: "TXI" },
+  truck: { label: "Freight truck", color: "#4d7fe8", short: "TRK" },
+  van: { label: "Shuttle van", color: "#1a9fe0", short: "VAN" },
+  bike: { label: "Courier bike", color: "#6c74d4", short: "BKE" },
 };

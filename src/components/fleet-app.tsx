@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BusFront, Crosshair, LogOut, Radio, Route, Smartphone, Users } from "lucide-react";
+import { BusFront, Crosshair, LogOut, Route, Smartphone, Users } from "lucide-react";
+import BrandLogo from "@/components/brand-logo";
 import "leaflet/dist/leaflet.css";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -319,17 +320,15 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   }
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-zinc-950 text-zinc-50">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-[#10143a] text-white">
       <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between gap-3 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <div className="pointer-events-auto rounded-2xl border border-white/10 bg-zinc-950/80 px-3 py-2 shadow-lg backdrop-blur-md">
+        <div className="pointer-events-auto rounded-2xl border border-white/15 bg-[#151a45]/90 px-3 py-2 shadow-lg backdrop-blur-md">
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <span className="inline-flex size-6 items-center justify-center rounded-full bg-amber-300 text-zinc-950">
-              <Radio className="size-3.5" />
-            </span>
-            TransitLive
+            <BrandLogo variant="mark" className="size-8 rounded-md bg-white p-0.5 object-contain" />
+            CCMM Flotte
           </div>
-          <div className="mt-1 flex items-center gap-2 text-[11px] text-zinc-300">
-            <span className={`size-1.5 rounded-full ${online ? "bg-emerald-400" : "bg-red-400"}`} />
+          <div className="mt-1 flex items-center gap-2 text-[11px] text-blue-100">
+            <span className={`size-1.5 rounded-full ${online ? "bg-[#00a4e8]" : "bg-red-400"}`} />
             {online ? "Live" : "Reconnecting"} · {liveVehicles.length} vehicles · {mapProvider}
           </div>
         </div>
@@ -337,7 +336,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           variant="secondary"
           size="sm"
           onClick={() => void leave()}
-          className="pointer-events-auto h-9 rounded-xl bg-zinc-950/80 text-zinc-100"
+          className="pointer-events-auto h-9 rounded-xl"
         >
           <LogOut />
           Leave
@@ -360,16 +359,16 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       </div>
 
       {gpsState !== "live" && session.role === "driver" ? (
-        <div className="absolute top-[5.5rem] right-3 z-20 max-w-[17rem] rounded-xl border border-amber-300/40 bg-zinc-950/90 p-3 text-xs leading-5 text-zinc-100 shadow-lg backdrop-blur">
-          <div className="font-semibold text-amber-200">
+        <div className="absolute top-[5.5rem] right-3 z-20 max-w-[17rem] rounded-xl border border-[#00a4e8]/40 bg-[#151a45]/92 p-3 text-xs leading-5 text-white shadow-lg backdrop-blur">
+          <div className="font-semibold text-[#7dd8f7]">
             {gpsState === "simulated" ? "Not your real position" : "Waiting for your GPS"}
           </div>
-          <p className="mt-1 text-zinc-300">
-            {gpsHint || "Allow location so the red YOU pin is this phone, not the training city."}
+          <p className="mt-1 text-blue-100">
+            {gpsHint || "Allow location so the YOU pin is this phone, not the training city."}
           </p>
           <Button
             size="sm"
-            className="mt-2 h-8 w-full rounded-lg bg-amber-300 text-zinc-950"
+            className="mt-2 h-8 w-full rounded-lg"
             onClick={() => requestGps(session)}
           >
             Use my real GPS
@@ -377,7 +376,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           {gpsState !== "simulated" ? (
             <button
               type="button"
-              className="mt-2 w-full text-center text-[11px] text-zinc-500 underline"
+              className="mt-2 w-full text-center text-[11px] text-blue-200/70 underline"
               onClick={() => startSimulation(session)}
             >
               Use training route instead
@@ -389,7 +388,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       <div className="pointer-events-none absolute right-3 bottom-28 z-20 flex flex-col gap-2">
         <Button
           variant="secondary"
-          className="pointer-events-auto h-11 rounded-full bg-zinc-950/80 px-3 shadow-lg"
+          className="pointer-events-auto h-11 rounded-full bg-[#151a45]/90 px-3 text-white shadow-lg"
           onClick={() => setPhoneOpen(true)}
         >
           <Smartphone className="size-4" />
@@ -397,7 +396,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         </Button>
         <Button
           variant="secondary"
-          className="pointer-events-auto h-11 rounded-full bg-zinc-950/80 px-3 shadow-lg"
+          className="pointer-events-auto h-11 rounded-full bg-[#151a45]/90 px-3 text-white shadow-lg"
           onClick={() => void toggleDemo()}
         >
           <Route className="size-4" />
@@ -407,7 +406,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           <Button
             size="icon"
             variant="secondary"
-            className="pointer-events-auto size-11 rounded-full bg-zinc-950/80 shadow-lg"
+            className="pointer-events-auto size-11 rounded-full bg-[#151a45]/90 text-white shadow-lg"
             onClick={() => {
               setSelectedId(session.id);
               setStickToMe(true);
@@ -420,13 +419,13 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       </div>
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="pointer-events-auto rounded-3xl border border-white/10 bg-zinc-950/88 p-4 shadow-2xl backdrop-blur-md">
+        <div className="pointer-events-auto rounded-3xl border border-white/15 bg-[#151a45]/92 p-4 text-white shadow-2xl backdrop-blur-md">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
               <div className="text-sm font-semibold">
                 {session.callSign} · {session.driverName}
               </div>
-              <div className="text-xs text-zinc-400">
+              <div className="text-xs text-blue-100">
                 {session.role === "driver" ? "Broadcasting this device" : "Dispatch console"}
                 {gpsState === "live"
                   ? ` · real GPS${myPos?.accuracy != null ? ` ±${Math.round(myPos.accuracy)}m` : ""}`
@@ -451,7 +450,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
               <Sheet open={fleetOpen} onOpenChange={setFleetOpen}>
                 <Button
                   size="sm"
-                  className="rounded-xl bg-amber-300 text-zinc-950 hover:bg-amber-200"
+                  className="rounded-xl"
                   onClick={() => setFleetOpen(true)}
                 >
                   <Users />
@@ -517,12 +516,12 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           </div>
 
           {selected ? (
-            <div className="rounded-2xl bg-white/5 px-3 py-2 text-xs text-zinc-200">
+            <div className="rounded-2xl bg-white/10 px-3 py-2 text-xs text-blue-50">
               <div className="flex items-center gap-2 font-medium">
                 <BusFront className="size-3.5" />
                 {selected.callSign} selected
               </div>
-              <div className="mt-1 text-zinc-400">
+              <div className="mt-1 text-blue-100">
                 {selected.driverName} · {statusLabel(selected, now)}
                 {selected.lat != null
                   ? ` · ${selected.lat.toFixed(4)}, ${selected.lng?.toFixed(4)}`
@@ -530,7 +529,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
               </div>
             </div>
           ) : (
-            <p className="text-xs text-zinc-400">
+            <p className="text-xs text-blue-100">
               Tap a marker or open Fleet to inspect a vehicle. Start demo vehicles if you are testing without extra phones.
             </p>
           )}

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BusFront, MapPinned, Radio } from "lucide-react";
+import { BusFront, MapPinned } from "lucide-react";
+import BrandLogo from "@/components/brand-logo";
 import PhoneAccess from "@/components/phone-access";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,29 +46,33 @@ export default function JoinScreen({ onJoin }: Props) {
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[radial-gradient(1200px_600px_at_10%_-10%,#1d4a3a_0%,transparent_55%),linear-gradient(180deg,#07110d_0%,#0c1813_100%)] px-5 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))] text-zinc-50">
+    <div className="flex min-h-dvh flex-col bg-[radial-gradient(900px_420px_at_0%_-10%,#d7f0fc_0%,transparent_55%),linear-gradient(180deg,#ffffff_0%,#eef3fb_100%)] px-5 pb-8 pt-[max(1.5rem,env(safe-area-inset-top))] text-[#1c2268]">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col">
-        <div className="mb-8 mt-4">
-          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-medium tracking-wide text-emerald-200">
-            <Radio className="size-3.5" />
-            Live fleet radio
+        <div className="mb-6 mt-2">
+          <div className="rounded-3xl bg-white px-4 py-5 shadow-[0_12px_40px_rgba(43,48,143,0.08)]">
+            <BrandLogo />
           </div>
-          <h1 className="text-3xl font-semibold tracking-tight">TransitLive</h1>
-          <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-300">
-            Sign your vehicle onto the board. Tap Join and allow location so
-            the map uses this phone’s real GPS — not a training city.
+          <p className="mt-4 text-sm font-medium tracking-wide text-[#00a4e8]">
+            Suivi de flotte · Fleet tracking
+          </p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#2b308f]">
+            Vehicles on the road
+          </h1>
+          <p className="mt-2 max-w-sm text-sm leading-6 text-[#5b6294]">
+            Sign a CCMM vehicle onto the live map. Tap Join and allow location
+            so the pin is this phone’s real GPS.
           </p>
         </div>
 
-        <form onSubmit={submit} className="flex flex-col gap-5 rounded-3xl border border-white/10 bg-black/25 p-5 backdrop-blur-md">
+        <form onSubmit={submit} className="flex flex-col gap-5 rounded-3xl border border-[#d5dcf0] bg-white p-5 shadow-[0_12px_40px_rgba(43,48,143,0.08)]">
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
               onClick={() => setRole("driver")}
               className={`rounded-2xl border px-3 py-3 text-left text-sm transition ${
                 role === "driver"
-                  ? "border-amber-300 bg-amber-300 text-zinc-950"
-                  : "border-white/10 bg-white/5 text-zinc-200"
+                  ? "border-[#00a4e8] bg-[#00a4e8] text-white"
+                  : "border-[#d5dcf0] bg-[#f4f7fc] text-[#2b308f]"
               }`}
             >
               <MapPinned className="mb-1 size-4" />
@@ -79,8 +84,8 @@ export default function JoinScreen({ onJoin }: Props) {
               onClick={() => setRole("dispatcher")}
               className={`rounded-2xl border px-3 py-3 text-left text-sm transition ${
                 role === "dispatcher"
-                  ? "border-amber-300 bg-amber-300 text-zinc-950"
-                  : "border-white/10 bg-white/5 text-zinc-200"
+                  ? "border-[#2b308f] bg-[#2b308f] text-white"
+                  : "border-[#d5dcf0] bg-[#f4f7fc] text-[#2b308f]"
               }`}
             >
               <BusFront className="mb-1 size-4" />
@@ -90,33 +95,31 @@ export default function JoinScreen({ onJoin }: Props) {
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="callSign" className="text-zinc-200">
-              Call sign
-            </Label>
+            <Label htmlFor="callSign">Call sign</Label>
             <Input
               id="callSign"
               value={callSign}
               onChange={(e) => setCallSign(e.target.value)}
-              placeholder="BUS-12"
-              className="h-11 rounded-xl border-white/10 bg-white/10 text-base text-white placeholder:text-zinc-400"
+              placeholder="CAM-12"
+              className="h-11 rounded-xl text-base"
             />
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="driverName" className="text-zinc-200">
+            <Label htmlFor="driverName">
               {role === "dispatcher" ? "Desk name" : "Driver name"}
             </Label>
             <Input
               id="driverName"
               value={driverName}
               onChange={(e) => setDriverName(e.target.value)}
-              placeholder={role === "dispatcher" ? "Central desk" : "Your name"}
-              className="h-11 rounded-xl border-white/10 bg-white/10 text-base text-white placeholder:text-zinc-400"
+              placeholder={role === "dispatcher" ? "CCMM desk" : "Your name"}
+              className="h-11 rounded-xl text-base"
             />
           </div>
 
           <div className="grid gap-2">
-            <Label className="text-zinc-200">Vehicle type</Label>
+            <Label>Vehicle type</Label>
             <div className="grid grid-cols-3 gap-2">
               {VEHICLE_TYPES.map((type) => (
                 <button
@@ -125,8 +128,8 @@ export default function JoinScreen({ onJoin }: Props) {
                   onClick={() => setVehicleType(type)}
                   className={`rounded-xl border px-2 py-2 text-xs font-medium capitalize ${
                     vehicleType === type
-                      ? "border-white bg-white text-zinc-950"
-                      : "border-white/10 bg-white/5 text-zinc-200"
+                      ? "border-[#2b308f] bg-[#2b308f] text-white"
+                      : "border-[#d5dcf0] bg-[#f4f7fc] text-[#2b308f]"
                   }`}
                 >
                   <span
@@ -139,9 +142,9 @@ export default function JoinScreen({ onJoin }: Props) {
             </div>
           </div>
 
-          {error ? <p className="text-sm text-red-300">{error}</p> : null}
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-          <Button type="submit" size="lg" className="h-12 rounded-xl bg-amber-300 text-zinc-950 hover:bg-amber-200">
+          <Button type="submit" size="lg" className="h-12 rounded-xl text-base">
             Join the map
           </Button>
         </form>
@@ -150,9 +153,9 @@ export default function JoinScreen({ onJoin }: Props) {
           <PhoneAccess />
         </div>
 
-        <p className="mt-auto pt-6 text-center text-xs leading-5 text-zinc-400">
-          Open this app on every vehicle phone. Positions update live while the
-          device stays connected.
+        <p className="mt-auto pt-6 text-center text-xs leading-5 text-[#5b6294]">
+          CCMM — Construction Carrosserie Menuiserie Métallique. Open this app
+          on every works vehicle so the desk can see it live.
         </p>
       </div>
     </div>

@@ -8,16 +8,17 @@ import { VEHICLE_META } from "@/lib/types";
 import { DEFAULT_CENTER, devicesWithPosition, kph, statusLabel, type MapFollow } from "@/lib/format";
 
 function markerIcon(device: FleetDevice, selected: boolean, isSelf: boolean) {
-  const color = isSelf ? "#ef4444" : VEHICLE_META[device.vehicleType].color;
+  const color = isSelf ? "#00a4e8" : VEHICLE_META[device.vehicleType].color;
   const ring = selected || isSelf ? "#fff" : "rgba(255,255,255,0.35)";
   const label = isSelf ? "YOU" : device.callSign;
+  const text = isSelf ? "#ffffff" : "#0b1220";
   const html = `
     <div style="
       transform: translate(-50%, -100%);
       display:flex; flex-direction:column; align-items:center; font-family: Inter, system-ui, sans-serif;
     ">
       <div style="
-        background:${color}; color:#0b1220; font-weight:800; font-size:11px; letter-spacing:.04em;
+        background:${color}; color:${text}; font-weight:800; font-size:11px; letter-spacing:.04em;
         padding:4px 7px; border-radius:999px; border:2px solid ${ring}; box-shadow:0 8px 20px rgba(0,0,0,.35);
         white-space:nowrap;
       ">${label}</div>

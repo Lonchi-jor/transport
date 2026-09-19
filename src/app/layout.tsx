@@ -13,10 +13,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TransitLive — fleet tracking",
+  title: "CCMM Flotte — suivi des véhicules",
   description:
-    "Mobile fleet map for transportation teams. Every connected vehicle phone shares its live position.",
-  applicationName: "TransitLive",
+    "Carte live des véhicules CCMM. Construction Carrosserie Menuiserie Métallique.",
+  applicationName: "CCMM Flotte",
   manifest: "/manifest.webmanifest",
   icons: {
     icon: [
@@ -27,8 +27,8 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    title: "TransitLive",
-    statusBarStyle: "black-translucent",
+    title: "CCMM Flotte",
+    statusBarStyle: "default",
   },
 };
 
@@ -37,16 +37,16 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#07110d",
+  themeColor: "#2b308f",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full dark antialiased`}
+      lang="fr"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full bg-zinc-950 text-zinc-50">{children}</body>
+      <body className="min-h-full bg-[#f4f7fc] text-[#1c2268]">{children}</body>
     </html>
   );
 }

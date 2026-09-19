@@ -66,26 +66,30 @@ export default function PhoneAccess({ compact = false }: Props) {
     <div
       className={
         compact
-          ? "rounded-2xl border border-white/10 bg-black/30 p-3"
-          : "rounded-3xl border border-white/10 bg-black/25 p-4"
+          ? "rounded-2xl border border-[#d5dcf0] bg-[#f4f7fc] p-3"
+          : "rounded-3xl border border-[#d5dcf0] bg-white p-4 shadow-[0_12px_40px_rgba(43,48,143,0.08)]"
       }
     >
-      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-amber-200">
-        <Smartphone className="size-4" />
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[#2b308f]">
+        <Smartphone className="size-4 text-[#00a4e8]" />
         Test on your phone
       </div>
       <div className="flex items-center gap-3">
-        <div className="rounded-xl bg-white p-2">
-          <QRCodeSVG value={shareUrl} size={compact ? 96 : 132} marginSize={0} />
+        <div className="rounded-xl border border-[#d5dcf0] bg-white p-2">
+          <QRCodeSVG
+            value={shareUrl}
+            size={compact ? 96 : 132}
+            marginSize={0}
+            fgColor="#2b308f"
+          />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs leading-5 text-zinc-300">{hint}</p>
-          <p className="mt-2 truncate font-mono text-[11px] text-emerald-200">{shareUrl}</p>
+          <p className="text-xs leading-5 text-[#5b6294]">{hint}</p>
+          <p className="mt-2 truncate font-mono text-[11px] text-[#00a4e8]">{shareUrl}</p>
           <Button
             type="button"
             size="sm"
-            variant="secondary"
-            className="mt-2 h-8 rounded-lg bg-white/10 text-zinc-100"
+            className="mt-2 h-8 rounded-lg"
             onClick={() => void copy()}
           >
             {copied ? <Check /> : <Copy />}
@@ -93,7 +97,7 @@ export default function PhoneAccess({ compact = false }: Props) {
           </Button>
         </div>
       </div>
-      <ol className="mt-3 list-decimal space-y-1 pl-4 text-[11px] leading-5 text-zinc-400">
+      <ol className="mt-3 list-decimal space-y-1 pl-4 text-[11px] leading-5 text-[#5b6294]">
         <li>Open the link in Safari or Chrome on the phone.</li>
         <li>Allow location when you join as a driver.</li>
         <li>

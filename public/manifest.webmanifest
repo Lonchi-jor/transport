@@ -1,11 +1,11 @@
 {
-  "name": "TransitLive",
-  "short_name": "TransitLive",
-  "description": "Live fleet map for transportation teams. Track every connected vehicle phone.",
+  "name": "CCMM Flotte",
+  "short_name": "CCMM",
+  "description": "Suivi live des véhicules CCMM — Construction Carrosserie Menuiserie Métallique.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#07110d",
-  "theme_color": "#07110d",
+  "background_color": "#ffffff",
+  "theme_color": "#2b308f",
   "orientation": "portrait",
   "icons": [
     {

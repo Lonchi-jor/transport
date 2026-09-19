@@ -49,72 +49,74 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --ccmm-navy: #2b308f;
+  --ccmm-cyan: #00a4e8;
+  --background: #f4f7fc;
+  --foreground: #1c2268;
+  --card: #ffffff;
+  --card-foreground: #1c2268;
+  --popover: #ffffff;
+  --popover-foreground: #1c2268;
+  --primary: #00a4e8;
+  --primary-foreground: #ffffff;
+  --secondary: #e8eefc;
+  --secondary-foreground: #2b308f;
+  --muted: #eef2fb;
+  --muted-foreground: #5b6294;
+  --accent: #d7ecfb;
+  --accent-foreground: #2b308f;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: #d5dcf0;
+  --input: #d5dcf0;
+  --ring: #00a4e8;
+  --chart-1: #00a4e8;
+  --chart-2: #2b308f;
+  --chart-3: #4d7fe8;
+  --chart-4: #6c74d4;
+  --chart-5: #1a9fe0;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1c2268;
+  --sidebar-primary: #2b308f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e8eefc;
+  --sidebar-accent-foreground: #2b308f;
+  --sidebar-border: #d5dcf0;
+  --sidebar-ring: #00a4e8;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #10143a;
+  --foreground: #f4f7fc;
+  --card: #181d4d;
+  --card-foreground: #f4f7fc;
+  --popover: #181d4d;
+  --popover-foreground: #f4f7fc;
+  --primary: #00a4e8;
+  --primary-foreground: #ffffff;
+  --secondary: #242a63;
+  --secondary-foreground: #f4f7fc;
+  --muted: #242a63;
+  --muted-foreground: #b7bde0;
+  --accent: #242a63;
+  --accent-foreground: #f4f7fc;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: rgb(255 255 255 / 12%);
+  --input: rgb(255 255 255 / 14%);
+  --ring: #00a4e8;
+  --chart-1: #00a4e8;
+  --chart-2: #6c74d4;
+  --chart-3: #4d7fe8;
+  --chart-4: #2b308f;
+  --chart-5: #1a9fe0;
+  --sidebar: #181d4d;
+  --sidebar-foreground: #f4f7fc;
+  --sidebar-primary: #00a4e8;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #242a63;
+  --sidebar-accent-foreground: #f4f7fc;
+  --sidebar-border: rgb(255 255 255 / 12%);
+  --sidebar-ring: #00a4e8;
 }
 
 @layer base {
@@ -130,7 +132,7 @@
 }
 
 .leaflet-container {
-  background: #d9e4d6;
+  background: #d7e8f8;
   font-family: inherit;
 }
 

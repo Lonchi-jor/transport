@@ -1,8 +1,10 @@
-# TransitLive
+# CCMM Flotte
 
-A mobile-first fleet tracker for transportation desks. Every phone that joins the app becomes a live vehicle (or a dispatch console) on a shared map.
+Live vehicle map for **CCMM** — Construction Carrosserie Menuiserie Métallique.
 
-Drivers broadcast GPS. Dispatchers watch every connected bus, taxi, truck, van, and courier bike update in near real time.
+Every works phone that joins becomes a live unit on the shared map. Drivers broadcast GPS. The desk watches every connected vehicle.
+
+The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#00A4E8`.
 
 ## Test on your phone while you develop
 
@@ -25,26 +27,15 @@ npm run phone
 4. Join as **Driver** and allow location. Use **Add to Home Screen** (iPhone Share sheet) or **Install app** (Android) to run it like a native app.
 5. Leave the two terminals running. Refresh the phone after you save code.
 
-The join screen and the **Phone** button on the map show a live QR for the tunnel. Open that same link on a second phone to see both vehicles.
-
-Same Wi-Fi without a tunnel (Android only, GPS may be blocked):
-
-```bash
-npm run dev
-```
-
-Then open `http://YOUR_LAN_IP:43147` on the phone.
-
 ## What you get
 
 - Join as a **driver** or **dispatch desk**
-- Live map of every connected device
+- Live map of every connected CCMM vehicle
 - Vehicle list with speed, status, and last radio ping
 - Installable phone app (home screen / PWA)
 - **Google Maps** when you add an API key
 - OpenStreetMap fallback so the app still runs without a key
-- Simulated GPS if the phone blocks location
-- Optional demo vehicles on a city loop for training
+- Real GPS by default; optional training route only if you ask for it
 
 Positions live in memory on the server. They disappear about 20 seconds after a device goes offline. There is no login and no database.
 
@@ -59,7 +50,7 @@ Restrict the key to your domain before you ship.
 
 ## Demo fleet
 
-On the map, tap **Demo fleet** to place four training vehicles on a Nairobi loop. They are labeled as demo units and do not replace real phones.
+On the map, tap **Demo fleet** to place four training vehicles. They are labeled as training units and do not replace real phones.
 
 ## Stack
 
