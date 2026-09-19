@@ -49,10 +49,11 @@ export default function FleetMap({
   onUserPan,
   selfId,
 }: Props) {
-  if (googleMapsApiKey) {
+  const key = googleMapsApiKey.trim();
+  if (key) {
     return (
       <GoogleFleetMap
-        apiKey={googleMapsApiKey}
+        apiKey={key}
         devices={devices}
         now={now}
         selectedId={selectedId}
