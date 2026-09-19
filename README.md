@@ -12,7 +12,7 @@ Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC.
 
 Le bureau crée une course (client, enlèvement, livraison) et l’attribue à un chauffeur connecté. En tapant le lieu de départ ou d’arrivée, des **suggestions d’adresses** apparaissent (comme sur Google Maps). À la création, l’app calcule l’itinéraire routier.
 
-Le téléphone du chauffeur affiche la course tout de suite. Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route** et **l’itinéraire** s’affiche sur la carte. **Terminer** clôture la course.
+Le téléphone du chauffeur affiche la course tout de suite. Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route** et **l’itinéraire** s’affiche sur la carte. Pour **terminer**, il scanne le **bon de livraison** (caméra ou import) : l’app recadre le document **en couleur** (type CamScanner) et le joint à la course. Le bureau peut **télécharger** le BL depuis `/admin`.
 
 ## Test on your phone while you develop
 
@@ -46,6 +46,7 @@ npm run phone
 - Real GPS by default; optional training route only if you ask for it
 - Address suggestions on pickup / dropoff (Google Places if keyed, Photon otherwise)
 - Driving itinerary on the map after the driver enters the BN and starts the job
+- Color CamScanner-style delivery-note scan before a job can be marked done; dispatch can download the JPEG
 
 Positions live in memory on the server. They disappear about 20 seconds after a device goes offline. There is no login and no database.
 

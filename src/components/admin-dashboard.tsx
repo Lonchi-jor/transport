@@ -343,6 +343,9 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                           {course.bnNumber ? (
                             <div className="mt-1 text-xs font-medium text-[#2b308f]">BN {course.bnNumber}</div>
                           ) : null}
+                          {course.hasDeliveryScan ? (
+                            <div className="mt-1 text-xs font-medium text-[#00a4e8]">BL scanné</div>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           <div>{course.pickupAddress}</div>
@@ -384,18 +387,32 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
-                          {course.status !== "cancelled" && course.status !== "done" ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void patchCourse(course.id, { status: "cancelled" });
-                              }}
-                            >
-                              Annuler
-                            </Button>
-                          ) : null}
+                          <div className="flex flex-col items-start gap-1">
+                            {course.hasDeliveryScan ? (
+                              <a
+                                href={`/api/courses/${course.id}/delivery`}
+                                download={`${course.reference}-bon-livraison.jpg`}
+                                className="inline-flex h-8 items-center rounded-lg bg-primary px-2.5 text-[0.8rem] font-medium text-primary-foreground"
+                                onClick={(event) => event.stopPropagation()}
+                              >
+                                Télécharger le BL
+                              </a>
+                            ) : course.status === "done" ? (
+                              <span className="text-xs text-[#5b6294]">BL manquant</span>
+                            ) : null}
+                            {course.status !== "cancelled" && course.status !== "done" ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void patchCourse(course.id, { status: "cancelled" });
+                                }}
+                              >
+                                Annuler
+                              </Button>
+                            ) : null}
+                          </div>
                         </td>
                       </tr>
                     ))}

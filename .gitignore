@@ -20,6 +20,9 @@
 # production
 /build
 
+# scanned delivery notes
+.data/
+
 # misc
 .DS_Store
 *.pem

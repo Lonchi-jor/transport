@@ -22,8 +22,8 @@ export async function PATCH(
   if (body.status !== undefined && !isCourseStatus(body.status)) {
     return NextResponse.json({ error: "Statut inconnu" }, { status: 400 });
   }
+  const current = getCourse(id);
   if (body.status === "en_route") {
-    const current = getCourse(id);
     const bn = (body.bnNumber ?? current?.bnNumber ?? "").trim();
     if (!bn) {
       return NextResponse.json(
@@ -31,6 +31,12 @@ export async function PATCH(
         { status: 400 },
       );
     }
+  }
+  if (body.status === "done" && !current?.hasDeliveryScan) {
+    return NextResponse.json(
+      { error: "Scannez le bon de livraison avant de terminer la course." },
+      { status: 400 },
+    );
   }
   const course = updateCourse(id, {
     assignedDeviceId: body.assignedDeviceId,

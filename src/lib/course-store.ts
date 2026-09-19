@@ -55,6 +55,9 @@ export function createCourse(draft: CourseDraft): Course {
     distanceMeters: draft.distanceMeters ?? null,
     durationSeconds: draft.durationSeconds ?? null,
     bnNumber: null,
+    hasDeliveryScan: false,
+    deliveryFileName: null,
+    deliveryScannedAt: null,
     notes: (draft.notes ?? "").trim(),
     scheduledAt: draft.scheduledAt || null,
     assignedDeviceId: null,
@@ -93,9 +96,26 @@ export function updateCourse(
     if (patch.status === "en_route" && !next.bnNumber) {
       return null;
     }
+    if (patch.status === "done" && !next.hasDeliveryScan) {
+      return null;
+    }
     next.status = patch.status;
     next.updatedAt = Date.now();
   }
+  courses.set(id, next);
+  return next;
+}
+
+export function attachDeliveryScan(id: string, fileName: string): Course | null {
+  const existing = courses.get(id);
+  if (!existing) return null;
+  const next: Course = {
+    ...existing,
+    hasDeliveryScan: true,
+    deliveryFileName: fileName,
+    deliveryScannedAt: Date.now(),
+    updatedAt: Date.now(),
+  };
   courses.set(id, next);
   return next;
 }

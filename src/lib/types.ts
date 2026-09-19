@@ -59,6 +59,9 @@ export type Course = {
   distanceMeters: number | null;
   durationSeconds: number | null;
   bnNumber: string | null;
+  hasDeliveryScan: boolean;
+  deliveryFileName: string | null;
+  deliveryScannedAt: number | null;
   notes: string;
   scheduledAt: string | null;
   assignedDeviceId: string | null;

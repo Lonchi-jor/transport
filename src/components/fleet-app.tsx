@@ -10,6 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import FleetMap from "@/components/fleet-map";
 import JoinScreen, { type JoinPayload } from "@/components/join-screen";
 import PhoneAccess from "@/components/phone-access";
+import DeliveryScanner from "@/components/delivery-scanner";
 import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
 import { COURSE_STATUS_LABEL, courseToMapRoute, DEFAULT_CENTER, formatAge, kph, statusLabel } from "@/lib/format";
@@ -49,6 +50,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [bnValue, setBnValue] = useState("");
   const [bnError, setBnError] = useState("");
   const [bnJobId, setBnJobId] = useState<string | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
+  const [scanJobId, setScanJobId] = useState<string | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [hasFix, setHasFix] = useState(false);
   const [myPos, setMyPos] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
@@ -336,6 +339,25 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     setBnOpen(true);
   }
 
+  function askDelivery(jobId: string) {
+    setJobsOpen(false);
+    setScanJobId(jobId);
+    setScanOpen(true);
+  }
+
+  async function submitDeliveryScan(blob: Blob) {
+    if (!scanJobId) return;
+    const form = new FormData();
+    form.append("file", blob, "bon-livraison.jpg");
+    form.append("complete", "true");
+    const res = await fetch(`/api/courses/${scanJobId}/delivery`, { method: "POST", body: form });
+    const data = (await res.json()) as FleetSnapshot & { error?: string };
+    if (!res.ok) throw new Error(data.error || "Impossible de joindre le bon de livraison.");
+    applySnapshot(data);
+    setScanOpen(false);
+    setScanJobId(null);
+  }
+
   const liveVehicles = useMemo(
     () => devices.filter((d) => d.role === "driver"),
     [devices],
@@ -418,6 +440,13 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           </div>
         </SheetContent>
       </Sheet>
+
+      <DeliveryScanner
+        key={scanOpen ? scanJobId ?? "scan" : "closed"}
+        open={scanOpen}
+        onClose={() => setScanOpen(false)}
+        onConfirm={submitDeliveryScan}
+      />
 
       <div className="absolute inset-0 z-0 isolate">
         <FleetMap
@@ -564,8 +593,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                 </Button>
                               ) : null}
                               {job.status === "en_route" ? (
-                                <Button size="sm" onClick={() => void patchCourse(job.id, { status: "done" })}>
-                                  Terminer
+                                <Button size="sm" onClick={() => askDelivery(job.id)}>
+                                  Terminer — scanner le BL
                                 </Button>
                               ) : null}
                             </div>
@@ -671,9 +700,9 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                   <Button
                     size="sm"
                     className="h-8 rounded-lg"
-                    onClick={() => void patchCourse(currentJob.id, { status: "done" })}
+                    onClick={() => askDelivery(currentJob.id)}
                   >
-                    Course terminée
+                    Terminer — scanner le BL
                   </Button>
                 )}
               </div>
