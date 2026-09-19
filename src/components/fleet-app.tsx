@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BusFront, Crosshair, LogOut, Route, Smartphone, Users } from "lucide-react";
+import { BusFront, ClipboardList, Crosshair, LogOut, Route, Smartphone, Users } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import "leaflet/dist/leaflet.css";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +10,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import FleetMap from "@/components/fleet-map";
 import JoinScreen, { type JoinPayload } from "@/components/join-screen";
 import PhoneAccess from "@/components/phone-access";
-import type { FleetDevice, FleetSnapshot } from "@/lib/types";
+import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
-import { DEFAULT_CENTER, formatAge, kph, statusLabel } from "@/lib/format";
+import { COURSE_STATUS_LABEL, DEFAULT_CENTER, formatAge, kph, statusLabel } from "@/lib/format";
 
 const SESSION_KEY = "transitlive-session";
 
@@ -35,6 +35,7 @@ function loadSession(): Session | null {
 export default function FleetApp({ googleMapsApiKey }: Props) {
   const [session, setSession] = useState<Session | null>(null);
   const [devices, setDevices] = useState<FleetDevice[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [now, setNow] = useState(0);
   const [demo, setDemo] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -42,6 +43,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [gpsHint, setGpsHint] = useState("");
   const [online, setOnline] = useState(true);
   const [fleetOpen, setFleetOpen] = useState(false);
+  const [jobsOpen, setJobsOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [hasFix, setHasFix] = useState(false);
   const [myPos, setMyPos] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
@@ -67,6 +69,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
 
   const applySnapshot = useCallback((snapshot: FleetSnapshot & { demo?: boolean }) => {
     setDevices(snapshot.devices);
+    setCourses(snapshot.courses ?? []);
     setNow(snapshot.now);
     if (typeof snapshot.demo === "boolean") setDemo(snapshot.demo);
     setOnline(true);
@@ -294,6 +297,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     gpsModeRef.current = "idle";
     setSession(null);
     setDevices([]);
+    setCourses([]);
     setGpsState("idle");
   }
 
@@ -303,10 +307,29 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     applySnapshot(snapshot);
   }
 
+  async function patchCourse(id: string, status: string) {
+    const res = await fetch(`/api/courses/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    applySnapshot((await res.json()) as FleetSnapshot);
+  }
+
   const liveVehicles = useMemo(
     () => devices.filter((d) => d.role === "driver"),
     [devices],
   );
+  const myJobs = useMemo(
+    () =>
+      courses.filter(
+        (course) =>
+          course.assignedDeviceId === session?.id &&
+          (course.status === "assigned" || course.status === "en_route"),
+      ),
+    [courses, session?.id],
+  );
+  const currentJob = myJobs.find((c) => c.status === "en_route") ?? myJobs[0] ?? null;
   const follow = useMemo(() => {
     if (gpsState !== "live" || !myPos) return null;
     return { lat: myPos.lat, lng: myPos.lng };
@@ -447,6 +470,58 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                   </div>
                 </SheetContent>
               </Sheet>
+              <Sheet open={jobsOpen} onOpenChange={setJobsOpen}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="rounded-xl"
+                  onClick={() => setJobsOpen(true)}
+                >
+                  <ClipboardList />
+                  Courses
+                  {myJobs.length > 0 ? ` (${myJobs.length})` : ""}
+                </Button>
+                <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
+                  <SheetHeader>
+                    <SheetTitle>Vos courses</SheetTitle>
+                  </SheetHeader>
+                  <div className="overflow-y-auto px-4 pb-6">
+                    {myJobs.length === 0 ? (
+                      <p className="py-8 text-sm text-muted-foreground">
+                        Le bureau n’a pas encore attribué de course à ce véhicule.
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {myJobs.map((job) => (
+                          <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="font-semibold">{job.reference}</div>
+                              <Badge>{COURSE_STATUS_LABEL[job.status]}</Badge>
+                            </div>
+                            <div className="mt-1 text-sm">{job.clientName}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {job.pickupAddress} → {job.dropoffAddress}
+                            </div>
+                            {job.notes ? <div className="mt-1 text-xs">{job.notes}</div> : null}
+                            <div className="mt-3 flex gap-2">
+                              {job.status === "assigned" ? (
+                                <Button size="sm" onClick={() => void patchCourse(job.id, "en_route")}>
+                                  Démarrer
+                                </Button>
+                              ) : null}
+                              {job.status === "en_route" ? (
+                                <Button size="sm" onClick={() => void patchCourse(job.id, "done")}>
+                                  Terminer
+                                </Button>
+                              ) : null}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
               <Sheet open={fleetOpen} onOpenChange={setFleetOpen}>
                 <Button
                   size="sm"
@@ -515,7 +590,38 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
             </div>
           </div>
 
-          {selected ? (
+          {currentJob ? (
+            <div className="rounded-2xl bg-white/10 px-3 py-2 text-xs text-blue-50">
+              <div className="flex items-center justify-between gap-2 font-medium">
+                <span>
+                  {currentJob.reference} · {COURSE_STATUS_LABEL[currentJob.status]}
+                </span>
+              </div>
+              <div className="mt-1 text-blue-100">{currentJob.clientName}</div>
+              <div className="mt-1 text-blue-100">
+                {currentJob.pickupAddress} → {currentJob.dropoffAddress}
+              </div>
+              <div className="mt-2 flex gap-2">
+                {currentJob.status === "assigned" ? (
+                  <Button
+                    size="sm"
+                    className="h-8 rounded-lg"
+                    onClick={() => void patchCourse(currentJob.id, "en_route")}
+                  >
+                    Démarrer la course
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="h-8 rounded-lg"
+                    onClick={() => void patchCourse(currentJob.id, "done")}
+                  >
+                    Course terminée
+                  </Button>
+                )}
+              </div>
+            </div>
+          ) : selected ? (
             <div className="rounded-2xl bg-white/10 px-3 py-2 text-xs text-blue-50">
               <div className="flex items-center gap-2 font-medium">
                 <BusFront className="size-3.5" />

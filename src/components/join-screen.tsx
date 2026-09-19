@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { BusFront, MapPinned } from "lucide-react";
+import Link from "next/link";
+import { BusFront, MapPinned, Monitor } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import PhoneAccess from "@/components/phone-access";
 import { Button } from "@/components/ui/button";
@@ -59,9 +60,16 @@ export default function JoinScreen({ onJoin }: Props) {
             Vehicles on the road
           </h1>
           <p className="mt-2 max-w-sm text-sm leading-6 text-[#5b6294]">
-            Sign a CCMM vehicle onto the live map. Tap Join and allow location
-            so the pin is this phone’s real GPS.
+            Téléphone chauffeur : rejoignez la carte. Bureau : donnez les
+            courses depuis le tableau de bord.
           </p>
+          <Link
+            href="/admin"
+            className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-[#00a4e8]"
+          >
+            <Monitor className="size-4" />
+            Tableau de bord dispatch (ordinateur)
+          </Link>
         </div>
 
         <form onSubmit={submit} className="flex flex-col gap-5 rounded-3xl border border-[#d5dcf0] bg-white p-5 shadow-[0_12px_40px_rgba(43,48,143,0.08)]">

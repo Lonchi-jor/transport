@@ -1,4 +1,4 @@
-import { isDemoRunning, listDevices } from "@/lib/fleet-store";
+import { radioSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,11 +11,7 @@ export async function GET(request: Request) {
     start(controller) {
       const push = () => {
         try {
-          const payload = JSON.stringify({
-            devices: listDevices(),
-            now: Date.now(),
-            demo: isDemoRunning(),
-          });
+          const payload = JSON.stringify(radioSnapshot());
           controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
         } catch {
           if (interval) clearInterval(interval);

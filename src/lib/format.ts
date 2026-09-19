@@ -1,4 +1,4 @@
-import type { FleetDevice } from "@/lib/types";
+import type { Course, CourseStatus, FleetDevice } from "@/lib/types";
 
 export type MapFollow = {
   lat: number;
@@ -30,4 +30,16 @@ export function formatAge(lastSeen: number, now: number) {
 
 export function devicesWithPosition(devices: FleetDevice[]) {
   return devices.filter((d) => d.lat != null && d.lng != null);
+}
+
+export const COURSE_STATUS_LABEL: Record<CourseStatus, string> = {
+  open: "À attribuer",
+  assigned: "Attribuée",
+  en_route: "En course",
+  done: "Terminée",
+  cancelled: "Annulée",
+};
+
+export function activeCourses(courses: Course[]) {
+  return courses.filter((c) => c.status === "open" || c.status === "assigned" || c.status === "en_route");
 }

@@ -6,6 +6,12 @@ Every works phone that joins becomes a live unit on the shared map. Drivers broa
 
 The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#00A4E8`.
 
+## Tableau de bord dispatch (ordinateur)
+
+Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC.
+
+Le bureau crée une course (client, enlèvement, livraison) et l’attribue à un chauffeur connecté. Le téléphone du chauffeur affiche la course tout de suite, avec **Démarrer** puis **Terminer**.
+
 ## Test on your phone while you develop
 
 Phones will not load `http://127.0.0.1`. iOS also blocks GPS on plain HTTP, so use the HTTPS tunnel.

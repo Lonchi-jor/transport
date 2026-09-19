@@ -35,9 +35,47 @@ export type HeartbeatPayload = {
   simulated?: boolean;
 };
 
+export const COURSE_STATUSES = [
+  "open",
+  "assigned",
+  "en_route",
+  "done",
+  "cancelled",
+] as const;
+export type CourseStatus = (typeof COURSE_STATUSES)[number];
+
+export type Course = {
+  id: string;
+  reference: string;
+  clientName: string;
+  clientPhone: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  notes: string;
+  scheduledAt: string | null;
+  assignedDeviceId: string | null;
+  assignedCallSign: string | null;
+  assignedDriverName: string | null;
+  status: CourseStatus;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type CourseDraft = {
+  clientName: string;
+  clientPhone?: string;
+  pickupAddress: string;
+  dropoffAddress: string;
+  notes?: string;
+  scheduledAt?: string | null;
+  assignedDeviceId?: string | null;
+};
+
 export type FleetSnapshot = {
   devices: FleetDevice[];
+  courses?: Course[];
   now: number;
+  demo?: boolean;
 };
 
 export const VEHICLE_META: Record<

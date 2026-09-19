@@ -193,6 +193,11 @@ export function heartbeat(payload: HeartbeatPayload): FleetDevice {
   return device;
 }
 
+export function getDevice(id: string) {
+  pruneStale();
+  return devices.get(id) ?? null;
+}
+
 export function removeDevice(id: string) {
   devices.delete(id);
 }
