@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { FleetDevice } from "@/lib/types";
+import type { MapFollow } from "@/lib/format";
 
 const LeafletFleetMap = dynamic(() => import("@/components/leaflet-fleet-map"), {
   ssr: false,
@@ -21,12 +22,19 @@ function MapSkeleton() {
   );
 }
 
+export type { MapFollow };
+
 type Props = {
   googleMapsApiKey: string;
   devices: FleetDevice[];
   now: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  follow: MapFollow | null;
+  stickToMe: boolean;
+  recenterKey: number;
+  onUserPan: () => void;
+  selfId: string | null;
 };
 
 export default function FleetMap({
@@ -35,6 +43,11 @@ export default function FleetMap({
   now,
   selectedId,
   onSelect,
+  follow,
+  stickToMe,
+  recenterKey,
+  onUserPan,
+  selfId,
 }: Props) {
   if (googleMapsApiKey) {
     return (
@@ -44,11 +57,26 @@ export default function FleetMap({
         now={now}
         selectedId={selectedId}
         onSelect={onSelect}
+        follow={follow}
+        stickToMe={stickToMe}
+        recenterKey={recenterKey}
+        onUserPan={onUserPan}
+        selfId={selfId}
       />
     );
   }
 
   return (
-    <LeafletFleetMap devices={devices} now={now} selectedId={selectedId} onSelect={onSelect} />
+    <LeafletFleetMap
+      devices={devices}
+      now={now}
+      selectedId={selectedId}
+      onSelect={onSelect}
+      follow={follow}
+      stickToMe={stickToMe}
+      recenterKey={recenterKey}
+      onUserPan={onUserPan}
+      selfId={selfId}
+    />
   );
 }

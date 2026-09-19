@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { useEffect, useMemo } from "react";
+import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { FleetDevice } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
-import { DEFAULT_CENTER, devicesWithPosition, kph, statusLabel } from "@/lib/format";
+import { DEFAULT_CENTER, devicesWithPosition, kph, statusLabel, type MapFollow } from "@/lib/format";
 
-function markerIcon(device: FleetDevice, selected: boolean) {
-  const color = VEHICLE_META[device.vehicleType].color;
-  const ring = selected ? "#fff" : "rgba(255,255,255,0.35)";
+function markerIcon(device: FleetDevice, selected: boolean, isSelf: boolean) {
+  const color = isSelf ? "#ef4444" : VEHICLE_META[device.vehicleType].color;
+  const ring = selected || isSelf ? "#fff" : "rgba(255,255,255,0.35)";
+  const label = isSelf ? "YOU" : device.callSign;
   const html = `
     <div style="
       transform: translate(-50%, -100%);
@@ -19,7 +20,7 @@ function markerIcon(device: FleetDevice, selected: boolean) {
         background:${color}; color:#0b1220; font-weight:800; font-size:11px; letter-spacing:.04em;
         padding:4px 7px; border-radius:999px; border:2px solid ${ring}; box-shadow:0 8px 20px rgba(0,0,0,.35);
         white-space:nowrap;
-      ">${device.callSign}</div>
+      ">${label}</div>
       <div style="
         width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent;
         border-top:9px solid ${color}; margin-top:-1px;
@@ -28,28 +29,53 @@ function markerIcon(device: FleetDevice, selected: boolean) {
   return L.divIcon({ className: "fleet-pin", html, iconSize: [0, 0], iconAnchor: [0, 0] });
 }
 
-function FitBounds({ devices }: { devices: FleetDevice[] }) {
+function Camera({
+  devices,
+  follow,
+  stickToMe,
+  recenterKey,
+  onUserPan,
+}: {
+  devices: FleetDevice[];
+  follow: MapFollow | null;
+  stickToMe: boolean;
+  recenterKey: number;
+  onUserPan: () => void;
+}) {
   const map = useMap();
-  const lastKey = useRef("");
-  const positioned = devicesWithPosition(devices);
-  const key = positioned.map((d) => d.id).sort().join(",");
+  const idKey = devicesWithPosition(devices)
+    .map((d) => `${d.id}:${d.simulated ? "s" : "r"}`)
+    .sort()
+    .join(",");
+
+  useMapEvents({
+    dragstart() {
+      onUserPan();
+    },
+  });
 
   useEffect(() => {
-    if (key === lastKey.current && lastKey.current !== "") return;
-    lastKey.current = key;
-    if (positioned.length === 0) {
-      map.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 13);
-      return;
-    }
-    if (positioned.length === 1) {
-      map.setView([positioned[0].lat as number, positioned[0].lng as number], 15);
+    if (!follow) return;
+    if (!stickToMe && recenterKey === 0) return;
+    map.setView([follow.lat, follow.lng], Math.max(map.getZoom(), 16));
+  }, [map, follow, stickToMe, recenterKey]);
+
+  useEffect(() => {
+    if (follow) return;
+    const real = devicesWithPosition(devices).filter((d) => !d.simulated);
+    const pool = real.length > 0 ? real : devicesWithPosition(devices);
+    if (pool.length === 0) return;
+    if (pool.length === 1) {
+      map.setView([pool[0].lat as number, pool[0].lng as number], 15);
       return;
     }
     const bounds = L.latLngBounds(
-      positioned.map((d) => [d.lat as number, d.lng as number] as [number, number]),
+      pool.map((d) => [d.lat as number, d.lng as number] as [number, number]),
     );
-    map.fitBounds(bounds, { padding: [48, 48], maxZoom: 15 });
-  }, [map, key, positioned]);
+    map.fitBounds(bounds, { padding: [48, 48], maxZoom: 16 });
+    // Fit only when the set of vehicles changes, not on every GPS tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [map, follow, idKey]);
 
   return null;
 }
@@ -59,15 +85,30 @@ type Props = {
   now: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
+  follow: MapFollow | null;
+  stickToMe: boolean;
+  recenterKey: number;
+  onUserPan: () => void;
+  selfId: string | null;
 };
 
-export default function LeafletFleetMap({ devices, now, selectedId, onSelect }: Props) {
+export default function LeafletFleetMap({
+  devices,
+  now,
+  selectedId,
+  onSelect,
+  follow,
+  stickToMe,
+  recenterKey,
+  onUserPan,
+  selfId,
+}: Props) {
   const positioned = useMemo(() => devicesWithPosition(devices), [devices]);
 
   return (
     <MapContainer
       center={[DEFAULT_CENTER.lat, DEFAULT_CENTER.lng]}
-      zoom={13}
+      zoom={3}
       className="h-full w-full"
       zoomControl={false}
       attributionControl
@@ -76,12 +117,18 @@ export default function LeafletFleetMap({ devices, now, selectedId, onSelect }: 
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>'
         url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
       />
-      <FitBounds devices={devices} />
+      <Camera
+        devices={devices}
+        follow={follow}
+        stickToMe={stickToMe}
+        recenterKey={recenterKey}
+        onUserPan={onUserPan}
+      />
       {positioned.map((device) => (
         <Marker
           key={device.id}
           position={[device.lat as number, device.lng as number]}
-          icon={markerIcon(device, device.id === selectedId)}
+          icon={markerIcon(device, device.id === selectedId, device.id === selfId)}
           eventHandlers={{ click: () => onSelect(device.id) }}
         >
           <Popup>
@@ -92,6 +139,7 @@ export default function LeafletFleetMap({ devices, now, selectedId, onSelect }: 
                 {statusLabel(device, now)}
                 {kph(device.speedMps) != null ? ` · ${kph(device.speedMps)} km/h` : ""}
               </div>
+              {device.simulated ? <div>Training / fake GPS</div> : null}
             </div>
           </Popup>
         </Marker>

@@ -37,16 +37,20 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [now, setNow] = useState(0);
   const [demo, setDemo] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [gpsState, setGpsState] = useState<"idle" | "live" | "denied" | "simulated">("idle");
+  const [gpsState, setGpsState] = useState<"idle" | "live" | "denied" | "waiting" | "simulated">("idle");
   const [gpsHint, setGpsHint] = useState("");
   const [online, setOnline] = useState(true);
   const [fleetOpen, setFleetOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [hasFix, setHasFix] = useState(false);
+  const [myPos, setMyPos] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
+  const [stickToMe, setStickToMe] = useState(true);
+  const [recenterKey, setRecenterKey] = useState(0);
   const watchId = useRef<number | null>(null);
   const simTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastFix = useRef<{ lat: number; lng: number; heading: number | null; speedMps: number | null; accuracy: number | null } | null>(null);
-  const gpsModeRef = useRef<"idle" | "live" | "denied" | "simulated">("idle");
+  const gpsModeRef = useRef<"idle" | "live" | "denied" | "waiting" | "simulated">("idle");
+  const gpsBoundId = useRef<string | null>(null);
   const sessionRef = useRef<Session | null>(null);
 
   useEffect(() => {
@@ -97,13 +101,47 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     }
   }, [applySnapshot]);
 
+  const stopSimulation = useCallback(() => {
+    if (simTimer.current) {
+      clearInterval(simTimer.current);
+      simTimer.current = null;
+    }
+  }, []);
+
+  const applyRealFix = useCallback(
+    (pos: GeolocationPosition, current: Session) => {
+      stopSimulation();
+      lastFix.current = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        heading: Number.isFinite(pos.coords.heading) ? pos.coords.heading : null,
+        speedMps: Number.isFinite(pos.coords.speed) ? pos.coords.speed : null,
+        accuracy: pos.coords.accuracy ?? null,
+      };
+      gpsModeRef.current = "live";
+      setGpsState("live");
+      setGpsHint("");
+      setHasFix(true);
+      setStickToMe(true);
+      setMyPos({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy ?? null,
+      });
+      void sendHeartbeat(current);
+    },
+    [sendHeartbeat, stopSimulation],
+  );
+
   const startSimulation = useCallback((current: Session) => {
     if (simTimer.current) clearInterval(simTimer.current);
-    const origin = lastFix.current ?? { lat: DEFAULT_CENTER.lat, lng: DEFAULT_CENTER.lng };
+    const origin = { lat: DEFAULT_CENTER.lat, lng: DEFAULT_CENTER.lng };
     let t = 0;
     gpsModeRef.current = "simulated";
     setGpsState("simulated");
-    setGpsHint("GPS unavailable on this phone. Using a simulated city route so you still appear on the map.");
+    setGpsHint(
+      "This pin is a training route near Nairobi, not your phone. Tap Use my real GPS and allow location.",
+    );
     simTimer.current = setInterval(() => {
       t += 1;
       const lat = origin.lat + Math.sin(t / 18) * 0.008;
@@ -116,55 +154,83 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         accuracy: 12,
       };
       setHasFix(true);
+      setMyPos({ lat, lng, accuracy: 12 });
       void sendHeartbeat(current);
     }, 2000);
   }, [sendHeartbeat]);
 
-  const startGps = useCallback(
+  const requestGps = useCallback(
     (current: Session) => {
       if (current.role !== "driver") {
         void sendHeartbeat(current);
         return;
       }
-      if (!navigator.geolocation) {
-        startSimulation(current);
+      if (!window.isSecureContext) {
+        gpsModeRef.current = "denied";
+        setGpsState("denied");
+        setGpsHint("This page is not HTTPS, so the phone will not share your real GPS. Open the phone tunnel link.");
         return;
       }
-      watchId.current = navigator.geolocation.watchPosition(
-        (pos) => {
-          lastFix.current = {
-            lat: pos.coords.latitude,
-            lng: pos.coords.longitude,
-            heading: Number.isFinite(pos.coords.heading) ? pos.coords.heading : null,
-            speedMps: Number.isFinite(pos.coords.speed) ? pos.coords.speed : null,
-            accuracy: pos.coords.accuracy ?? null,
-          };
-          setHasFix(true);
-          gpsModeRef.current = "live";
-          setGpsState("live");
-          setGpsHint("");
-          void sendHeartbeat(current);
-        },
+      if (!navigator.geolocation) {
+        gpsModeRef.current = "denied";
+        setGpsState("denied");
+        setGpsHint("This browser has no GPS. Open the link in Safari or Chrome on the phone.");
+        return;
+      }
+
+      gpsModeRef.current = "waiting";
+      setGpsState("waiting");
+      setGpsHint("Waiting for this phone’s GPS. Allow location if the browser asks.");
+
+      if (watchId.current != null) {
+        navigator.geolocation.clearWatch(watchId.current);
+        watchId.current = null;
+      }
+
+      const opts: PositionOptions = {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 25000,
+      };
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => applyRealFix(pos, current),
         (err) => {
+          if (gpsModeRef.current === "live") return;
+          gpsModeRef.current = "denied";
+          setGpsState("denied");
+          const blocked = err.code === err.PERMISSION_DENIED;
+          setGpsHint(
+            blocked
+              ? "Location is blocked. In the phone browser: site settings → Location → Allow, then tap Use my real GPS."
+              : "No GPS fix yet. Turn on Location, go outside or near a window, then tap Use my real GPS.",
+          );
+        },
+        opts,
+      );
+
+      watchId.current = navigator.geolocation.watchPosition(
+        (pos) => applyRealFix(pos, current),
+        (err) => {
+          if (gpsModeRef.current === "live") return;
           gpsModeRef.current = "denied";
           setGpsState("denied");
           setGpsHint(
             err.code === err.PERMISSION_DENIED
-              ? "Location permission was blocked. Running a simulated city route so this vehicle still appears."
-              : "Could not read GPS. Running a simulated city route so this vehicle still appears.",
+              ? "Location is blocked. Allow it for this site, then tap Use my real GPS."
+              : "Still waiting for a GPS fix. Keep the app open and tap Use my real GPS.",
           );
-          startSimulation(current);
         },
-        { enableHighAccuracy: true, maximumAge: 2000, timeout: 8000 },
+        opts,
       );
+      gpsBoundId.current = current.id;
     },
-    [sendHeartbeat, startSimulation],
+    [applyRealFix, sendHeartbeat],
   );
 
   useEffect(() => {
     if (!session) return;
 
-    const start = window.setTimeout(() => startGps(session), 0);
     const beat = setInterval(() => {
       void sendHeartbeat(session);
     }, 4000);
@@ -179,25 +245,40 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     };
     source.onerror = () => setOnline(false);
 
-    const leave = () => {
+    const leavePage = () => {
       const payload = JSON.stringify({ id: session.id });
       navigator.sendBeacon("/api/fleet/leave", payload);
     };
-    window.addEventListener("pagehide", leave);
+    window.addEventListener("pagehide", leavePage);
 
     return () => {
-      clearTimeout(start);
       clearInterval(beat);
       source.close();
-      window.removeEventListener("pagehide", leave);
-      if (watchId.current != null) navigator.geolocation.clearWatch(watchId.current);
-      if (simTimer.current) clearInterval(simTimer.current);
+      window.removeEventListener("pagehide", leavePage);
     };
-  }, [session, applySnapshot, sendHeartbeat, startGps]);
+  }, [session, applySnapshot, sendHeartbeat]);
+
+  useEffect(() => {
+    if (!session) {
+      if (watchId.current != null) {
+        navigator.geolocation.clearWatch(watchId.current);
+        watchId.current = null;
+      }
+      stopSimulation();
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      if (gpsModeRef.current === "idle") {
+        requestGps(session);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [session, requestGps, stopSimulation]);
 
   function join(payload: JoinPayload) {
     const next: Session = { ...payload, id: crypto.randomUUID() };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(next));
+    requestGps(next);
     setSession(next);
   }
 
@@ -207,6 +288,9 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     sessionStorage.removeItem(SESSION_KEY);
     lastFix.current = null;
     setHasFix(false);
+    setMyPos(null);
+    setGpsHint("");
+    gpsModeRef.current = "idle";
     setSession(null);
     setDevices([]);
     setGpsState("idle");
@@ -222,6 +306,11 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     () => devices.filter((d) => d.role === "driver"),
     [devices],
   );
+  const follow = useMemo(() => {
+    if (gpsState !== "live" || !myPos) return null;
+    return { lat: myPos.lat, lng: myPos.lng };
+  }, [gpsState, myPos]);
+  const onUserPan = useCallback(() => setStickToMe(false), []);
   const selected = devices.find((d) => d.id === selectedId) ?? null;
   const mapProvider = googleMapsApiKey ? "Google Maps" : "OpenStreetMap";
 
@@ -262,20 +351,37 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           now={now}
           selectedId={selectedId}
           onSelect={setSelectedId}
+          follow={follow}
+          stickToMe={stickToMe}
+          recenterKey={recenterKey}
+          onUserPan={onUserPan}
+          selfId={session.id}
         />
       </div>
 
-      {gpsHint ? (
-        <div className="absolute top-[5.5rem] right-3 z-20 max-w-[16rem] rounded-xl border border-white/10 bg-zinc-950/85 p-3 text-xs leading-5 text-zinc-200 shadow-lg backdrop-blur">
-          {gpsHint}
+      {gpsState !== "live" && session.role === "driver" ? (
+        <div className="absolute top-[5.5rem] right-3 z-20 max-w-[17rem] rounded-xl border border-amber-300/40 bg-zinc-950/90 p-3 text-xs leading-5 text-zinc-100 shadow-lg backdrop-blur">
+          <div className="font-semibold text-amber-200">
+            {gpsState === "simulated" ? "Not your real position" : "Waiting for your GPS"}
+          </div>
+          <p className="mt-1 text-zinc-300">
+            {gpsHint || "Allow location so the red YOU pin is this phone, not the training city."}
+          </p>
+          <Button
+            size="sm"
+            className="mt-2 h-8 w-full rounded-lg bg-amber-300 text-zinc-950"
+            onClick={() => requestGps(session)}
+          >
+            Use my real GPS
+          </Button>
           {gpsState !== "simulated" ? (
-            <Button
-              size="sm"
-              className="mt-2 h-8 w-full rounded-lg bg-amber-300 text-zinc-950"
+            <button
+              type="button"
+              className="mt-2 w-full text-center text-[11px] text-zinc-500 underline"
               onClick={() => startSimulation(session)}
             >
-              Use simulated GPS
-            </Button>
+              Use training route instead
+            </button>
           ) : null}
         </div>
       ) : null}
@@ -302,7 +408,11 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
             size="icon"
             variant="secondary"
             className="pointer-events-auto size-11 rounded-full bg-zinc-950/80 shadow-lg"
-            onClick={() => setSelectedId(session.id)}
+            onClick={() => {
+              setSelectedId(session.id);
+              setStickToMe(true);
+              setRecenterKey((value) => value + 1);
+            }}
           >
             <Crosshair className="size-4" />
           </Button>
@@ -318,7 +428,13 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
               </div>
               <div className="text-xs text-zinc-400">
                 {session.role === "driver" ? "Broadcasting this device" : "Dispatch console"}
-                {gpsState === "live" ? " · GPS live" : gpsState === "simulated" ? " · simulated route" : ""}
+                {gpsState === "live"
+                  ? ` · real GPS${myPos?.accuracy != null ? ` ±${Math.round(myPos.accuracy)}m` : ""}`
+                  : gpsState === "simulated"
+                    ? " · FAKE training GPS"
+                    : gpsState === "waiting"
+                      ? " · getting GPS…"
+                      : ""}
               </div>
             </div>
             <div className="flex shrink-0 gap-2">
@@ -372,7 +488,11 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                 {device.id === session.id ? (
                                   <Badge variant="secondary">You</Badge>
                                 ) : null}
-                                {device.simulated ? <Badge variant="outline">Demo</Badge> : null}
+                                {device.id.startsWith("demo-") ? (
+                                  <Badge variant="outline">Training</Badge>
+                                ) : device.simulated ? (
+                                  <Badge variant="outline">Fake GPS</Badge>
+                                ) : null}
                               </div>
                               <div className="mt-1 text-xs text-muted-foreground">
                                 {device.driverName} · {VEHICLE_META[device.vehicleType].label}

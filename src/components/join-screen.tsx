@@ -20,7 +20,7 @@ type Props = {
 };
 
 export default function JoinScreen({ onJoin }: Props) {
-  const [callSign, setCallSign] = useState("BUS-12");
+  const [callSign, setCallSign] = useState("ME-01");
   const [driverName, setDriverName] = useState("");
   const [vehicleType, setVehicleType] = useState<VehicleType>("bus");
   const [role, setRole] = useState<Role>("driver");
@@ -54,9 +54,8 @@ export default function JoinScreen({ onJoin }: Props) {
           </div>
           <h1 className="text-3xl font-semibold tracking-tight">TransitLive</h1>
           <p className="mt-2 max-w-sm text-sm leading-6 text-zinc-300">
-            Sign your vehicle onto the board. Every connected device shares its
-            position so dispatch can see buses, taxis, trucks, and shuttles on
-            one map.
+            Sign your vehicle onto the board. Tap Join and allow location so
+            the map uses this phone’s real GPS — not a training city.
           </p>
         </div>
 

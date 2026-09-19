@@ -1,5 +1,10 @@
 import type { FleetDevice } from "@/lib/types";
 
+export type MapFollow = {
+  lat: number;
+  lng: number;
+};
+
 export const DEFAULT_CENTER = { lat: -1.286389, lng: 36.817223 };
 
 export function kph(speedMps: number | null) {
