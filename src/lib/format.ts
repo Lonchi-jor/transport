@@ -5,7 +5,7 @@ export type MapFollow = {
   lng: number;
 };
 
-export const DEFAULT_CENTER = { lat: -1.286389, lng: 36.817223 };
+export const DEFAULT_CENTER = { lat: 4.051056, lng: 9.767869 };
 
 export function kph(speedMps: number | null) {
   if (speedMps == null) return null;
@@ -34,7 +34,7 @@ export function devicesWithPosition(devices: FleetDevice[]) {
 
 export const COURSE_STATUS_LABEL: Record<CourseStatus, string> = {
   open: "À attribuer",
-  assigned: "Attribuée",
+  assigned: "Reçue — BN à saisir",
   en_route: "En course",
   done: "Terminée",
   cancelled: "Annulée",
@@ -42,4 +42,39 @@ export const COURSE_STATUS_LABEL: Record<CourseStatus, string> = {
 
 export function activeCourses(courses: Course[]) {
   return courses.filter((c) => c.status === "open" || c.status === "assigned" || c.status === "en_route");
+}
+
+export type MapRoute = {
+  path: [number, number][];
+  pickup: { lat: number; lng: number; label: string };
+  dropoff: { lat: number; lng: number; label: string };
+};
+
+export function courseToMapRoute(course: Course | null | undefined): MapRoute | null {
+  if (!course) return null;
+  if (course.pickupLat == null || course.pickupLng == null || course.dropoffLat == null || course.dropoffLng == null) {
+    return null;
+  }
+  const path: [number, number][] =
+    course.routePath.length >= 2
+      ? course.routePath
+      : [
+          [course.pickupLat, course.pickupLng],
+          [course.dropoffLat, course.dropoffLng],
+        ];
+  return {
+    path,
+    pickup: { lat: course.pickupLat, lng: course.pickupLng, label: course.pickupAddress },
+    dropoff: { lat: course.dropoffLat, lng: course.dropoffLng, label: course.dropoffAddress },
+  };
+}
+
+export function formatKm(meters: number | null) {
+  if (meters == null) return null;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
+export function formatMinutes(seconds: number | null) {
+  if (seconds == null) return null;
+  return `${Math.max(1, Math.round(seconds / 60))} min`;
 }

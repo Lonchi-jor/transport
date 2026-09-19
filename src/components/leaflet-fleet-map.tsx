@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { FleetDevice } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
-import { DEFAULT_CENTER, devicesWithPosition, kph, statusLabel, type MapFollow } from "@/lib/format";
+import { DEFAULT_CENTER, devicesWithPosition, kph, statusLabel, type MapFollow, type MapRoute } from "@/lib/format";
 
 function markerIcon(device: FleetDevice, selected: boolean, isSelf: boolean) {
   const color = isSelf ? "#00a4e8" : VEHICLE_META[device.vehicleType].color;
@@ -36,18 +36,21 @@ function Camera({
   stickToMe,
   recenterKey,
   onUserPan,
+  route,
 }: {
   devices: FleetDevice[];
   follow: MapFollow | null;
   stickToMe: boolean;
   recenterKey: number;
   onUserPan: () => void;
+  route: MapRoute | null;
 }) {
   const map = useMap();
   const idKey = devicesWithPosition(devices)
     .map((d) => `${d.id}:${d.simulated ? "s" : "r"}`)
     .sort()
     .join(",");
+  const routeKey = route?.path.map((p) => p.join(",")).join(";") ?? "";
 
   useMapEvents({
     dragstart() {
@@ -56,13 +59,18 @@ function Camera({
   });
 
   useEffect(() => {
+    if (!route || route.path.length < 2 || follow) return;
+    map.fitBounds(L.latLngBounds(route.path), { padding: [36, 36], maxZoom: 16 });
+  }, [map, route, follow, routeKey]);
+
+  useEffect(() => {
     if (!follow) return;
     if (!stickToMe && recenterKey === 0) return;
     map.setView([follow.lat, follow.lng], Math.max(map.getZoom(), 16));
   }, [map, follow, stickToMe, recenterKey]);
 
   useEffect(() => {
-    if (follow) return;
+    if (follow || route) return;
     const real = devicesWithPosition(devices).filter((d) => !d.simulated);
     const pool = real.length > 0 ? real : devicesWithPosition(devices);
     if (pool.length === 0) return;
@@ -74,9 +82,8 @@ function Camera({
       pool.map((d) => [d.lat as number, d.lng as number] as [number, number]),
     );
     map.fitBounds(bounds, { padding: [48, 48], maxZoom: 16 });
-    // Fit only when the set of vehicles changes, not on every GPS tick.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, follow, idKey]);
+  }, [map, follow, route, idKey]);
 
   return null;
 }
@@ -91,6 +98,7 @@ type Props = {
   recenterKey: number;
   onUserPan: () => void;
   selfId: string | null;
+  route: MapRoute | null;
 };
 
 export default function LeafletFleetMap({
@@ -103,6 +111,7 @@ export default function LeafletFleetMap({
   recenterKey,
   onUserPan,
   selfId,
+  route,
 }: Props) {
   const positioned = useMemo(() => devicesWithPosition(devices), [devices]);
 
@@ -124,7 +133,30 @@ export default function LeafletFleetMap({
         stickToMe={stickToMe}
         recenterKey={recenterKey}
         onUserPan={onUserPan}
+        route={route}
       />
+      {route ? (
+        <>
+          <Polyline
+            positions={route.path}
+            pathOptions={{ color: "#2b308f", weight: 6, opacity: 0.9 }}
+          />
+          <CircleMarker
+            center={[route.pickup.lat, route.pickup.lng]}
+            radius={9}
+            pathOptions={{ color: "#2b308f", fillColor: "#00a4e8", fillOpacity: 1 }}
+          >
+            <Popup>Départ · {route.pickup.label}</Popup>
+          </CircleMarker>
+          <CircleMarker
+            center={[route.dropoff.lat, route.dropoff.lng]}
+            radius={9}
+            pathOptions={{ color: "#2b308f", fillColor: "#2b308f", fillOpacity: 1 }}
+          >
+            <Popup>Arrivée · {route.dropoff.label}</Popup>
+          </CircleMarker>
+        </>
+      ) : null}
       {positioned.map((device) => (
         <Marker
           key={device.id}

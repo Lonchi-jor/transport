@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createCourse } from "@/lib/course-store";
+import { drivingRoute, resolvePlace } from "@/lib/geo";
 import { radioSnapshot } from "@/lib/snapshot";
 import type { CourseDraft } from "@/lib/types";
 
@@ -22,6 +23,32 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  const course = createCourse(body);
+
+  const pickup = await resolvePlace(body.pickupAddress, body.pickupLat, body.pickupLng);
+  const dropoff = await resolvePlace(body.dropoffAddress, body.dropoffLat, body.dropoffLng);
+  const hasCoords =
+    Number.isFinite(pickup.lat) &&
+    Number.isFinite(pickup.lng) &&
+    Number.isFinite(dropoff.lat) &&
+    Number.isFinite(dropoff.lng);
+  const route = hasCoords
+    ? await drivingRoute(
+        { lat: pickup.lat, lng: pickup.lng },
+        { lat: dropoff.lat, lng: dropoff.lng },
+      )
+    : null;
+
+  const course = createCourse({
+    ...body,
+    pickupAddress: pickup.label || body.pickupAddress,
+    dropoffAddress: dropoff.label || body.dropoffAddress,
+    pickupLat: hasCoords ? pickup.lat : null,
+    pickupLng: hasCoords ? pickup.lng : null,
+    dropoffLat: hasCoords ? dropoff.lat : null,
+    dropoffLng: hasCoords ? dropoff.lng : null,
+    routePath: route?.path ?? [],
+    distanceMeters: route?.distanceMeters ?? null,
+    durationSeconds: route?.durationSeconds ?? null,
+  });
   return NextResponse.json({ course, ...radioSnapshot() });
 }

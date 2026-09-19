@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { FleetDevice } from "@/lib/types";
-import type { MapFollow } from "@/lib/format";
+import type { MapFollow, MapRoute } from "@/lib/format";
 
 const LeafletFleetMap = dynamic(() => import("@/components/leaflet-fleet-map"), {
   ssr: false,
@@ -35,6 +35,7 @@ type Props = {
   recenterKey: number;
   onUserPan: () => void;
   selfId: string | null;
+  route?: MapRoute | null;
 };
 
 export default function FleetMap({
@@ -48,6 +49,7 @@ export default function FleetMap({
   recenterKey,
   onUserPan,
   selfId,
+  route = null,
 }: Props) {
   const key = googleMapsApiKey.trim();
   if (key) {
@@ -63,6 +65,7 @@ export default function FleetMap({
         recenterKey={recenterKey}
         onUserPan={onUserPan}
         selfId={selfId}
+        route={route}
       />
     );
   }
@@ -78,6 +81,7 @@ export default function FleetMap({
       recenterKey={recenterKey}
       onUserPan={onUserPan}
       selfId={selfId}
+      route={route}
     />
   );
 }

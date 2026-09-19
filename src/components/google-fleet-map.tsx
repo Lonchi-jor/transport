@@ -4,11 +4,48 @@ import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps";
 import { useEffect, useMemo } from "react";
 import type { FleetDevice } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
-import { DEFAULT_CENTER, devicesWithPosition, type MapFollow } from "@/lib/format";
+import { DEFAULT_CENTER, devicesWithPosition, type MapFollow, type MapRoute } from "@/lib/format";
 
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: "poi", stylers: [{ visibility: "off" }] },
 ];
+
+function RouteLayer({ route, follow }: { route: MapRoute | null; follow: MapFollow | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map || !route || route.path.length < 2) return;
+    const line = new google.maps.Polyline({
+      path: route.path.map(([lat, lng]) => ({ lat, lng })),
+      strokeColor: "#2b308f",
+      strokeWeight: 6,
+      strokeOpacity: 0.9,
+      map,
+    });
+    const start = new google.maps.Marker({
+      position: { lat: route.pickup.lat, lng: route.pickup.lng },
+      map,
+      label: "A",
+      title: route.pickup.label,
+    });
+    const end = new google.maps.Marker({
+      position: { lat: route.dropoff.lat, lng: route.dropoff.lng },
+      map,
+      label: "B",
+      title: route.dropoff.label,
+    });
+    if (!follow) {
+      const bounds = new google.maps.LatLngBounds();
+      for (const [lat, lng] of route.path) bounds.extend({ lat, lng });
+      map.fitBounds(bounds, 48);
+    }
+    return () => {
+      line.setMap(null);
+      start.setMap(null);
+      end.setMap(null);
+    };
+  }, [map, route, follow]);
+  return null;
+}
 
 function Camera({
   devices,
@@ -16,12 +53,14 @@ function Camera({
   stickToMe,
   recenterKey,
   onUserPan,
+  route,
 }: {
   devices: FleetDevice[];
   follow: MapFollow | null;
   stickToMe: boolean;
   recenterKey: number;
   onUserPan: () => void;
+  route: MapRoute | null;
 }) {
   const map = useMap();
   const idKey = devicesWithPosition(devices)
@@ -43,7 +82,7 @@ function Camera({
   }, [map, follow, stickToMe, recenterKey]);
 
   useEffect(() => {
-    if (!map || follow) return;
+    if (!map || follow || route) return;
     const real = devicesWithPosition(devices).filter((d) => !d.simulated);
     const pool = real.length > 0 ? real : devicesWithPosition(devices);
     if (pool.length === 0) return;
@@ -58,7 +97,7 @@ function Camera({
     }
     map.fitBounds(bounds, 64);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, follow, idKey]);
+  }, [map, follow, route, idKey]);
 
   return null;
 }
@@ -72,6 +111,7 @@ type InnerProps = {
   recenterKey: number;
   onUserPan: () => void;
   selfId: string | null;
+  route: MapRoute | null;
 };
 
 function GoogleMapInner({
@@ -83,6 +123,7 @@ function GoogleMapInner({
   recenterKey,
   onUserPan,
   selfId,
+  route,
 }: InnerProps) {
   const positioned = useMemo(() => devicesWithPosition(devices), [devices]);
 
@@ -105,7 +146,9 @@ function GoogleMapInner({
         stickToMe={stickToMe}
         recenterKey={recenterKey}
         onUserPan={onUserPan}
+        route={route}
       />
+      <RouteLayer route={route} follow={follow} />
       {positioned.map((device) => {
         const isSelf = device.id === selfId;
         return (
@@ -145,6 +188,7 @@ export default function GoogleFleetMap({
   recenterKey,
   onUserPan,
   selfId,
+  route,
 }: InnerProps & { apiKey: string; now: number }) {
   return (
     <APIProvider apiKey={apiKey}>
@@ -157,6 +201,7 @@ export default function GoogleFleetMap({
         recenterKey={recenterKey}
         onUserPan={onUserPan}
         selfId={selfId}
+        route={route}
       />
     </APIProvider>
   );

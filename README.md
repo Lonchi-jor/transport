@@ -10,7 +10,9 @@ The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#0
 
 Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC.
 
-Le bureau crée une course (client, enlèvement, livraison) et l’attribue à un chauffeur connecté. Le téléphone du chauffeur affiche la course tout de suite, avec **Démarrer** puis **Terminer**.
+Le bureau crée une course (client, enlèvement, livraison) et l’attribue à un chauffeur connecté. En tapant le lieu de départ ou d’arrivée, des **suggestions d’adresses** apparaissent (comme sur Google Maps). À la création, l’app calcule l’itinéraire routier.
+
+Le téléphone du chauffeur affiche la course tout de suite. Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route** et **l’itinéraire** s’affiche sur la carte. **Terminer** clôture la course.
 
 ## Test on your phone while you develop
 
@@ -42,6 +44,8 @@ npm run phone
 - **Google Maps** when you add an API key
 - OpenStreetMap fallback so the app still runs without a key
 - Real GPS by default; optional training route only if you ask for it
+- Address suggestions on pickup / dropoff (Google Places if keyed, Photon otherwise)
+- Driving itinerary on the map after the driver enters the BN and starts the job
 
 Positions live in memory on the server. They disappear about 20 seconds after a device goes offline. There is no login and no database.
 

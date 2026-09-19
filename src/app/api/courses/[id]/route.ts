@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { isCourseStatus, updateCourse } from "@/lib/course-store";
+import { getCourse, isCourseStatus, updateCourse } from "@/lib/course-store";
 import { radioSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
@@ -9,21 +9,36 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  let body: { assignedDeviceId?: string | null; status?: string };
+  let body: { assignedDeviceId?: string | null; status?: string; bnNumber?: string };
   try {
-    body = (await request.json()) as { assignedDeviceId?: string | null; status?: string };
+    body = (await request.json()) as {
+      assignedDeviceId?: string | null;
+      status?: string;
+      bnNumber?: string;
+    };
   } catch {
     return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
   }
   if (body.status !== undefined && !isCourseStatus(body.status)) {
     return NextResponse.json({ error: "Statut inconnu" }, { status: 400 });
   }
+  if (body.status === "en_route") {
+    const current = getCourse(id);
+    const bn = (body.bnNumber ?? current?.bnNumber ?? "").trim();
+    if (!bn) {
+      return NextResponse.json(
+        { error: "Saisissez le numéro du BN avant de démarrer la course." },
+        { status: 400 },
+      );
+    }
+  }
   const course = updateCourse(id, {
     assignedDeviceId: body.assignedDeviceId,
     status: isCourseStatus(body.status) ? body.status : undefined,
+    bnNumber: body.bnNumber,
   });
   if (!course) {
-    return NextResponse.json({ error: "Course introuvable" }, { status: 404 });
+    return NextResponse.json({ error: "Course introuvable ou BN manquant" }, { status: 404 });
   }
   return NextResponse.json({ course, ...radioSnapshot() });
 }

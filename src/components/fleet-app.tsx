@@ -12,7 +12,8 @@ import JoinScreen, { type JoinPayload } from "@/components/join-screen";
 import PhoneAccess from "@/components/phone-access";
 import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
-import { COURSE_STATUS_LABEL, DEFAULT_CENTER, formatAge, kph, statusLabel } from "@/lib/format";
+import { COURSE_STATUS_LABEL, courseToMapRoute, DEFAULT_CENTER, formatAge, kph, statusLabel } from "@/lib/format";
+import { Input } from "@/components/ui/input";
 
 const SESSION_KEY = "transitlive-session";
 
@@ -44,6 +45,10 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [online, setOnline] = useState(true);
   const [fleetOpen, setFleetOpen] = useState(false);
   const [jobsOpen, setJobsOpen] = useState(false);
+  const [bnOpen, setBnOpen] = useState(false);
+  const [bnValue, setBnValue] = useState("");
+  const [bnError, setBnError] = useState("");
+  const [bnJobId, setBnJobId] = useState<string | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [hasFix, setHasFix] = useState(false);
   const [myPos, setMyPos] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
@@ -307,13 +312,28 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     applySnapshot(snapshot);
   }
 
-  async function patchCourse(id: string, status: string) {
+  async function patchCourse(id: string, body: { status?: string; bnNumber?: string }) {
     const res = await fetch(`/api/courses/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+      body: JSON.stringify(body),
     });
-    applySnapshot((await res.json()) as FleetSnapshot);
+    const data = (await res.json()) as FleetSnapshot & { error?: string };
+    if (!res.ok) {
+      setBnError(data.error || "Impossible de démarrer.");
+      return;
+    }
+    applySnapshot(data);
+    setBnOpen(false);
+    setBnValue("");
+    setBnError("");
+  }
+
+  function askBn(jobId: string) {
+    setBnJobId(jobId);
+    setBnValue("");
+    setBnError("");
+    setBnOpen(true);
   }
 
   const liveVehicles = useMemo(
@@ -366,6 +386,39 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         </Button>
       </header>
 
+      <Sheet open={bnOpen} onOpenChange={setBnOpen}>
+        <SheetContent side="bottom" className="rounded-t-3xl">
+          <SheetHeader>
+            <SheetTitle>Numéro du BN</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-3 px-4 pb-6">
+            <p className="text-sm text-muted-foreground">
+              La course est reçue. Entrez le numéro du bon (BN) pour la démarrer et suivre l’itinéraire.
+            </p>
+            <Input
+              value={bnValue}
+              onChange={(event) => setBnValue(event.target.value)}
+              placeholder="Ex. BN-45821"
+              autoCapitalize="characters"
+            />
+            {bnError ? <p className="text-sm text-red-600">{bnError}</p> : null}
+            <Button
+              className="h-11 w-full"
+              onClick={() => {
+                if (!bnJobId) return;
+                if (!bnValue.trim()) {
+                  setBnError("Le numéro du BN est obligatoire.");
+                  return;
+                }
+                void patchCourse(bnJobId, { status: "en_route", bnNumber: bnValue });
+              }}
+            >
+              Valider le BN et démarrer
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <div className="absolute inset-0 z-0 isolate">
         <FleetMap
           googleMapsApiKey={googleMapsApiKey}
@@ -378,6 +431,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           recenterKey={recenterKey}
           onUserPan={onUserPan}
           selfId={session.id}
+          route={courseToMapRoute(currentJob?.status === "en_route" ? currentJob : null)}
         />
       </div>
 
@@ -505,12 +559,12 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                             {job.notes ? <div className="mt-1 text-xs">{job.notes}</div> : null}
                             <div className="mt-3 flex gap-2">
                               {job.status === "assigned" ? (
-                                <Button size="sm" onClick={() => void patchCourse(job.id, "en_route")}>
+                                <Button size="sm" onClick={() => askBn(job.id)}>
                                   Démarrer
                                 </Button>
                               ) : null}
                               {job.status === "en_route" ? (
-                                <Button size="sm" onClick={() => void patchCourse(job.id, "done")}>
+                                <Button size="sm" onClick={() => void patchCourse(job.id, { status: "done" })}>
                                   Terminer
                                 </Button>
                               ) : null}
@@ -601,20 +655,23 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
               <div className="mt-1 text-blue-100">
                 {currentJob.pickupAddress} → {currentJob.dropoffAddress}
               </div>
+              {currentJob.bnNumber ? (
+                <div className="mt-1 font-medium text-white">BN {currentJob.bnNumber}</div>
+              ) : null}
               <div className="mt-2 flex gap-2">
                 {currentJob.status === "assigned" ? (
                   <Button
                     size="sm"
                     className="h-8 rounded-lg"
-                    onClick={() => void patchCourse(currentJob.id, "en_route")}
+                    onClick={() => askBn(currentJob.id)}
                   >
-                    Démarrer la course
+                    Commencer — saisir le BN
                   </Button>
                 ) : (
                   <Button
                     size="sm"
                     className="h-8 rounded-lg"
-                    onClick={() => void patchCourse(currentJob.id, "done")}
+                    onClick={() => void patchCourse(currentJob.id, { status: "done" })}
                   >
                     Course terminée
                   </Button>

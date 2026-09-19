@@ -47,6 +47,14 @@ export function createCourse(draft: CourseDraft): Course {
     clientPhone: (draft.clientPhone ?? "").trim(),
     pickupAddress: draft.pickupAddress.trim(),
     dropoffAddress: draft.dropoffAddress.trim(),
+    pickupLat: draft.pickupLat ?? null,
+    pickupLng: draft.pickupLng ?? null,
+    dropoffLat: draft.dropoffLat ?? null,
+    dropoffLng: draft.dropoffLng ?? null,
+    routePath: draft.routePath ?? [],
+    distanceMeters: draft.distanceMeters ?? null,
+    durationSeconds: draft.durationSeconds ?? null,
+    bnNumber: null,
     notes: (draft.notes ?? "").trim(),
     scheduledAt: draft.scheduledAt || null,
     assignedDeviceId: null,
@@ -68,6 +76,7 @@ export function updateCourse(
   patch: {
     assignedDeviceId?: string | null;
     status?: CourseStatus;
+    bnNumber?: string;
   },
 ): Course | null {
   const existing = courses.get(id);
@@ -76,7 +85,14 @@ export function updateCourse(
   if (patch.assignedDeviceId !== undefined) {
     next = applyAssignment(next, patch.assignedDeviceId);
   }
+  if (patch.bnNumber !== undefined) {
+    next.bnNumber = patch.bnNumber.trim();
+    next.updatedAt = Date.now();
+  }
   if (patch.status) {
+    if (patch.status === "en_route" && !next.bnNumber) {
+      return null;
+    }
     next.status = patch.status;
     next.updatedAt = Date.now();
   }

@@ -51,6 +51,14 @@ export type Course = {
   clientPhone: string;
   pickupAddress: string;
   dropoffAddress: string;
+  pickupLat: number | null;
+  pickupLng: number | null;
+  dropoffLat: number | null;
+  dropoffLng: number | null;
+  routePath: [number, number][];
+  distanceMeters: number | null;
+  durationSeconds: number | null;
+  bnNumber: string | null;
   notes: string;
   scheduledAt: string | null;
   assignedDeviceId: string | null;
@@ -66,6 +74,13 @@ export type CourseDraft = {
   clientPhone?: string;
   pickupAddress: string;
   dropoffAddress: string;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  dropoffLat?: number | null;
+  dropoffLng?: number | null;
+  routePath?: [number, number][];
+  distanceMeters?: number | null;
+  durationSeconds?: number | null;
   notes?: string;
   scheduledAt?: string | null;
   assignedDeviceId?: string | null;

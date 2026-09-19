@@ -10,8 +10,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PlaceSuggest from "@/components/place-suggest";
 import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
-import { COURSE_STATUS_LABEL, activeCourses, formatAge, kph, statusLabel } from "@/lib/format";
+import { COURSE_STATUS_LABEL, activeCourses, courseToMapRoute, formatAge, formatKm, formatMinutes, kph, statusLabel } from "@/lib/format";
 
 type Props = {
   googleMapsApiKey: string;
@@ -22,6 +23,10 @@ const emptyForm = {
   clientPhone: "",
   pickupAddress: "",
   dropoffAddress: "",
+  pickupLat: null as number | null,
+  pickupLng: null as number | null,
+  dropoffLat: null as number | null,
+  dropoffLng: null as number | null,
   notes: "",
   scheduledAt: "",
   assignedDeviceId: "",
@@ -33,6 +38,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
   const [now, setNow] = useState(0);
   const [online, setOnline] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -62,6 +68,11 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
     [devices],
   );
   const liveJobs = useMemo(() => activeCourses(courses), [courses]);
+  const mapRoute = courseToMapRoute(
+    courses.find((course) => course.id === selectedCourseId) ??
+      liveJobs.find((course) => course.routePath.length > 0) ??
+      null,
+  );
 
   async function createJob(event: FormEvent) {
     event.preventDefault();
@@ -83,6 +94,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
         return;
       }
       applySnapshot(data);
+      setSelectedCourseId(data.courses?.[0]?.id ?? null);
       setForm(emptyForm);
     } catch {
       setError("Réseau indisponible.");
@@ -158,21 +170,41 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                 />
               </Field>
               <Field label="Enlèvement" htmlFor="pickup">
-                <Input
+                <PlaceSuggest
                   id="pickup"
                   required
                   value={form.pickupAddress}
-                  onChange={(e) => setForm({ ...form, pickupAddress: e.target.value })}
-                  placeholder="Adresse de départ"
+                  placeholder="Tapez une adresse, puis choisissez une suggestion"
+                  onChange={(pickupAddress) =>
+                    setForm({ ...form, pickupAddress, pickupLat: null, pickupLng: null })
+                  }
+                  onSelect={(place) =>
+                    setForm({
+                      ...form,
+                      pickupAddress: place.label,
+                      pickupLat: place.lat,
+                      pickupLng: place.lng,
+                    })
+                  }
                 />
               </Field>
               <Field label="Livraison" htmlFor="dropoff">
-                <Input
+                <PlaceSuggest
                   id="dropoff"
                   required
                   value={form.dropoffAddress}
-                  onChange={(e) => setForm({ ...form, dropoffAddress: e.target.value })}
                   placeholder="Adresse d’arrivée"
+                  onChange={(dropoffAddress) =>
+                    setForm({ ...form, dropoffAddress, dropoffLat: null, dropoffLng: null })
+                  }
+                  onSelect={(place) =>
+                    setForm({
+                      ...form,
+                      dropoffAddress: place.label,
+                      dropoffLat: place.lat,
+                      dropoffLng: place.lng,
+                    })
+                  }
                 />
               </Field>
               <Field label="Heure prévue" htmlFor="when">
@@ -272,6 +304,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
               recenterKey={0}
               onUserPan={() => undefined}
               selfId={null}
+              route={mapRoute}
             />
           </div>
 
@@ -296,17 +329,29 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                   </thead>
                   <tbody>
                     {courses.map((course) => (
-                      <tr key={course.id} className="border-t border-[#d5dcf0] align-top">
+                      <tr
+                        key={course.id}
+                        className="cursor-pointer border-t border-[#d5dcf0] align-top hover:bg-[#f4f7fc]"
+                        onClick={() => setSelectedCourseId(course.id)}
+                      >
                         <td className="px-4 py-3">
                           <div className="font-semibold">{course.reference}</div>
                           <div className="text-xs text-[#5b6294]">{course.clientName}</div>
                           {course.clientPhone ? (
                             <div className="text-xs text-[#5b6294]">{course.clientPhone}</div>
                           ) : null}
+                          {course.bnNumber ? (
+                            <div className="mt-1 text-xs font-medium text-[#2b308f]">BN {course.bnNumber}</div>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           <div>{course.pickupAddress}</div>
                           <div className="text-[#00a4e8]">→ {course.dropoffAddress}</div>
+                          {formatKm(course.distanceMeters) ? (
+                            <div className="mt-1 text-xs text-[#5b6294]">
+                              {formatKm(course.distanceMeters)} · {formatMinutes(course.durationSeconds)}
+                            </div>
+                          ) : null}
                           {course.notes ? <div className="mt-1 text-xs text-[#5b6294]">{course.notes}</div> : null}
                         </td>
                         <td className="px-4 py-3">
@@ -318,6 +363,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                               })
                             }
                             className="h-8 max-w-48 rounded-lg border border-input bg-transparent px-2 text-xs"
+                            onClick={(event) => event.stopPropagation()}
                           >
                             <option value="">Non attribué</option>
                             {drivers.map((driver) => (
@@ -342,7 +388,10 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => void patchCourse(course.id, { status: "cancelled" })}
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void patchCourse(course.id, { status: "cancelled" });
+                              }}
                             >
                               Annuler
                             </Button>
