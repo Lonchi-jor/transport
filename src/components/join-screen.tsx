@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { BusFront, MapPinned, Radio } from "lucide-react";
+import PhoneAccess from "@/components/phone-access";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -145,6 +146,10 @@ export default function JoinScreen({ onJoin }: Props) {
             Join the map
           </Button>
         </form>
+
+        <div className="mt-4">
+          <PhoneAccess />
+        </div>
 
         <p className="mt-auto pt-6 text-center text-xs leading-5 text-zinc-400">
           Open this app on every vehicle phone. Positions update live while the

@@ -23,6 +23,7 @@
 # misc
 .DS_Store
 *.pem
+.tunnel-url
 
 # debug
 npm-debug.log*

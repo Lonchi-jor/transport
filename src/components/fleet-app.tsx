@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BusFront, Crosshair, LogOut, Radio, Route, Users } from "lucide-react";
+import { BusFront, Crosshair, LogOut, Radio, Route, Smartphone, Users } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import FleetMap from "@/components/fleet-map";
 import JoinScreen, { type JoinPayload } from "@/components/join-screen";
+import PhoneAccess from "@/components/phone-access";
 import type { FleetDevice, FleetSnapshot } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
 import { DEFAULT_CENTER, formatAge, kph, statusLabel } from "@/lib/format";
@@ -40,6 +41,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [gpsHint, setGpsHint] = useState("");
   const [online, setOnline] = useState(true);
   const [fleetOpen, setFleetOpen] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
   const [hasFix, setHasFix] = useState(false);
   const watchId = useRef<number | null>(null);
   const simTimer = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -282,6 +284,14 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         <Button
           variant="secondary"
           className="pointer-events-auto h-11 rounded-full bg-zinc-950/80 px-3 shadow-lg"
+          onClick={() => setPhoneOpen(true)}
+        >
+          <Smartphone className="size-4" />
+          Phone
+        </Button>
+        <Button
+          variant="secondary"
+          className="pointer-events-auto h-11 rounded-full bg-zinc-950/80 px-3 shadow-lg"
           onClick={() => void toggleDemo()}
         >
           <Route className="size-4" />
@@ -311,20 +321,31 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                 {gpsState === "live" ? " · GPS live" : gpsState === "simulated" ? " · simulated route" : ""}
               </div>
             </div>
-            <Sheet open={fleetOpen} onOpenChange={setFleetOpen}>
-              <Button
-                size="sm"
-                className="rounded-xl bg-amber-300 text-zinc-950 hover:bg-amber-200"
-                onClick={() => setFleetOpen(true)}
-              >
-                <Users />
-                Fleet
-              </Button>
-              <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
-                <SheetHeader>
-                  <SheetTitle>Connected devices</SheetTitle>
-                </SheetHeader>
-                <div className="overflow-y-auto px-4 pb-6">
+            <div className="flex shrink-0 gap-2">
+              <Sheet open={phoneOpen} onOpenChange={setPhoneOpen}>
+                <SheetContent side="bottom" className="rounded-t-3xl">
+                  <SheetHeader>
+                    <SheetTitle>Open on another phone</SheetTitle>
+                  </SheetHeader>
+                  <div className="px-4 pb-6">
+                    <PhoneAccess compact />
+                  </div>
+                </SheetContent>
+              </Sheet>
+              <Sheet open={fleetOpen} onOpenChange={setFleetOpen}>
+                <Button
+                  size="sm"
+                  className="rounded-xl bg-amber-300 text-zinc-950 hover:bg-amber-200"
+                  onClick={() => setFleetOpen(true)}
+                >
+                  <Users />
+                  Fleet
+                </Button>
+                <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
+                  <SheetHeader>
+                    <SheetTitle>Connected devices</SheetTitle>
+                  </SheetHeader>
+                  <div className="overflow-y-auto px-4 pb-6">
                   {devices.length === 0 ? (
                     <p className="py-8 text-sm text-muted-foreground">
                       No vehicles on the radio yet. Join from another phone or start the demo fleet.
@@ -372,6 +393,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                 </div>
               </SheetContent>
             </Sheet>
+            </div>
           </div>
 
           {selected ? (
