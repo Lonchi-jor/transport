@@ -59,6 +59,11 @@ function Camera({
   });
 
   useEffect(() => {
+    const t = window.setTimeout(() => map.invalidateSize(), 120);
+    return () => window.clearTimeout(t);
+  }, [map]);
+
+  useEffect(() => {
     if (!route || route.path.length < 2 || follow) return;
     map.fitBounds(L.latLngBounds(route.path), { padding: [36, 36], maxZoom: 16 });
   }, [map, route, follow, routeKey]);

@@ -2,17 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ClipboardList, Radio, Truck } from "lucide-react";
+import { ClipboardList, MapPinned, Radio, Truck } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import BrandLogo from "@/components/brand-logo";
-import FleetMap from "@/components/fleet-map";
+import DispatchMap from "@/components/dispatch-map";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import PlaceSuggest from "@/components/place-suggest";
 import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
-import { COURSE_STATUS_LABEL, activeCourses, courseToMapRoute, formatAge, formatKm, formatMinutes, kph, statusLabel } from "@/lib/format";
+import { COURSE_STATUS_LABEL, activeCourses, formatAge, formatKm, formatMinutes, kph, statusLabel } from "@/lib/format";
 
 type Props = {
   googleMapsApiKey: string;
@@ -39,6 +39,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
   const [online, setOnline] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -68,11 +69,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
     [devices],
   );
   const liveJobs = useMemo(() => activeCourses(courses), [courses]);
-  const mapRoute = courseToMapRoute(
-    courses.find((course) => course.id === selectedCourseId) ??
-      liveJobs.find((course) => course.routePath.length > 0) ??
-      null,
-  );
 
   async function createJob(event: FormEvent) {
     event.preventDefault();
@@ -134,6 +130,19 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
               <span className={`size-2 rounded-full ${online ? "bg-[#00a4e8]" : "bg-red-500"}`} />
               {online ? "Radio live" : "Hors ligne"}
             </span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="rounded-xl"
+              onClick={() => {
+                setSelectedId(null);
+                setMapOpen(true);
+              }}
+            >
+              <MapPinned className="size-4" />
+              Carte
+            </Button>
             <Link href="/" className="text-[#00a4e8] underline-offset-2 hover:underline">
               App chauffeur
             </Link>
@@ -268,7 +277,10 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                     <li key={driver.id}>
                       <button
                         type="button"
-                        onClick={() => setSelectedId(driver.id)}
+                        onClick={() => {
+                          setSelectedId(driver.id);
+                          setMapOpen(true);
+                        }}
                         className="flex w-full items-start justify-between rounded-xl border border-[#d5dcf0] px-3 py-2 text-left hover:bg-[#f4f7fc]"
                       >
                         <div>
@@ -292,21 +304,16 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
         </section>
 
         <section className="space-y-5">
-          <div className="h-[360px] overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white shadow-sm">
-            <FleetMap
-              googleMapsApiKey={googleMapsApiKey}
-              devices={devices}
-              now={now}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              follow={null}
-              stickToMe={false}
-              recenterKey={0}
-              onUserPan={() => undefined}
-              selfId={null}
-              route={mapRoute}
-            />
-          </div>
+          <DispatchMap
+            googleMapsApiKey={googleMapsApiKey}
+            devices={devices}
+            courses={courses}
+            now={now}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            open={mapOpen}
+            onOpenChange={setMapOpen}
+          />
 
           <div className="overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white shadow-sm">
             <div className="border-b border-[#d5dcf0] px-4 py-3">
@@ -331,7 +338,9 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                     {courses.map((course) => (
                       <tr
                         key={course.id}
-                        className="cursor-pointer border-t border-[#d5dcf0] align-top hover:bg-[#f4f7fc]"
+                        className={`cursor-pointer border-t border-[#d5dcf0] align-top hover:bg-[#f4f7fc] ${
+                          course.id === selectedCourseId ? "bg-[#eef3fb]" : ""
+                        }`}
                         onClick={() => setSelectedCourseId(course.id)}
                       >
                         <td className="px-4 py-3">
