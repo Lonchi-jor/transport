@@ -64,6 +64,8 @@ export function createCourse(draft: CourseDraft): Course {
     assignedCallSign: null,
     assignedDriverName: null,
     status: "open",
+    startedAt: null,
+    finishedAt: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -98,6 +100,12 @@ export function updateCourse(
     }
     if (patch.status === "done" && !next.hasDeliveryScan) {
       return null;
+    }
+    if (patch.status === "en_route") {
+      next.startedAt = next.startedAt ?? Date.now();
+    }
+    if (patch.status === "done" || patch.status === "cancelled") {
+      if (next.startedAt && !next.finishedAt) next.finishedAt = Date.now();
     }
     next.status = patch.status;
     next.updatedAt = Date.now();

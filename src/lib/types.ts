@@ -68,6 +68,8 @@ export type Course = {
   assignedCallSign: string | null;
   assignedDriverName: string | null;
   status: CourseStatus;
+  startedAt: number | null;
+  finishedAt: number | null;
   createdAt: number;
   updatedAt: number;
 };

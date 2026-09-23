@@ -78,3 +78,27 @@ export function formatMinutes(seconds: number | null) {
   if (seconds == null) return null;
   return `${Math.max(1, Math.round(seconds / 60))} min`;
 }
+
+export function formatElapsed(ms: number | null) {
+  if (ms == null || !Number.isFinite(ms) || ms < 0) return null;
+  const sec = Math.round(ms / 1000);
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = sec % 60;
+  if (h > 0) return `${h} h ${m} min`;
+  if (m > 0) return s > 0 && m < 10 ? `${m} min ${s} s` : `${m} min`;
+  return `${s} s`;
+}
+
+export function courseElapsedLabel(course: Course, now: number) {
+  if (!course.startedAt) return null;
+  if (course.status === "en_route") {
+    const label = formatElapsed(now - course.startedAt);
+    return label ? `En course depuis ${label}` : null;
+  }
+  if (course.finishedAt) {
+    const label = formatElapsed(course.finishedAt - course.startedAt);
+    return label ? `Durée ${label}` : null;
+  }
+  return null;
+}

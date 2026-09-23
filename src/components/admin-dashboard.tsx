@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import PlaceSuggest from "@/components/place-suggest";
 import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
-import { COURSE_STATUS_LABEL, activeCourses, formatAge, formatKm, formatMinutes, kph, statusLabel } from "@/lib/format";
+import { COURSE_STATUS_LABEL, activeCourses, courseElapsedLabel, formatAge, formatKm, kph, statusLabel } from "@/lib/format";
 
 type Props = {
   googleMapsApiKey: string;
@@ -335,7 +335,9 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {courses.map((course) => (
+                    {courses.map((course) => {
+                      const elapsed = courseElapsedLabel(course, now);
+                      return (
                       <tr
                         key={course.id}
                         className={`cursor-pointer border-t border-[#d5dcf0] align-top hover:bg-[#f4f7fc] ${
@@ -343,27 +345,38 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                         }`}
                         onClick={() => setSelectedCourseId(course.id)}
                       >
-                        <td className="px-4 py-3">
-                          <div className="font-semibold">{course.reference}</div>
-                          <div className="text-xs text-[#5b6294]">{course.clientName}</div>
+                        <td className="w-[200px] px-4 py-3">
+                          <div className="font-semibold text-[#2b308f]">{course.reference}</div>
+                          <div className="mt-1 text-sm leading-snug">{course.clientName}</div>
                           {course.clientPhone ? (
-                            <div className="text-xs text-[#5b6294]">{course.clientPhone}</div>
+                            <div className="mt-0.5 text-xs text-[#5b6294]">{course.clientPhone}</div>
                           ) : null}
-                          {course.bnNumber ? (
-                            <div className="mt-1 text-xs font-medium text-[#2b308f]">BN {course.bnNumber}</div>
-                          ) : null}
-                          {course.hasDeliveryScan ? (
-                            <div className="mt-1 text-xs font-medium text-[#00a4e8]">BL scanné</div>
-                          ) : null}
+                          <div className="mt-2 flex flex-wrap gap-1">
+                            {course.bnNumber ? (
+                              <span className="rounded-full bg-[#eef3fb] px-2 py-0.5 text-[11px] font-medium text-[#2b308f]">
+                                BN {course.bnNumber}
+                              </span>
+                            ) : null}
+                            {course.hasDeliveryScan ? (
+                              <span className="rounded-full bg-[#e7f6fd] px-2 py-0.5 text-[11px] font-medium text-[#00a4e8]">
+                                BL scanné
+                              </span>
+                            ) : null}
+                          </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <div>{course.pickupAddress}</div>
-                          <div className="text-[#00a4e8]">→ {course.dropoffAddress}</div>
-                          {formatKm(course.distanceMeters) ? (
-                            <div className="mt-1 text-xs text-[#5b6294]">
-                              {formatKm(course.distanceMeters)} · {formatMinutes(course.durationSeconds)}
-                            </div>
-                          ) : null}
+                        <td className="max-w-[340px] px-4 py-3">
+                          <div className="text-[11px] font-medium uppercase tracking-wide text-[#5b6294]">Départ</div>
+                          <div className="text-sm leading-snug">{course.pickupAddress}</div>
+                          <div className="mt-2 text-[11px] font-medium uppercase tracking-wide text-[#00a4e8]">Arrivée</div>
+                          <div className="text-sm leading-snug">{course.dropoffAddress}</div>
+                          <div className="mt-2 flex flex-col gap-0.5 text-xs text-[#5b6294]">
+                            {formatKm(course.distanceMeters) ? <span>{formatKm(course.distanceMeters)}</span> : null}
+                            {elapsed ? (
+                              <span className="font-medium text-[#2b308f]">{elapsed}</span>
+                            ) : (
+                              <span>Pas encore démarrée</span>
+                            )}
+                          </div>
                           {course.notes ? <div className="mt-1 text-xs text-[#5b6294]">{course.notes}</div> : null}
                         </td>
                         <td className="px-4 py-3">
@@ -424,7 +437,8 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
