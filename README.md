@@ -16,8 +16,9 @@ Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC. L
 
 1. **Enregistrez le chauffeur** dans **Chauffeurs** : indicatif (`ME-01`), nom, **téléphone**, **véhicule** (type + immatriculation), et un code PIN.
 2. Donnez l’indicatif et le PIN au chauffeur. Vous pouvez **modifier** la fiche à tout moment.
-3. Sur le **tableau de bord**, créez une course et **choisissez le chauffeur** : son véhicule se remplit tout seul. La **note au chauffeur** s’affiche en grand sur le portable ; il doit la lire avant de démarrer.
+3. Sur le **tableau de bord**, créez une course et **choisissez le chauffeur** : son véhicule se remplit tout seul. La **note au chauffeur** s’affiche en grand sur le portable ; il doit la lire avant de démarrer. Une **cloche** sur le téléphone lui signale la nouvelle course.
 4. Ouvrez **Courses** pour l’historique complet. Le bureau ne voit pas le texte de la note dans le tableau : une pastille **Note envoyée** le signale, et le texte apparaît au survol (sans cliquer).
+5. Quand le chauffeur **termine** (scan du BL), la **cloche du dispatch** n’alerte que le poste qui a créé cette course. Un autre ordinateur du bureau ne reçoit pas cette alerte.
 
 Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’à la destination.
 

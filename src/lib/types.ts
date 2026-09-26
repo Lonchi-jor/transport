@@ -77,6 +77,7 @@ export type Course = {
   status: CourseStatus;
   startedAt: number | null;
   finishedAt: number | null;
+  createdByAdminId: string | null;
   createdAt: number;
   updatedAt: number;
 };
@@ -98,6 +99,7 @@ export type CourseDraft = {
   assignedDeviceId?: string | null;
   vehicleType?: VehicleType | null;
   vehiclePlate?: string | null;
+  createdByAdminId?: string | null;
 };
 
 export type CoursePatch = {
@@ -109,9 +111,26 @@ export type CoursePatch = {
   vehiclePlate?: string | null;
 };
 
+export const NOTIFICATION_KINDS = ["course_assigned", "course_done"] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
+export type AppNotification = {
+  id: string;
+  kind: NotificationKind;
+  courseId: string;
+  reference: string;
+  title: string;
+  body: string;
+  targetRole: "driver" | "dispatcher";
+  targetId: string;
+  createdAt: number;
+  readAt: number | null;
+};
+
 export type FleetSnapshot = {
   devices: FleetDevice[];
   courses?: Course[];
+  notifications?: AppNotification[];
   drivers?: {
     id: string;
     callSign: string;

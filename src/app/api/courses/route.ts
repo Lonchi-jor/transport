@@ -29,6 +29,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Chauffeur inconnu. Créez-le d’abord dans le bureau." }, { status: 400 });
   }
 
+  const createdByAdminId =
+    typeof body.createdByAdminId === "string" ? body.createdByAdminId.trim().slice(0, 80) : "";
+
   const pickup = await resolvePlace(body.pickupAddress, body.pickupLat, body.pickupLng);
   const dropoff = await resolvePlace(body.dropoffAddress, body.dropoffLat, body.dropoffLng);
   const hasCoords =
@@ -58,6 +61,7 @@ export async function POST(request: Request) {
     durationSeconds: route?.durationSeconds ?? null,
     vehicleType: vehicleType ?? undefined,
     vehiclePlate: body.vehiclePlate,
+    createdByAdminId: createdByAdminId || null,
   });
   return NextResponse.json({ course, ...radioSnapshot() });
 }

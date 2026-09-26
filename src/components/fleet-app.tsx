@@ -12,7 +12,8 @@ import JoinScreen, { type JoinPayload } from "@/components/join-screen";
 import PhoneAccess from "@/components/phone-access";
 import DeliveryScanner from "@/components/delivery-scanner";
 import DispatchNote from "@/components/dispatch-note";
-import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
+import NotificationBell from "@/components/notification-bell";
+import type { AppNotification, Course, FleetDevice, FleetSnapshot } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
 import { COURSE_STATUS_LABEL, courseElapsedLabel, courseToMapRoute, DEFAULT_CENTER, formatAge, formatKm, kph, statusLabel, vehicleLine } from "@/lib/format";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [session, setSession] = useState<Session | null>(null);
   const [devices, setDevices] = useState<FleetDevice[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [now, setNow] = useState(0);
   const [demo, setDemo] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -86,6 +88,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const applySnapshot = useCallback((snapshot: FleetSnapshot & { demo?: boolean }) => {
     setDevices(snapshot.devices);
     setCourses(snapshot.courses ?? []);
+    setNotifications(snapshot.notifications ?? []);
     setNow(snapshot.now);
     if (typeof snapshot.demo === "boolean") setDemo(snapshot.demo);
     setOnline(true);
@@ -115,6 +118,31 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       });
     }
   }, []);
+
+  const markAlertsRead = useCallback(
+    async (ids: string[]) => {
+      const targetId = sessionRef.current?.id;
+      if (!ids.length || !targetId) return;
+      setNotifications((prev) =>
+        prev.map((item) =>
+          ids.includes(item.id) && item.targetId === targetId
+            ? { ...item, readAt: item.readAt ?? Date.now() }
+            : item,
+        ),
+      );
+      try {
+        const res = await fetch("/api/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids, targetId }),
+        });
+        if (res.ok) applySnapshot((await res.json()) as FleetSnapshot);
+      } catch {
+        /* keep optimistic */
+      }
+    },
+    [applySnapshot],
+  );
 
   const sendHeartbeat = useCallback(async (current: Session) => {
     const fix = lastFix.current;
@@ -426,6 +454,13 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     [courses, session?.id],
   );
   const currentJob = myJobs.find((c) => c.status === "en_route") ?? myJobs[0] ?? null;
+  const myAlerts = useMemo(
+    () =>
+      notifications.filter(
+        (item) => item.kind === "course_assigned" && item.targetId === session?.id,
+      ),
+    [notifications, session?.id],
+  );
   const bnJob = courses.find((course) => course.id === bnJobId) ?? null;
   const follow = useMemo(() => {
     if (gpsState !== "live" || !myPos) return null;
@@ -452,15 +487,26 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
             {online ? "Live" : "Reconnecting"} · {liveVehicles.length} vehicles · {mapProvider}
           </div>
         </div>
-        <Button
-          variant="secondary"
-          size="sm"
-          onClick={() => void leave()}
-          className="pointer-events-auto h-9 rounded-xl"
-        >
-          <LogOut />
-          Leave
-        </Button>
+        <div className="pointer-events-auto flex items-start gap-2">
+          <NotificationBell
+            tone="dark"
+            items={myAlerts}
+            label="Vos courses"
+            empty="Pas de nouvelle course pour le moment."
+            hint="La cloche sonne quand le bureau vous attribue une course."
+            onMarkRead={(ids) => void markAlertsRead(ids)}
+            onOpenItem={() => setJobsOpen(true)}
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => void leave()}
+            className="h-9 rounded-xl"
+          >
+            <LogOut />
+            Leave
+          </Button>
+        </div>
       </header>
 
       <Sheet open={bnOpen} onOpenChange={setBnOpen}>

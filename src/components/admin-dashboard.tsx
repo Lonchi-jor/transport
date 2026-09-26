@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import PlaceSuggest from "@/components/place-suggest";
 import type { FleetSnapshot, VehicleType } from "@/lib/types";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
+import { ensureDispatcherId } from "@/lib/dispatcher";
 import { COURSE_STATUS_LABEL, vehicleLine } from "@/lib/format";
 
 type Props = {
@@ -38,7 +39,8 @@ const emptyForm = {
 };
 
 export default function AdminDashboard({ googleMapsApiKey }: Props) {
-  const { devices, courses, roster, now, online, liveById, liveJobs, applySnapshot } = useAdminFleet();
+  const { devices, courses, roster, now, online, liveById, liveJobs, alerts, applySnapshot, markAlertsRead } =
+    useAdminFleet();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
@@ -81,6 +83,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
           assignedDeviceId: form.assignedDeviceId || null,
           vehicleType: form.assignedDeviceId ? form.vehicleType : null,
           vehiclePlate: form.assignedDeviceId ? form.vehiclePlate : null,
+          createdByAdminId: ensureDispatcherId(),
         }),
       });
       const data = (await res.json()) as FleetSnapshot & { error?: string };
@@ -120,6 +123,9 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
       <AdminChrome
         active="dispatch"
         online={online}
+        alerts={alerts}
+        onMarkAlertsRead={(ids) => void markAlertsRead(ids)}
+        onOpenAlert={(item) => setSelectedCourseId(item.courseId)}
         extra={
           <Button
             type="button"

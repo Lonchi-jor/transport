@@ -4,6 +4,7 @@ import type { Course, CourseDraft, CoursePatch, CourseStatus, VehicleType } from
 import { COURSE_STATUSES } from "./types";
 import { getDevice } from "./fleet-store";
 import { getDriver, isVehicleType, normalizePlate } from "./driver-store";
+import { addNotification } from "./notification-store";
 
 const FILE = path.join(process.cwd(), ".data", "courses.json");
 const courses = new Map<string, Course>();
@@ -47,6 +48,7 @@ function normalizeCourse(item: Partial<Course>): Course | null {
     status,
     startedAt: item.startedAt ?? null,
     finishedAt: item.finishedAt ?? null,
+    createdByAdminId: item.createdByAdminId?.trim() || null,
     createdAt: item.createdAt ?? Date.now(),
     updatedAt: item.updatedAt ?? item.createdAt ?? Date.now(),
   };
@@ -162,6 +164,38 @@ function applyAssignment(
   };
 }
 
+function notifyAssigned(course: Course) {
+  if (!course.assignedDeviceId) return;
+  if (course.status !== "assigned" && course.status !== "en_route") return;
+  addNotification({
+    kind: "course_assigned",
+    courseId: course.id,
+    reference: course.reference,
+    title: `Nouvelle course ${course.reference}`,
+    body: `${course.clientName} · ${course.pickupAddress} → ${course.dropoffAddress}`,
+    targetRole: "driver",
+    targetId: course.assignedDeviceId,
+    unique: "unread",
+  });
+}
+
+function notifyDone(course: Course) {
+  if (!course.createdByAdminId) return;
+  const driver = course.assignedDriverName
+    ? `${course.assignedCallSign ?? ""} — ${course.assignedDriverName}`.replace(/^ — /, "")
+    : "Le chauffeur";
+  addNotification({
+    kind: "course_done",
+    courseId: course.id,
+    reference: course.reference,
+    title: `Course terminée ${course.reference}`,
+    body: `${driver} a terminé ${course.clientName}.`,
+    targetRole: "dispatcher",
+    targetId: course.createdByAdminId,
+    unique: "always",
+  });
+}
+
 export function createCourse(draft: CourseDraft): Course {
   const id = crypto.randomUUID();
   const reference = `CCMM-${String(nextNumber).padStart(3, "0")}`;
@@ -196,6 +230,7 @@ export function createCourse(draft: CourseDraft): Course {
     status: "open",
     startedAt: null,
     finishedAt: null,
+    createdByAdminId: draft.createdByAdminId?.trim() || null,
     createdAt: now,
     updatedAt: now,
   };
@@ -207,12 +242,15 @@ export function createCourse(draft: CourseDraft): Course {
   }
   courses.set(course.id, course);
   save();
+  notifyAssigned(course);
   return course;
 }
 
 export function updateCourse(id: string, patch: CoursePatch): Course | null {
   const existing = courses.get(id);
   if (!existing) return null;
+  const previousAssigned = existing.assignedDeviceId;
+  const previousStatus = existing.status;
   let next = { ...existing, updatedAt: Date.now() };
   if (patch.assignedDeviceId !== undefined) {
     next = applyAssignment(next, patch.assignedDeviceId, {
@@ -249,6 +287,12 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
   next.updatedAt = Date.now();
   courses.set(id, next);
   save();
+  if (next.assignedDeviceId && next.assignedDeviceId !== previousAssigned) {
+    notifyAssigned(next);
+  }
+  if (next.status === "done" && previousStatus !== "done") {
+    notifyDone(next);
+  }
   return next;
 }
 

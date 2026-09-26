@@ -31,8 +31,19 @@ const emptyDriver = {
 };
 
 export default function ChauffeursDashboard() {
-  const { courses, roster, setRoster, now, online, liveJobs, liveById, onlineCount, applySnapshot } =
-    useAdminFleet();
+  const {
+    courses,
+    roster,
+    setRoster,
+    now,
+    online,
+    liveJobs,
+    liveById,
+    onlineCount,
+    applySnapshot,
+    alerts,
+    markAlertsRead,
+  } = useAdminFleet();
   const searchParams = useSearchParams();
   const router = useRouter();
   const selectedId = searchParams.get("id");
@@ -142,6 +153,9 @@ export default function ChauffeursDashboard() {
       <AdminChrome
         active="chauffeurs"
         online={online}
+        alerts={alerts}
+        onMarkAlertsRead={(ids) => void markAlertsRead(ids)}
+        onOpenAlert={() => router.push("/admin/courses")}
       />
 
       <main className="mx-auto grid max-w-[1400px] gap-5 px-4 py-5 sm:px-6 xl:grid-cols-[360px_minmax(0,1fr)]">

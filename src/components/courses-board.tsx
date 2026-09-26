@@ -30,7 +30,7 @@ const PERIODS = [
 ] as const;
 
 export default function CoursesBoard() {
-  const { courses, roster, now, online, applySnapshot } = useAdminFleet();
+  const { courses, roster, now, online, applySnapshot, alerts, markAlertsRead } = useAdminFleet();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -123,7 +123,13 @@ export default function CoursesBoard() {
 
   return (
     <div className="min-h-dvh bg-[#f4f7fc] text-[#1c2268]">
-      <AdminChrome active="courses" online={online} />
+      <AdminChrome
+        active="courses"
+        online={online}
+        alerts={alerts}
+        onMarkAlertsRead={(ids) => void markAlertsRead(ids)}
+        onOpenAlert={(item) => setSelectedId(item.courseId)}
+      />
 
       <main className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6">
         <div>

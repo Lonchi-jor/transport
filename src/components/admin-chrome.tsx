@@ -4,16 +4,28 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { ClipboardList, LayoutDashboard, Truck } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
+import NotificationBell from "@/components/notification-bell";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { AppNotification } from "@/lib/types";
 
 type Props = {
   active: "dispatch" | "courses" | "chauffeurs";
   online: boolean;
   extra?: ReactNode;
+  alerts?: AppNotification[];
+  onMarkAlertsRead?: (ids: string[]) => void;
+  onOpenAlert?: (item: AppNotification) => void;
 };
 
-export default function AdminChrome({ active, online, extra }: Props) {
+export default function AdminChrome({
+  active,
+  online,
+  extra,
+  alerts = [],
+  onMarkAlertsRead,
+  onOpenAlert,
+}: Props) {
   return (
     <header className="border-b border-[#d5dcf0] bg-white">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
@@ -51,6 +63,14 @@ export default function AdminChrome({ active, online, extra }: Props) {
             <span className={`size-2 rounded-full ${online ? "bg-[#00a4e8]" : "bg-red-500"}`} />
             {online ? "Radio live" : "Hors ligne"}
           </span>
+          <NotificationBell
+            items={alerts}
+            label="Courses terminées"
+            empty="Aucune course terminée pour ce poste."
+            hint="Seules les courses créées depuis cet ordinateur vous alertent."
+            onMarkRead={(ids) => onMarkAlertsRead?.(ids)}
+            onOpenItem={onOpenAlert}
+          />
           <Link
             href="/admin/courses"
             className={cn(
