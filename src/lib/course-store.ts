@@ -5,6 +5,7 @@ import { COURSE_STATUSES } from "./types";
 import { getDevice } from "./fleet-store";
 import { getDriver, isVehicleType, normalizePlate } from "./driver-store";
 import { addNotification } from "./notification-store";
+import { shortPlace } from "./format";
 
 const FILE = path.join(process.cwd(), ".data", "courses.json");
 const courses = new Map<string, Course>();
@@ -172,7 +173,7 @@ function notifyAssigned(course: Course) {
     courseId: course.id,
     reference: course.reference,
     title: `Nouvelle course ${course.reference}`,
-    body: `${course.clientName} · ${course.pickupAddress} → ${course.dropoffAddress}`,
+    body: `${course.clientName} · ${shortPlace(course.pickupAddress)} → ${shortPlace(course.dropoffAddress)}`,
     targetRole: "driver",
     targetId: course.assignedDeviceId,
     unique: "unread",

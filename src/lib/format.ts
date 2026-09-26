@@ -104,6 +104,11 @@ export function telHref(phone: string) {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }
 
+export function shortPlace(value: string) {
+  const first = value.split(",")[0]?.trim();
+  return first || value.trim();
+}
+
 export function formatWhen(ts: number | null | undefined) {
   if (ts == null || !Number.isFinite(ts)) return null;
   return new Intl.DateTimeFormat("fr-FR", {

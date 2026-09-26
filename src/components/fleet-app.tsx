@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BusFront, ClipboardList, Crosshair, LogOut, Route, Smartphone, Users } from "lucide-react";
+import { BusFront, ChevronDown, ChevronUp, ClipboardList, Crosshair, LogOut, Route, Smartphone, Users } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import "leaflet/dist/leaflet.css";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,7 @@ import DispatchNote from "@/components/dispatch-note";
 import NotificationBell from "@/components/notification-bell";
 import type { AppNotification, Course, FleetDevice, FleetSnapshot } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
-import { COURSE_STATUS_LABEL, courseElapsedLabel, courseToMapRoute, DEFAULT_CENTER, formatAge, formatKm, kph, statusLabel, vehicleLine } from "@/lib/format";
+import { COURSE_STATUS_LABEL, courseElapsedLabel, courseToMapRoute, DEFAULT_CENTER, formatAge, formatKm, kph, shortPlace, statusLabel, vehicleLine } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 
 const SESSION_KEY = "transitlive-session";
@@ -63,6 +63,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [scanOpen, setScanOpen] = useState(false);
   const [scanJobId, setScanJobId] = useState<string | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const [dockOpen, setDockOpen] = useState(true);
   const [hasFix, setHasFix] = useState(false);
   const [myPos, setMyPos] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
   const [stickToMe, setStickToMe] = useState(true);
@@ -490,10 +491,11 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         <div className="pointer-events-auto flex items-start gap-2">
           <NotificationBell
             tone="dark"
+            mode="sheet"
             items={myAlerts}
             label="Vos courses"
             empty="Pas de nouvelle course pour le moment."
-            hint="La cloche sonne quand le bureau vous attribue une course."
+            hint="Une alerte apparaît ici quand le bureau vous donne une course."
             onMarkRead={(ids) => void markAlertsRead(ids)}
             onOpenItem={() => setJobsOpen(true)}
           />
@@ -612,291 +614,341 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute right-3 bottom-28 z-50 flex flex-col gap-2">
-        <Button
-          variant="secondary"
-          className="pointer-events-auto h-11 rounded-full bg-[#151a45] px-3 text-white shadow-lg"
-          onClick={() => setPhoneOpen(true)}
-        >
-          <Smartphone className="size-4" />
-          Phone
-        </Button>
-        <Button
-          variant="secondary"
-          className="pointer-events-auto h-11 rounded-full bg-[#151a45] px-3 text-white shadow-lg"
-          onClick={() => void toggleDemo()}
-        >
-          <Route className="size-4" />
-          {demo ? "Stop demo" : "Demo fleet"}
-        </Button>
-        {hasFix ? (
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 flex flex-col items-end gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-auto flex flex-col gap-2">
           <Button
-            size="icon"
             variant="secondary"
-            className="pointer-events-auto size-11 rounded-full bg-[#151a45] text-white shadow-lg"
-            onClick={() => {
-              setSelectedId(session.id);
-              setStickToMe(true);
-              setRecenterKey((value) => value + 1);
-            }}
+            className="h-11 rounded-full bg-[#151a45] px-3 text-white shadow-lg"
+            onClick={() => setPhoneOpen(true)}
           >
-            <Crosshair className="size-4" />
+            <Smartphone className="size-4" />
+            Phone
           </Button>
-        ) : null}
-      </div>
+          <Button
+            variant="secondary"
+            className="h-11 rounded-full bg-[#151a45] px-3 text-white shadow-lg"
+            onClick={() => void toggleDemo()}
+          >
+            <Route className="size-4" />
+            {demo ? "Stop demo" : "Demo fleet"}
+          </Button>
+          {hasFix ? (
+            <Button
+              size="icon"
+              variant="secondary"
+              className="size-11 rounded-full bg-[#151a45] text-white shadow-lg"
+              onClick={() => {
+                setSelectedId(session.id);
+                setStickToMe(true);
+                setRecenterKey((value) => value + 1);
+              }}
+            >
+              <Crosshair className="size-4" />
+            </Button>
+          ) : null}
+        </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-        <div className="pointer-events-auto rounded-3xl border border-white/20 bg-[#151a45] p-4 text-white shadow-2xl">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold">
-                {session.callSign} · {session.driverName}
-              </div>
-              <div className="text-xs text-blue-100">{vehicleLine(session)}</div>
-              <div className="text-xs text-blue-100">
-                {session.role === "driver" ? "Broadcasting this device" : "Dispatch console"}
-                {gpsState === "live"
-                  ? ` · real GPS${myPos?.accuracy != null ? ` ±${Math.round(myPos.accuracy)}m` : ""}`
-                  : gpsState === "simulated"
-                    ? " · FAKE training GPS"
-                    : gpsState === "waiting"
-                      ? " · getting GPS…"
-                      : ""}
-              </div>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <Sheet open={phoneOpen} onOpenChange={setPhoneOpen}>
-                <SheetContent side="bottom" className="rounded-t-3xl">
-                  <SheetHeader>
-                    <SheetTitle>Open on another phone</SheetTitle>
-                  </SheetHeader>
-                  <div className="px-4 pb-6">
-                    <PhoneAccess compact />
+        <div className="pointer-events-auto w-full overflow-hidden rounded-3xl border border-white/20 bg-[#151a45] text-white shadow-2xl">
+          <button
+            type="button"
+            onClick={() => setDockOpen((open) => !open)}
+            className="flex w-full flex-col px-4 pt-2 pb-2.5 text-left"
+            aria-expanded={dockOpen}
+            aria-label={dockOpen ? "Baisser le panneau" : "Remonter le panneau"}
+          >
+            <span className="mx-auto h-1 w-10 rounded-full bg-white/40" />
+            <div className="mt-2 flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold">
+                  {session.callSign} · {session.driverName}
+                </div>
+                {!dockOpen ? (
+                  <div className="truncate text-[11px] text-blue-100">
+                    {currentJob
+                      ? `${currentJob.reference} · ${COURSE_STATUS_LABEL[currentJob.status]} · ${currentJob.clientName}`
+                      : vehicleLine(session)}
                   </div>
-                </SheetContent>
-              </Sheet>
-              <Sheet open={jobsOpen} onOpenChange={setJobsOpen}>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="rounded-xl"
-                  onClick={() => setJobsOpen(true)}
-                >
-                  <ClipboardList />
-                  Courses
-                  {myJobs.length > 0 ? ` (${myJobs.length})` : ""}
-                </Button>
-                <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
-                  <SheetHeader>
-                    <SheetTitle>Vos courses</SheetTitle>
-                  </SheetHeader>
-                  <div className="overflow-y-auto px-4 pb-6">
-                    {myJobs.length === 0 && myHistory.length === 0 ? (
-                      <p className="py-8 text-sm text-muted-foreground">
-                        Aucune course enregistrée pour ce chauffeur.
-                      </p>
-                    ) : (
-                      <div className="space-y-5">
-                        <section>
-                          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            En cours
-                          </h3>
-                          {myJobs.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">Pas de course active.</p>
-                          ) : (
-                            <ul className="space-y-2">
-                              {myJobs.map((job) => (
-                                <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="font-semibold">{job.reference}</div>
-                                    <Badge>{COURSE_STATUS_LABEL[job.status]}</Badge>
-                                  </div>
-                                  <div className="mt-1 text-sm">{job.clientName}</div>
-                                  <div className="mt-1 text-xs text-muted-foreground">
-                                    {job.pickupAddress} → {job.dropoffAddress}
-                                  </div>
-                                  <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
-                                  {job.notes ? <div className="mt-2"><DispatchNote notes={job.notes} /></div> : null}
-                                  <div className="mt-3 flex gap-2">
-                                    {job.status === "assigned" ? (
-                                      <Button size="sm" onClick={() => askBn(job.id)}>
-                                        Démarrer
-                                      </Button>
-                                    ) : null}
-                                    {job.status === "en_route" ? (
-                                      <Button size="sm" onClick={() => askDelivery(job.id)}>
-                                        Terminer — scanner le BL
-                                      </Button>
-                                    ) : null}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </section>
-                        <section>
-                          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Historique
-                          </h3>
-                          {myHistory.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">Pas encore de course terminée.</p>
-                          ) : (
-                            <ul className="space-y-2">
-                              {myHistory.map((job) => (
-                                <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
-                                  <div className="flex items-center justify-between gap-2">
-                                    <div className="font-semibold">{job.reference}</div>
-                                    <Badge variant="secondary">{COURSE_STATUS_LABEL[job.status]}</Badge>
-                                  </div>
-                                  <div className="mt-1 text-sm">{job.clientName}</div>
-                                  <div className="mt-1 text-xs text-muted-foreground">
-                                    {job.pickupAddress} → {job.dropoffAddress}
-                                  </div>
-                                  <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
-                                  {job.bnNumber ? (
-                                    <div className="mt-1 text-xs text-muted-foreground">BN {job.bnNumber}</div>
-                                  ) : null}
-                                  {formatKm(job.distanceMeters) ? (
-                                    <div className="mt-1 text-xs text-muted-foreground">{formatKm(job.distanceMeters)}</div>
-                                  ) : null}
-                                  {courseElapsedLabel(job, now) ? (
-                                    <div className="mt-1 text-xs font-medium">{courseElapsedLabel(job, now)}</div>
-                                  ) : null}
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </section>
+                ) : null}
+              </div>
+              {dockOpen ? (
+                <ChevronDown className="size-5 shrink-0 text-blue-100" />
+              ) : (
+                <ChevronUp className="size-5 shrink-0 text-[#7dd8f7]" />
+              )}
+            </div>
+          </button>
+
+          {dockOpen ? (
+            <div className="px-4 pb-4">
+              <div className="mb-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-xs text-blue-100">{vehicleLine(session)}</div>
+                  <div className="text-xs text-blue-100">
+                    {session.role === "driver" ? "En ligne" : "Dispatch"}
+                    {gpsState === "live"
+                      ? ` · GPS${myPos?.accuracy != null ? ` ±${Math.round(myPos.accuracy)} m` : ""}`
+                      : gpsState === "simulated"
+                        ? " · GPS d’entraînement"
+                        : gpsState === "waiting"
+                          ? " · GPS…"
+                          : ""}
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-2">
+                  <Sheet open={phoneOpen} onOpenChange={setPhoneOpen}>
+                    <SheetContent side="bottom" className="rounded-t-3xl">
+                      <SheetHeader>
+                        <SheetTitle>Open on another phone</SheetTitle>
+                      </SheetHeader>
+                      <div className="px-4 pb-6">
+                        <PhoneAccess compact />
                       </div>
+                    </SheetContent>
+                  </Sheet>
+                  <Sheet open={jobsOpen} onOpenChange={setJobsOpen}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      className="rounded-xl"
+                      onClick={() => setJobsOpen(true)}
+                    >
+                      <ClipboardList />
+                      Courses
+                      {myJobs.length > 0 ? ` (${myJobs.length})` : ""}
+                    </Button>
+                    <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
+                      <SheetHeader>
+                        <SheetTitle>Vos courses</SheetTitle>
+                      </SheetHeader>
+                      <div className="overflow-y-auto px-4 pb-6">
+                        {myJobs.length === 0 && myHistory.length === 0 ? (
+                          <p className="py-8 text-sm text-muted-foreground">
+                            Aucune course enregistrée pour ce chauffeur.
+                          </p>
+                        ) : (
+                          <div className="space-y-5">
+                            <section>
+                              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                En cours
+                              </h3>
+                              {myJobs.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Pas de course active.</p>
+                              ) : (
+                                <ul className="space-y-2">
+                                  {myJobs.map((job) => (
+                                    <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="font-semibold">{job.reference}</div>
+                                        <Badge>{COURSE_STATUS_LABEL[job.status]}</Badge>
+                                      </div>
+                                      <div className="mt-1 text-sm">{job.clientName}</div>
+                                      <div className="mt-1 text-xs text-muted-foreground">
+                                        {shortPlace(job.pickupAddress)} → {shortPlace(job.dropoffAddress)}
+                                      </div>
+                                      <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
+                                      {job.notes ? <div className="mt-2"><DispatchNote notes={job.notes} /></div> : null}
+                                      <div className="mt-3 flex gap-2">
+                                        {job.status === "assigned" ? (
+                                          <Button size="sm" onClick={() => askBn(job.id)}>
+                                            Démarrer
+                                          </Button>
+                                        ) : null}
+                                        {job.status === "en_route" ? (
+                                          <Button size="sm" onClick={() => askDelivery(job.id)}>
+                                            Terminer — scanner le BL
+                                          </Button>
+                                        ) : null}
+                                      </div>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </section>
+                            <section>
+                              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                Historique
+                              </h3>
+                              {myHistory.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">Pas encore de course terminée.</p>
+                              ) : (
+                                <ul className="space-y-2">
+                                  {myHistory.map((job) => (
+                                    <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <div className="font-semibold">{job.reference}</div>
+                                        <Badge variant="secondary">{COURSE_STATUS_LABEL[job.status]}</Badge>
+                                      </div>
+                                      <div className="mt-1 text-sm">{job.clientName}</div>
+                                      <div className="mt-1 text-xs text-muted-foreground">
+                                        {shortPlace(job.pickupAddress)} → {shortPlace(job.dropoffAddress)}
+                                      </div>
+                                      <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
+                                      {job.bnNumber ? (
+                                        <div className="mt-1 text-xs text-muted-foreground">BN {job.bnNumber}</div>
+                                      ) : null}
+                                      {formatKm(job.distanceMeters) ? (
+                                        <div className="mt-1 text-xs text-muted-foreground">{formatKm(job.distanceMeters)}</div>
+                                      ) : null}
+                                      {courseElapsedLabel(job, now) ? (
+                                        <div className="mt-1 text-xs font-medium">{courseElapsedLabel(job, now)}</div>
+                                      ) : null}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </section>
+                          </div>
+                        )}
+                      </div>
+                    </SheetContent>
+                  </Sheet>
+                  <Sheet open={fleetOpen} onOpenChange={setFleetOpen}>
+                    <Button
+                      size="sm"
+                      className="rounded-xl"
+                      onClick={() => setFleetOpen(true)}
+                    >
+                      <Users />
+                      Fleet
+                    </Button>
+                    <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
+                      <SheetHeader>
+                        <SheetTitle>Connected devices</SheetTitle>
+                      </SheetHeader>
+                      <div className="overflow-y-auto px-4 pb-6">
+                      {devices.length === 0 ? (
+                        <p className="py-8 text-sm text-muted-foreground">
+                          No vehicles on the radio yet. Join from another phone or start the demo fleet.
+                        </p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {devices.map((device) => (
+                            <li key={device.id}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedId(device.id);
+                                  setFleetOpen(false);
+                                }}
+                                className="flex w-full items-start justify-between rounded-2xl border border-border bg-card px-3 py-3 text-left"
+                              >
+                                <div>
+                                  <div className="flex items-center gap-2 font-semibold">
+                                    <span
+                                      className="size-2.5 rounded-full"
+                                      style={{ background: VEHICLE_META[device.vehicleType].color }}
+                                    />
+                                    {device.callSign}
+                                    {device.id === session.id ? (
+                                      <Badge variant="secondary">You</Badge>
+                                    ) : null}
+                                    {device.id.startsWith("demo-") ? (
+                                      <Badge variant="outline">Training</Badge>
+                                    ) : device.simulated ? (
+                                      <Badge variant="outline">Fake GPS</Badge>
+                                    ) : null}
+                                  </div>
+                                  <div className="mt-1 text-xs text-muted-foreground">
+                                    {device.driverName} · {vehicleLine(device)}
+                                  </div>
+                                </div>
+                                <div className="text-right text-xs">
+                                  <div className="font-medium">{statusLabel(device, now)}</div>
+                                  <div className="text-muted-foreground">
+                                    {kph(device.speedMps) != null ? `${kph(device.speedMps)} km/h · ` : ""}
+                                    {formatAge(device.lastSeen, now)}
+                                  </div>
+                                </div>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    </SheetContent>
+                  </Sheet>
+                </div>
+              </div>
+
+              {currentJob ? (
+                <div className="rounded-2xl bg-white/10 px-3 py-2 text-xs text-blue-50">
+                  <div className="flex items-center justify-between gap-2 font-medium">
+                    <span>
+                      {currentJob.reference} · {COURSE_STATUS_LABEL[currentJob.status]}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-blue-100">{currentJob.clientName}</div>
+                  <div className="mt-1 text-blue-100">
+                    {shortPlace(currentJob.pickupAddress)} → {shortPlace(currentJob.dropoffAddress)}
+                  </div>
+                  {currentJob.bnNumber ? (
+                    <div className="mt-1 font-medium text-white">BN {currentJob.bnNumber}</div>
+                  ) : null}
+                  {currentJob.notes ? (
+                    <div className="mt-2">
+                      <DispatchNote notes={currentJob.notes} tone="dark" />
+                    </div>
+                  ) : null}
+                  <div className="mt-2 flex gap-2">
+                    {currentJob.status === "assigned" ? (
+                      <Button
+                        size="sm"
+                        className="h-8 rounded-lg"
+                        onClick={() => askBn(currentJob.id)}
+                      >
+                        Commencer — saisir le BN
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        className="h-8 rounded-lg"
+                        onClick={() => askDelivery(currentJob.id)}
+                      >
+                        Terminer — scanner le BL
+                      </Button>
                     )}
                   </div>
-                </SheetContent>
-              </Sheet>
-              <Sheet open={fleetOpen} onOpenChange={setFleetOpen}>
+                </div>
+              ) : selected ? (
+                <div className="rounded-2xl bg-white/10 px-3 py-2 text-xs text-blue-50">
+                  <div className="flex items-center gap-2 font-medium">
+                    <BusFront className="size-3.5" />
+                    {selected.callSign} selected
+                  </div>
+                  <div className="mt-1 text-blue-100">
+                    {selected.driverName} · {statusLabel(selected, now)}
+                    {selected.lat != null
+                      ? ` · ${selected.lat.toFixed(4)}, ${selected.lng?.toFixed(4)}`
+                      : " · no coordinates"}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-blue-100">
+                  En attente d’une course du bureau.
+                </p>
+              )}
+            </div>
+          ) : currentJob ? (
+            <div className="flex items-center justify-between gap-2 px-4 pb-3">
+              {currentJob.status === "assigned" ? (
                 <Button
                   size="sm"
-                  className="rounded-xl"
-                  onClick={() => setFleetOpen(true)}
+                  className="h-8 flex-1 rounded-lg"
+                  onClick={() => askBn(currentJob.id)}
                 >
-                  <Users />
-                  Fleet
+                  Commencer — BN
                 </Button>
-                <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
-                  <SheetHeader>
-                    <SheetTitle>Connected devices</SheetTitle>
-                  </SheetHeader>
-                  <div className="overflow-y-auto px-4 pb-6">
-                  {devices.length === 0 ? (
-                    <p className="py-8 text-sm text-muted-foreground">
-                      No vehicles on the radio yet. Join from another phone or start the demo fleet.
-                    </p>
-                  ) : (
-                    <ul className="space-y-2">
-                      {devices.map((device) => (
-                        <li key={device.id}>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedId(device.id);
-                              setFleetOpen(false);
-                            }}
-                            className="flex w-full items-start justify-between rounded-2xl border border-border bg-card px-3 py-3 text-left"
-                          >
-                            <div>
-                              <div className="flex items-center gap-2 font-semibold">
-                                <span
-                                  className="size-2.5 rounded-full"
-                                  style={{ background: VEHICLE_META[device.vehicleType].color }}
-                                />
-                                {device.callSign}
-                                {device.id === session.id ? (
-                                  <Badge variant="secondary">You</Badge>
-                                ) : null}
-                                {device.id.startsWith("demo-") ? (
-                                  <Badge variant="outline">Training</Badge>
-                                ) : device.simulated ? (
-                                  <Badge variant="outline">Fake GPS</Badge>
-                                ) : null}
-                              </div>
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                {device.driverName} · {vehicleLine(device)}
-                              </div>
-                            </div>
-                            <div className="text-right text-xs">
-                              <div className="font-medium">{statusLabel(device, now)}</div>
-                              <div className="text-muted-foreground">
-                                {kph(device.speedMps) != null ? `${kph(device.speedMps)} km/h · ` : ""}
-                                {formatAge(device.lastSeen, now)}
-                              </div>
-                            </div>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
+              ) : (
+                <Button
+                  size="sm"
+                  className="h-8 flex-1 rounded-lg"
+                  onClick={() => askDelivery(currentJob.id)}
+                >
+                  Terminer — BL
+                </Button>
+              )}
             </div>
-          </div>
-
-          {currentJob ? (
-            <div className="rounded-2xl bg-white/10 px-3 py-2 text-xs text-blue-50">
-              <div className="flex items-center justify-between gap-2 font-medium">
-                <span>
-                  {currentJob.reference} · {COURSE_STATUS_LABEL[currentJob.status]}
-                </span>
-              </div>
-              <div className="mt-1 text-blue-100">{currentJob.clientName}</div>
-              <div className="mt-1 text-blue-100">
-                {currentJob.pickupAddress} → {currentJob.dropoffAddress}
-              </div>
-              {currentJob.bnNumber ? (
-                <div className="mt-1 font-medium text-white">BN {currentJob.bnNumber}</div>
-              ) : null}
-              {currentJob.notes ? (
-                <div className="mt-2">
-                  <DispatchNote notes={currentJob.notes} tone="dark" />
-                </div>
-              ) : null}
-              <div className="mt-2 flex gap-2">
-                {currentJob.status === "assigned" ? (
-                  <Button
-                    size="sm"
-                    className="h-8 rounded-lg"
-                    onClick={() => askBn(currentJob.id)}
-                  >
-                    Commencer — saisir le BN
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    className="h-8 rounded-lg"
-                    onClick={() => askDelivery(currentJob.id)}
-                  >
-                    Terminer — scanner le BL
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : selected ? (
-            <div className="rounded-2xl bg-white/10 px-3 py-2 text-xs text-blue-50">
-              <div className="flex items-center gap-2 font-medium">
-                <BusFront className="size-3.5" />
-                {selected.callSign} selected
-              </div>
-              <div className="mt-1 text-blue-100">
-                {selected.driverName} · {statusLabel(selected, now)}
-                {selected.lat != null
-                  ? ` · ${selected.lat.toFixed(4)}, ${selected.lng?.toFixed(4)}`
-                  : " · no coordinates"}
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-blue-100">
-              Tap a marker or open Fleet to inspect a vehicle. Start demo vehicles if you are testing without extra phones.
-            </p>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
