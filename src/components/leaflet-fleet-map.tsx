@@ -37,6 +37,7 @@ function Camera({
   recenterKey,
   onUserPan,
   route,
+  frameSelfAndRoute,
 }: {
   devices: FleetDevice[];
   follow: MapFollow | null;
@@ -44,6 +45,7 @@ function Camera({
   recenterKey: number;
   onUserPan: () => void;
   route: MapRoute | null;
+  frameSelfAndRoute: boolean;
 }) {
   const map = useMap();
   const idKey = devicesWithPosition(devices)
@@ -64,15 +66,20 @@ function Camera({
   }, [map]);
 
   useEffect(() => {
-    if (!route || route.path.length < 2 || follow) return;
-    map.fitBounds(L.latLngBounds(route.path), { padding: [36, 36], maxZoom: 16 });
-  }, [map, route, follow, routeKey]);
+    if (!route || route.path.length < 2) return;
+    if (follow && !frameSelfAndRoute) return;
+    if (!stickToMe) return;
+    const bounds = L.latLngBounds(route.path);
+    if (follow) bounds.extend([follow.lat, follow.lng]);
+    map.fitBounds(bounds, { padding: [48, 80], maxZoom: 16 });
+  }, [map, route, follow, frameSelfAndRoute, stickToMe, recenterKey, routeKey]);
 
   useEffect(() => {
     if (!follow) return;
+    if (frameSelfAndRoute && route && route.path.length >= 2) return;
     if (!stickToMe && recenterKey === 0) return;
     map.setView([follow.lat, follow.lng], Math.max(map.getZoom(), 16));
-  }, [map, follow, stickToMe, recenterKey]);
+  }, [map, follow, stickToMe, recenterKey, frameSelfAndRoute, route, routeKey]);
 
   useEffect(() => {
     if (follow || route) return;
@@ -104,6 +111,7 @@ type Props = {
   onUserPan: () => void;
   selfId: string | null;
   route: MapRoute | null;
+  frameSelfAndRoute?: boolean;
 };
 
 export default function LeafletFleetMap({
@@ -117,6 +125,7 @@ export default function LeafletFleetMap({
   onUserPan,
   selfId,
   route,
+  frameSelfAndRoute = false,
 }: Props) {
   const positioned = useMemo(() => devicesWithPosition(devices), [devices]);
 
@@ -139,6 +148,7 @@ export default function LeafletFleetMap({
         recenterKey={recenterKey}
         onUserPan={onUserPan}
         route={route}
+        frameSelfAndRoute={frameSelfAndRoute}
       />
       {route ? (
         <>

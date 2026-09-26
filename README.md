@@ -26,7 +26,7 @@ Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. U
 
 Ouvrez [http://localhost:43147/](http://localhost:43147/) (ou le lien HTTPS `npm run phone`). Entrez **uniquement** l’indicatif et le PIN créés au bureau. Pas d’inscription sur le portable.
 
-Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route** et **l’itinéraire** s’affiche. La **cloche** ouvre la liste des courses reçues. La barre du bas (chauffeur + course) se **baisse** et se **remonte** avec la flèche. Pour **terminer**, il scanne le **bon de livraison** : la caméra **détecte le papier**, le recadre (perspective + couleur, type CamScanner) et le joint à la course. Le bureau **télécharge** le BL depuis `/admin`.
+Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route**. Sur sa carte il voit **uniquement** sa position et **l’itinéraire jusqu’à la destination** — jamais les autres véhicules. La **cloche** ouvre la liste des **ses** courses. La barre du bas (chauffeur + course) se **baisse** et se **remonte** avec la flèche. Pour **terminer**, il scanne le **bon de livraison** : la caméra **détecte le papier**, le recadre (perspective + couleur, type CamScanner) et le joint à la course. Le bureau **télécharge** le BL depuis `/admin`.
 
 ## Test on your phone while you develop
 
@@ -52,14 +52,13 @@ npm run phone
 ## What you get
 
 - Dispatch creates chauffeurs; the phone logs in with indicatif + PIN only
-- Live map of every connected CCMM vehicle
-- Vehicle list with speed, status, and last radio ping
+- Desk map of every connected CCMM vehicle; the phone map shows **only this chauffeur** and the route to the drop-off
 - Installable phone app (home screen / PWA)
 - **Google Maps** when you add an API key
 - OpenStreetMap fallback so the app still runs without a key
 - Real GPS by default
 - Address suggestions on pickup / dropoff (Google Places if keyed, Photon otherwise)
-- Driving itinerary on the map after the driver enters the BN and starts the job
+- Driving itinerary on the phone from the current position to the destination
 - Color CamScanner-style delivery-note scan before a job can be marked done; dispatch can download the JPEG
 
 Chauffeur accounts persist in `.data/drivers.json`. Courses (and the vehicle used on each trip) persist in `.data/courses.json`. Live GPS positions stay in memory and drop about 20 seconds after a phone goes offline.
@@ -72,10 +71,6 @@ Chauffeur accounts persist in `.data/drivers.json`. Courses (and the vehicle use
 4. Restart the dev server.
 
 Restrict the key to your domain before you ship.
-
-## Demo fleet
-
-On the map, tap **Demo fleet** to place four training vehicles. They are labeled as training units and do not replace real phones.
 
 ## Stack
 

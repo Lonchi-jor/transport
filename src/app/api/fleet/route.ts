@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { heartbeat, removeDevice } from "@/lib/fleet-store";
 import { getDriver } from "@/lib/driver-store";
-import { radioSnapshot } from "@/lib/snapshot";
+import { driverSnapshot, radioSnapshot, snapshotFromRequest } from "@/lib/snapshot";
 import type { HeartbeatPayload, VehicleType, Role } from "@/lib/types";
 import { ROLES, VEHICLE_TYPES } from "@/lib/types";
 
@@ -15,8 +15,8 @@ function isRole(value: unknown): value is Role {
   return typeof value === "string" && (ROLES as readonly string[]).includes(value);
 }
 
-export async function GET() {
-  return NextResponse.json(radioSnapshot());
+export async function GET(request: Request) {
+  return NextResponse.json(snapshotFromRequest(request));
 }
 
 export async function POST(request: Request) {
@@ -47,12 +47,13 @@ export async function POST(request: Request) {
   }
 
   const device = heartbeat(body);
-  return NextResponse.json({ device, ...radioSnapshot() });
+  const snapshot = body.role === "driver" ? driverSnapshot(body.id) : radioSnapshot();
+  return NextResponse.json({ device, ...snapshot });
 }
 
 export async function DELETE(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
   if (id) removeDevice(id);
-  return NextResponse.json({ ok: true, ...radioSnapshot() });
+  return NextResponse.json({ ok: true, ...snapshotFromRequest(request) });
 }

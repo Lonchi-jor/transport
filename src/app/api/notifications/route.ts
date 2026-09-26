@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { markNotificationsRead } from "@/lib/notification-store";
-import { radioSnapshot } from "@/lib/snapshot";
+import { getDriver } from "@/lib/driver-store";
+import { driverSnapshot, radioSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +20,6 @@ export async function PATCH(request: Request) {
     ? body.ids.filter((id): id is string => typeof id === "string")
     : undefined;
   markNotificationsRead(targetId, ids);
-  return NextResponse.json(radioSnapshot());
+  const snapshot = getDriver(targetId) ? driverSnapshot(targetId) : radioSnapshot();
+  return NextResponse.json(snapshot);
 }

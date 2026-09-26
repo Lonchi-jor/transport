@@ -10,7 +10,17 @@ const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: "poi", stylers: [{ visibility: "off" }] },
 ];
 
-function RouteLayer({ route, follow }: { route: MapRoute | null; follow: MapFollow | null }) {
+function RouteLayer({
+  route,
+  follow,
+  frameSelfAndRoute,
+  stickToMe,
+}: {
+  route: MapRoute | null;
+  follow: MapFollow | null;
+  frameSelfAndRoute: boolean;
+  stickToMe: boolean;
+}) {
   const map = useMap();
   useEffect(() => {
     if (!map || !route || route.path.length < 2) return;
@@ -33,9 +43,11 @@ function RouteLayer({ route, follow }: { route: MapRoute | null; follow: MapFoll
       label: "B",
       title: route.dropoff.label,
     });
-    if (!follow) {
+    const frame = (!follow || frameSelfAndRoute) && stickToMe;
+    if (frame) {
       const bounds = new google.maps.LatLngBounds();
       for (const [lat, lng] of route.path) bounds.extend({ lat, lng });
+      if (follow) bounds.extend({ lat: follow.lat, lng: follow.lng });
       map.fitBounds(bounds, 48);
     }
     return () => {
@@ -43,7 +55,7 @@ function RouteLayer({ route, follow }: { route: MapRoute | null; follow: MapFoll
       start.setMap(null);
       end.setMap(null);
     };
-  }, [map, route, follow]);
+  }, [map, route, follow, frameSelfAndRoute, stickToMe]);
   return null;
 }
 
@@ -54,6 +66,7 @@ function Camera({
   recenterKey,
   onUserPan,
   route,
+  frameSelfAndRoute,
 }: {
   devices: FleetDevice[];
   follow: MapFollow | null;
@@ -61,6 +74,7 @@ function Camera({
   recenterKey: number;
   onUserPan: () => void;
   route: MapRoute | null;
+  frameSelfAndRoute: boolean;
 }) {
   const map = useMap();
   const idKey = devicesWithPosition(devices)
@@ -76,10 +90,11 @@ function Camera({
 
   useEffect(() => {
     if (!map || !follow) return;
+    if (frameSelfAndRoute && route && route.path.length >= 2) return;
     if (!stickToMe && recenterKey === 0) return;
     map.setCenter({ lat: follow.lat, lng: follow.lng });
     map.setZoom(Math.max(map.getZoom() ?? 16, 16));
-  }, [map, follow, stickToMe, recenterKey]);
+  }, [map, follow, stickToMe, recenterKey, frameSelfAndRoute, route]);
 
   useEffect(() => {
     if (!map || follow || route) return;
@@ -112,6 +127,7 @@ type InnerProps = {
   onUserPan: () => void;
   selfId: string | null;
   route: MapRoute | null;
+  frameSelfAndRoute?: boolean;
 };
 
 function GoogleMapInner({
@@ -124,6 +140,7 @@ function GoogleMapInner({
   onUserPan,
   selfId,
   route,
+  frameSelfAndRoute = false,
 }: InnerProps) {
   const positioned = useMemo(() => devicesWithPosition(devices), [devices]);
 
@@ -147,8 +164,14 @@ function GoogleMapInner({
         recenterKey={recenterKey}
         onUserPan={onUserPan}
         route={route}
+        frameSelfAndRoute={frameSelfAndRoute}
       />
-      <RouteLayer route={route} follow={follow} />
+      <RouteLayer
+        route={route}
+        follow={follow}
+        frameSelfAndRoute={frameSelfAndRoute}
+        stickToMe={stickToMe}
+      />
       {positioned.map((device) => {
         const isSelf = device.id === selfId;
         return (
@@ -189,6 +212,7 @@ export default function GoogleFleetMap({
   onUserPan,
   selfId,
   route,
+  frameSelfAndRoute = false,
 }: InnerProps & { apiKey: string; now: number }) {
   return (
     <APIProvider apiKey={apiKey}>
@@ -202,6 +226,7 @@ export default function GoogleFleetMap({
         onUserPan={onUserPan}
         selfId={selfId}
         route={route}
+        frameSelfAndRoute={frameSelfAndRoute}
       />
     </APIProvider>
   );

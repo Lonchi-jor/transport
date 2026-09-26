@@ -1,4 +1,4 @@
-import { radioSnapshot } from "@/lib/snapshot";
+import { snapshotFromRequest } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     start(controller) {
       const push = () => {
         try {
-          const payload = JSON.stringify(radioSnapshot());
+          const payload = JSON.stringify(snapshotFromRequest(request));
           controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
         } catch {
           if (interval) clearInterval(interval);

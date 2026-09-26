@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { BusFront, ChevronDown, ChevronUp, ClipboardList, Crosshair, LogOut, Route, Smartphone, Users } from "lucide-react";
+import { ChevronDown, ChevronUp, ClipboardList, Crosshair, LogOut, Smartphone } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import "leaflet/dist/leaflet.css";
 import { Badge } from "@/components/ui/badge";
@@ -14,8 +14,16 @@ import DeliveryScanner from "@/components/delivery-scanner";
 import DispatchNote from "@/components/dispatch-note";
 import NotificationBell from "@/components/notification-bell";
 import type { AppNotification, Course, FleetDevice, FleetSnapshot } from "@/lib/types";
-import { VEHICLE_META } from "@/lib/types";
-import { COURSE_STATUS_LABEL, courseElapsedLabel, courseToMapRoute, DEFAULT_CENTER, formatAge, formatKm, kph, shortPlace, statusLabel, vehicleLine } from "@/lib/format";
+import {
+  COURSE_STATUS_LABEL,
+  courseElapsedLabel,
+  courseToMapRoute,
+  DEFAULT_CENTER,
+  formatKm,
+  shortPlace,
+  vehicleLine,
+  type MapRoute,
+} from "@/lib/format";
 import { Input } from "@/components/ui/input";
 
 const SESSION_KEY = "transitlive-session";
@@ -42,18 +50,25 @@ function loadSession(): Session | null {
   }
 }
 
+function driverApi(path: string, driverId: string) {
+  const join = path.includes("?") ? "&" : "?";
+  return `${path}${join}driver=${encodeURIComponent(driverId)}`;
+}
+
+function roundCoord(value: number) {
+  return value.toFixed(4);
+}
+
 export default function FleetApp({ googleMapsApiKey }: Props) {
   const [session, setSession] = useState<Session | null>(null);
   const [devices, setDevices] = useState<FleetDevice[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [now, setNow] = useState(0);
-  const [demo, setDemo] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [gpsState, setGpsState] = useState<"idle" | "live" | "denied" | "waiting" | "simulated">("idle");
   const [gpsHint, setGpsHint] = useState("");
   const [online, setOnline] = useState(true);
-  const [fleetOpen, setFleetOpen] = useState(false);
   const [jobsOpen, setJobsOpen] = useState(false);
   const [bnOpen, setBnOpen] = useState(false);
   const [bnValue, setBnValue] = useState("");
@@ -68,6 +83,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [myPos, setMyPos] = useState<{ lat: number; lng: number; accuracy: number | null } | null>(null);
   const [stickToMe, setStickToMe] = useState(true);
   const [recenterKey, setRecenterKey] = useState(0);
+  const [liveRoute, setLiveRoute] = useState<MapRoute | null>(null);
   const watchId = useRef<number | null>(null);
   const simTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastFix = useRef<{ lat: number; lng: number; heading: number | null; speedMps: number | null; accuracy: number | null } | null>(null);
@@ -87,31 +103,40 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   }, [session]);
 
   const applySnapshot = useCallback((snapshot: FleetSnapshot & { demo?: boolean }) => {
-    setDevices(snapshot.devices);
-    setCourses(snapshot.courses ?? []);
-    setNotifications(snapshot.notifications ?? []);
+    const me = sessionRef.current;
+    const mine = me
+      ? (snapshot.devices ?? []).filter((device) => device.id === me.id && device.role === "driver")
+      : [];
+    const myCourses = me
+      ? (snapshot.courses ?? []).filter((course) => course.assignedDeviceId === me.id)
+      : [];
+    const myNotes = me
+      ? (snapshot.notifications ?? []).filter((item) => item.targetId === me.id)
+      : [];
+    setDevices(mine);
+    setCourses(myCourses);
+    setNotifications(myNotes);
     setNow(snapshot.now);
-    if (typeof snapshot.demo === "boolean") setDemo(snapshot.demo);
     setOnline(true);
     if (snapshot.drivers) {
       setSession((current) => {
         if (!current) return current;
-        const me = snapshot.drivers?.find((driver) => driver.id === current.id);
-        if (!me) return current;
-        const vehiclePlate = me.vehiclePlate ?? current.vehiclePlate;
+        const account = snapshot.drivers?.find((driver) => driver.id === current.id);
+        if (!account) return current;
+        const vehiclePlate = account.vehiclePlate ?? current.vehiclePlate;
         if (
-          current.callSign === me.callSign &&
-          current.driverName === me.driverName &&
-          current.vehicleType === me.vehicleType &&
+          current.callSign === account.callSign &&
+          current.driverName === account.driverName &&
+          current.vehicleType === account.vehicleType &&
           current.vehiclePlate === vehiclePlate
         ) {
           return current;
         }
         const next: Session = {
           ...current,
-          callSign: me.callSign,
-          driverName: me.driverName,
-          vehicleType: me.vehicleType,
+          callSign: account.callSign,
+          driverName: account.driverName,
+          vehicleType: account.vehicleType,
           vehiclePlate,
         };
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(next));
@@ -196,6 +221,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const applyRealFix = useCallback(
     (pos: GeolocationPosition, current: Session) => {
       stopSimulation();
+      const firstLive = gpsModeRef.current !== "live";
       lastFix.current = {
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
@@ -207,7 +233,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       setGpsState("live");
       setGpsHint("");
       setHasFix(true);
-      setStickToMe(true);
+      if (firstLive) setStickToMe(true);
       setMyPos({
         lat: pos.coords.latitude,
         lng: pos.coords.longitude,
@@ -320,7 +346,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       void sendHeartbeat(session);
     }, 4000);
 
-    const source = new EventSource("/api/fleet/stream");
+    const source = new EventSource(driverApi("/api/fleet/stream", session.id));
     source.onmessage = (event) => {
       try {
         applySnapshot(JSON.parse(event.data) as FleetSnapshot & { demo?: boolean });
@@ -369,27 +395,26 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
 
   async function leave() {
     if (!session) return;
-    await fetch(`/api/fleet?id=${encodeURIComponent(session.id)}`, { method: "DELETE" });
+    await fetch(driverApi(`/api/fleet?id=${encodeURIComponent(session.id)}`, session.id), {
+      method: "DELETE",
+    });
     sessionStorage.removeItem(SESSION_KEY);
     lastFix.current = null;
     setHasFix(false);
     setMyPos(null);
+    setLiveRoute(null);
     setGpsHint("");
     gpsModeRef.current = "idle";
     setSession(null);
     setDevices([]);
     setCourses([]);
+    setNotifications([]);
     setGpsState("idle");
   }
 
-  async function toggleDemo() {
-    const res = await fetch("/api/fleet/demo", { method: demo ? "DELETE" : "POST" });
-    const snapshot = (await res.json()) as FleetSnapshot & { demo?: boolean };
-    applySnapshot(snapshot);
-  }
-
   async function patchCourse(id: string, body: { status?: string; bnNumber?: string }) {
-    const res = await fetch(`/api/courses/${id}`, {
+    const driverId = sessionRef.current?.id;
+    const res = await fetch(driverId ? driverApi(`/api/courses/${id}`, driverId) : `/api/courses/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -421,10 +446,14 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
 
   async function submitDeliveryScan(blob: Blob) {
     if (!scanJobId) return;
+    const driverId = sessionRef.current?.id;
     const form = new FormData();
     form.append("file", blob, "bon-livraison.jpg");
     form.append("complete", "true");
-    const res = await fetch(`/api/courses/${scanJobId}/delivery`, { method: "POST", body: form });
+    const res = await fetch(
+      driverId ? driverApi(`/api/courses/${scanJobId}/delivery`, driverId) : `/api/courses/${scanJobId}/delivery`,
+      { method: "POST", body: form },
+    );
     const data = (await res.json()) as FleetSnapshot & { error?: string };
     if (!res.ok) throw new Error(data.error || "Impossible de joindre le bon de livraison.");
     applySnapshot(data);
@@ -432,10 +461,6 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     setScanJobId(null);
   }
 
-  const liveVehicles = useMemo(
-    () => devices.filter((d) => d.role === "driver"),
-    [devices],
-  );
   const myJobs = useMemo(
     () =>
       courses.filter(
@@ -464,12 +489,105 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   );
   const bnJob = courses.find((course) => course.id === bnJobId) ?? null;
   const follow = useMemo(() => {
-    if (gpsState !== "live" || !myPos) return null;
+    if (!myPos) return null;
     return { lat: myPos.lat, lng: myPos.lng };
-  }, [gpsState, myPos]);
+  }, [myPos]);
   const onUserPan = useCallback(() => setStickToMe(false), []);
-  const selected = devices.find((d) => d.id === selectedId) ?? null;
   const mapProvider = googleMapsApiKey ? "Google Maps" : "OpenStreetMap";
+
+  const fromKey = myPos
+    ? `${roundCoord(myPos.lat)},${roundCoord(myPos.lng)}`
+    : currentJob?.pickupLat != null && currentJob.pickupLng != null
+      ? `p:${roundCoord(currentJob.pickupLat)},${roundCoord(currentJob.pickupLng)}`
+      : "";
+  const destKey =
+    currentJob?.dropoffLat != null && currentJob.dropoffLng != null
+      ? `${currentJob.id}:${roundCoord(currentJob.dropoffLat)},${roundCoord(currentJob.dropoffLng)}`
+      : "";
+
+  useEffect(() => {
+    if (!destKey || !currentJob || currentJob.dropoffLat == null || currentJob.dropoffLng == null) {
+      return;
+    }
+    const toLat = currentJob.dropoffLat;
+    const toLng = currentJob.dropoffLng;
+    const fromLat = myPos?.lat ?? currentJob.pickupLat;
+    const fromLng = myPos?.lng ?? currentJob.pickupLng;
+    if (fromLat == null || fromLng == null) {
+      return;
+    }
+    const dropLabel = currentJob.dropoffAddress;
+    const fromLabel = myPos ? "Votre position" : currentJob.pickupAddress;
+    let cancelled = false;
+    const run = async () => {
+      try {
+        const res = await fetch(
+          `/api/routes?fromLat=${fromLat}&fromLng=${fromLng}&toLat=${toLat}&toLng=${toLng}`,
+        );
+        const data = (await res.json()) as { path?: [number, number][] };
+        if (cancelled) return;
+        const path =
+          data.path && data.path.length >= 2
+            ? data.path
+            : ([[fromLat, fromLng], [toLat, toLng]] as [number, number][]);
+        setLiveRoute({
+          path,
+          pickup: { lat: fromLat, lng: fromLng, label: fromLabel },
+          dropoff: { lat: toLat, lng: toLng, label: dropLabel },
+        });
+      } catch {
+        if (cancelled) return;
+        setLiveRoute({
+          path: [
+            [fromLat, fromLng],
+            [toLat, toLng],
+          ],
+          pickup: { lat: fromLat, lng: fromLng, label: fromLabel },
+          dropoff: { lat: toLat, lng: toLng, label: dropLabel },
+        });
+      }
+    };
+    const timer = window.setTimeout(() => void run(), myPos ? 700 : 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    // destKey / fromKey already encode the coordinates that should retrigger a route.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destKey, fromKey]);
+
+  const mapRoute = currentJob
+    ? liveRoute && liveRoute.dropoff.label === currentJob.dropoffAddress
+      ? liveRoute
+      : courseToMapRoute(currentJob)
+    : null;
+
+  const mapDevices = useMemo(() => {
+    if (!session) return [];
+    const fromServer = devices.find((device) => device.id === session.id);
+    if (!myPos) {
+      return fromServer && fromServer.lat != null && fromServer.lng != null ? [fromServer] : [];
+    }
+    return [
+      {
+        id: session.id,
+        callSign: session.callSign,
+        driverName: session.driverName,
+        phone: fromServer?.phone ?? null,
+        vehicleType: session.vehicleType,
+        vehiclePlate: session.vehiclePlate,
+        role: "driver" as const,
+        lat: myPos.lat,
+        lng: myPos.lng,
+        heading: fromServer?.heading ?? null,
+        speedMps: fromServer?.speedMps ?? null,
+        accuracy: myPos.accuracy,
+        sharing: true,
+        simulated: gpsState === "simulated",
+        lastSeen: now,
+      },
+    ];
+  }, [devices, session, myPos, gpsState, now]);
 
   if (!session) {
     return <JoinScreen onJoin={join} />;
@@ -485,7 +603,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           </div>
           <div className="mt-1 flex items-center gap-2 text-[11px] text-blue-100">
             <span className={`size-1.5 rounded-full ${online ? "bg-[#00a4e8]" : "bg-red-400"}`} />
-            {online ? "Live" : "Reconnecting"} · {liveVehicles.length} vehicles · {mapProvider}
+            {online ? "En ligne" : "Hors ligne"} · {mapProvider}
           </div>
         </div>
         <div className="pointer-events-auto flex items-start gap-2">
@@ -574,16 +692,17 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       <div className="absolute inset-0 z-0 isolate">
         <FleetMap
           googleMapsApiKey={googleMapsApiKey}
-          devices={devices}
+          devices={mapDevices}
           now={now}
-          selectedId={selectedId}
+          selectedId={selectedId ?? session.id}
           onSelect={setSelectedId}
           follow={follow}
           stickToMe={stickToMe}
           recenterKey={recenterKey}
           onUserPan={onUserPan}
           selfId={session.id}
-          route={courseToMapRoute(currentJob?.status === "en_route" ? currentJob : null)}
+          route={mapRoute}
+          frameSelfAndRoute
         />
       </div>
 
@@ -623,14 +742,6 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           >
             <Smartphone className="size-4" />
             Phone
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-11 rounded-full bg-[#151a45] px-3 text-white shadow-lg"
-            onClick={() => void toggleDemo()}
-          >
-            <Route className="size-4" />
-            {demo ? "Stop demo" : "Demo fleet"}
           </Button>
           {hasFix ? (
             <Button
@@ -802,71 +913,6 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                       </div>
                     </SheetContent>
                   </Sheet>
-                  <Sheet open={fleetOpen} onOpenChange={setFleetOpen}>
-                    <Button
-                      size="sm"
-                      className="rounded-xl"
-                      onClick={() => setFleetOpen(true)}
-                    >
-                      <Users />
-                      Fleet
-                    </Button>
-                    <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
-                      <SheetHeader>
-                        <SheetTitle>Connected devices</SheetTitle>
-                      </SheetHeader>
-                      <div className="overflow-y-auto px-4 pb-6">
-                      {devices.length === 0 ? (
-                        <p className="py-8 text-sm text-muted-foreground">
-                          No vehicles on the radio yet. Join from another phone or start the demo fleet.
-                        </p>
-                      ) : (
-                        <ul className="space-y-2">
-                          {devices.map((device) => (
-                            <li key={device.id}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setSelectedId(device.id);
-                                  setFleetOpen(false);
-                                }}
-                                className="flex w-full items-start justify-between rounded-2xl border border-border bg-card px-3 py-3 text-left"
-                              >
-                                <div>
-                                  <div className="flex items-center gap-2 font-semibold">
-                                    <span
-                                      className="size-2.5 rounded-full"
-                                      style={{ background: VEHICLE_META[device.vehicleType].color }}
-                                    />
-                                    {device.callSign}
-                                    {device.id === session.id ? (
-                                      <Badge variant="secondary">You</Badge>
-                                    ) : null}
-                                    {device.id.startsWith("demo-") ? (
-                                      <Badge variant="outline">Training</Badge>
-                                    ) : device.simulated ? (
-                                      <Badge variant="outline">Fake GPS</Badge>
-                                    ) : null}
-                                  </div>
-                                  <div className="mt-1 text-xs text-muted-foreground">
-                                    {device.driverName} · {vehicleLine(device)}
-                                  </div>
-                                </div>
-                                <div className="text-right text-xs">
-                                  <div className="font-medium">{statusLabel(device, now)}</div>
-                                  <div className="text-muted-foreground">
-                                    {kph(device.speedMps) != null ? `${kph(device.speedMps)} km/h · ` : ""}
-                                    {formatAge(device.lastSeen, now)}
-                                  </div>
-                                </div>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                    </SheetContent>
-                  </Sheet>
                 </div>
               </div>
 
@@ -907,19 +953,6 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                         Terminer — scanner le BL
                       </Button>
                     )}
-                  </div>
-                </div>
-              ) : selected ? (
-                <div className="rounded-2xl bg-white/10 px-3 py-2 text-xs text-blue-50">
-                  <div className="flex items-center gap-2 font-medium">
-                    <BusFront className="size-3.5" />
-                    {selected.callSign} selected
-                  </div>
-                  <div className="mt-1 text-blue-100">
-                    {selected.driverName} · {statusLabel(selected, now)}
-                    {selected.lat != null
-                      ? ` · ${selected.lat.toFixed(4)}, ${selected.lng?.toFixed(4)}`
-                      : " · no coordinates"}
                   </div>
                 </div>
               ) : (

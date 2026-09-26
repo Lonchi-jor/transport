@@ -36,6 +36,7 @@ type Props = {
   onUserPan: () => void;
   selfId: string | null;
   route?: MapRoute | null;
+  frameSelfAndRoute?: boolean;
 };
 
 export default function FleetMap({
@@ -50,6 +51,7 @@ export default function FleetMap({
   onUserPan,
   selfId,
   route = null,
+  frameSelfAndRoute = false,
 }: Props) {
   const key = googleMapsApiKey.trim();
   if (key) {
@@ -66,6 +68,7 @@ export default function FleetMap({
         onUserPan={onUserPan}
         selfId={selfId}
         route={route}
+        frameSelfAndRoute={frameSelfAndRoute}
       />
     );
   }
@@ -82,6 +85,7 @@ export default function FleetMap({
       onUserPan={onUserPan}
       selfId={selfId}
       route={route}
+      frameSelfAndRoute={frameSelfAndRoute}
     />
   );
 }

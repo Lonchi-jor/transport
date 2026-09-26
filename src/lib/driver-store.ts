@@ -100,6 +100,11 @@ export function getDriver(id: string) {
   return drivers.get(id) ?? null;
 }
 
+export function getDriverPublic(id: string): DriverPublic | null {
+  const account = drivers.get(id);
+  return account ? toPublic(account) : null;
+}
+
 export function findDriverByCallSign(callSign: string) {
   const key = normalizeCallSign(callSign);
   return listDrivers().find((d) => d.callSign === key) ?? null;

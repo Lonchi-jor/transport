@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { attachDeliveryScan, getCourse, updateCourse } from "@/lib/course-store";
 import { getDeliveryScan, isJpeg, saveDeliveryScan } from "@/lib/delivery-store";
-import { radioSnapshot } from "@/lib/snapshot";
+import { snapshotFromRequest } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -69,5 +69,5 @@ export async function POST(
       );
     }
   }
-  return NextResponse.json({ ok: true, ...radioSnapshot() });
+  return NextResponse.json({ ok: true, ...snapshotFromRequest(request) });
 }

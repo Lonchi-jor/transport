@@ -48,6 +48,12 @@ export function listNotifications(): AppNotification[] {
   return [...items].sort((a, b) => b.createdAt - a.createdAt);
 }
 
+export function listNotificationsFor(targetId: string): AppNotification[] {
+  const key = targetId.trim();
+  if (!key) return [];
+  return listNotifications().filter((item) => item.targetId === key);
+}
+
 export function addNotification(input: {
   kind: NotificationKind;
   courseId: string;

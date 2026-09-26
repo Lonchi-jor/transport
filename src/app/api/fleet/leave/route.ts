@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { removeDevice } from "@/lib/fleet-store";
-import { radioSnapshot } from "@/lib/snapshot";
+import { snapshotFromRequest } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -23,5 +23,5 @@ export async function POST(request: Request) {
     id = "";
   }
   if (id) removeDevice(id);
-  return NextResponse.json({ ok: true, ...radioSnapshot() });
+  return NextResponse.json({ ok: true, ...snapshotFromRequest(request) });
 }

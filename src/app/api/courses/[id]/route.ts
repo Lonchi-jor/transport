@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCourse, isCourseStatus, updateCourse } from "@/lib/course-store";
 import { getDriver, isVehicleType } from "@/lib/driver-store";
-import { radioSnapshot } from "@/lib/snapshot";
+import { snapshotFromRequest } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -59,5 +59,5 @@ export async function PATCH(
   if (!course) {
     return NextResponse.json({ error: "Course introuvable ou BN manquant" }, { status: 404 });
   }
-  return NextResponse.json({ course, ...radioSnapshot() });
+  return NextResponse.json({ course, ...snapshotFromRequest(request) });
 }

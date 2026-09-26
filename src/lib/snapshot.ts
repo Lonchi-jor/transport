@@ -1,7 +1,7 @@
-import { isDemoRunning, listDevices } from "@/lib/fleet-store";
-import { listCourses } from "@/lib/course-store";
-import { listDrivers, listDriversPublic } from "@/lib/driver-store";
-import { listNotifications } from "@/lib/notification-store";
+import { getDevice, isDemoRunning, listDevices } from "@/lib/fleet-store";
+import { listCourses, listCoursesForDriver } from "@/lib/course-store";
+import { getDriverPublic, listDrivers, listDriversPublic } from "@/lib/driver-store";
+import { listNotifications, listNotificationsFor } from "@/lib/notification-store";
 import type { AppNotification, Course, FleetDevice } from "@/lib/types";
 import type { DriverAccount, DriverPublic } from "@/lib/driver-store";
 
@@ -30,4 +30,29 @@ export function adminSnapshot(): RadioSnapshot & { drivers: DriverAccount[] } {
     ...radioSnapshot(),
     drivers: listDrivers(),
   };
+}
+
+/** Phone radio: this chauffeur's vehicle, jobs, and alerts only — never other GPS. */
+export function driverSnapshot(driverId: string): RadioSnapshot {
+  const id = driverId.trim();
+  const me = id ? getDevice(id) : null;
+  const account = id ? getDriverPublic(id) : null;
+  return {
+    devices: me && me.role === "driver" ? [me] : [],
+    courses: id ? listCoursesForDriver(id) : [],
+    notifications: id ? listNotificationsFor(id) : [],
+    drivers: account ? [account] : [],
+    now: Date.now(),
+    demo: false,
+  };
+}
+
+export function snapshotForDriverId(driverId: string | null | undefined): RadioSnapshot {
+  const id = driverId?.trim() ?? "";
+  if (!id) return radioSnapshot();
+  return driverSnapshot(id);
+}
+
+export function snapshotFromRequest(request: Request): RadioSnapshot {
+  return snapshotForDriverId(new URL(request.url).searchParams.get("driver"));
 }
