@@ -1,11 +1,11 @@
 export type Point = { x: number; y: number };
 
-const MAX_DETECT = 420;
-const MAX_OUTPUT = 1600;
+const MAX_DETECT = 480;
+const MAX_OUTPUT = 1800;
 
 export function defaultQuad(width: number, height: number): Point[] {
-  const insetX = width * 0.08;
-  const insetY = height * 0.08;
+  const insetX = width * 0.06;
+  const insetY = height * 0.06;
   return [
     { x: insetX, y: insetY },
     { x: width - insetX, y: insetY },
@@ -40,8 +40,8 @@ export function imageToCanvas(image: HTMLImageElement, maxSide = 2400): HTMLCanv
 export function detectDocumentQuad(imageData: ImageData): Point[] | null {
   const { width, height, data } = imageData;
   const scale = Math.min(1, MAX_DETECT / Math.max(width, height));
-  const dw = Math.max(32, Math.round(width * scale));
-  const dh = Math.max(32, Math.round(height * scale));
+  const dw = Math.max(48, Math.round(width * scale));
+  const dh = Math.max(48, Math.round(height * scale));
   const gray = new Float32Array(dw * dh);
   for (let y = 0; y < dh; y++) {
     const sy = Math.min(height - 1, Math.floor(y / scale));
@@ -52,23 +52,24 @@ export function detectDocumentQuad(imageData: ImageData): Point[] | null {
     }
   }
   blurInPlace(gray, dw, dh);
-  const mag = sobelMagnitude(gray, dw, dh);
-  const binary = otsuBinary(mag, 0.55);
-  dilate(binary, dw, dh);
-  const blob = largestComponent(binary, dw, dh);
-  if (!blob || blob.count < dw * dh * 0.04) return null;
-  const hull = convexHull(blob.edge);
-  if (hull.length < 4) return null;
-  const quad = approxQuad(hull, Math.hypot(dw, dh));
-  if (!quad) return null;
-  const ordered = orderQuad(quad);
-  const mapped = ordered.map((p) => ({
-    x: clamp(p.x / scale, 0, width - 1),
-    y: clamp(p.y / scale, 0, height - 1),
+
+  const candidates: { quad: Point[]; score: number }[] = [];
+  const paper = detectFromPaper(gray, dw, dh);
+  if (paper) candidates.push({ quad: paper, score: scoreQuad(paper, dw, dh) + 8 });
+  const edges = detectFromEdges(gray, dw, dh);
+  if (edges) candidates.push({ quad: edges, score: scoreQuad(edges, dw, dh) });
+
+  candidates.sort((a, b) => b.score - a.score);
+  const best = candidates.find((c) => c.score > 0);
+  if (!best) return null;
+
+  const mapped = orderQuad(best.quad).map((p) => ({
+    x: clamp(p.x / scale, 2, width - 3),
+    y: clamp(p.y / scale, 2, height - 3),
   }));
-  const area = quadArea(mapped);
-  if (area < width * height * 0.08) return null;
-  return mapped;
+  const refined = insetQuad(orderQuad(mapped), 0.01);
+  if (scoreQuad(refined, width, height) <= 0) return orderQuad(mapped);
+  return refined;
 }
 
 export function warpDocumentColor(source: ImageData, quad: Point[]): ImageData {
@@ -101,7 +102,7 @@ export function warpDocumentColor(source: ImageData, quad: Point[]): ImageData {
   return out;
 }
 
-export async function imageDataToJpegBlob(imageData: ImageData, quality = 0.9): Promise<Blob> {
+export async function imageDataToJpegBlob(imageData: ImageData, quality = 0.92): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const canvas = document.createElement("canvas");
     canvas.width = imageData.width;
@@ -120,8 +121,128 @@ export async function imageDataToJpegBlob(imageData: ImageData, quality = 0.9): 
   });
 }
 
+function luminancePercentile(gray: Float32Array, p: number) {
+  const hist = new Uint32Array(256);
+  for (let i = 0; i < gray.length; i++) {
+    hist[Math.max(0, Math.min(255, Math.round(gray[i])))] += 1;
+  }
+  const target = gray.length * p;
+  let acc = 0;
+  for (let i = 0; i < 256; i++) {
+    acc += hist[i];
+    if (acc >= target) return i;
+  }
+  return 180;
+}
+
+function detectFromPaper(gray: Float32Array, w: number, h: number): Point[] | null {
+  const hi = luminancePercentile(gray, 0.62);
+  const binary = new Uint8Array(gray.length);
+  for (let i = 0; i < gray.length; i++) binary[i] = gray[i] >= hi ? 1 : 0;
+  openBinary(binary, w, h);
+  closeBinary(binary, w, h);
+  const blob = largestComponent(binary, w, h, { ignoreBorderHeavy: true });
+  if (!blob || blob.count < w * h * 0.12) return null;
+  const hull = convexHull(blob.edge);
+  if (hull.length < 4) return null;
+  return minAreaRect(hull);
+}
+
+function detectFromEdges(gray: Float32Array, w: number, h: number): Point[] | null {
+  const mag = sobelMagnitude(gray, w, h);
+  const binary = otsuBinary(mag, 0.42);
+  closeBinary(binary, w, h);
+  dilate(binary, w, h);
+  const blob = largestComponent(binary, w, h, { ignoreBorderHeavy: false });
+  if (!blob || blob.count < w * h * 0.03) return null;
+  const hull = convexHull(blob.edge);
+  if (hull.length < 4) return null;
+  return minAreaRect(hull);
+}
+
+function minAreaRect(hull: Point[]): Point[] | null {
+  if (hull.length < 4) return null;
+  let bestArea = Infinity;
+  let best: Point[] | null = null;
+  const n = hull.length;
+  for (let i = 0; i < n; i++) {
+    const a = hull[i];
+    const b = hull[(i + 1) % n];
+    const ang = Math.atan2(b.y - a.y, b.x - a.x);
+    const cos = Math.cos(ang);
+    const sin = Math.sin(ang);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const p of hull) {
+      const x = p.x * cos + p.y * sin;
+      const y = -p.x * sin + p.y * cos;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const area = (maxX - minX) * (maxY - minY);
+    if (area > 0 && area < bestArea) {
+      bestArea = area;
+      const corners = [
+        { x: minX, y: minY },
+        { x: maxX, y: minY },
+        { x: maxX, y: maxY },
+        { x: minX, y: maxY },
+      ];
+      best = corners.map((p) => ({
+        x: p.x * cos - p.y * sin,
+        y: p.x * sin + p.y * cos,
+      }));
+    }
+  }
+  return best ? orderQuad(best) : null;
+}
+
+function scoreQuad(quad: Point[], w: number, h: number) {
+  const q = orderQuad(quad);
+  const area = quadArea(q);
+  const frame = w * h;
+  if (area < frame * 0.1 || area > frame * 0.96) return 0;
+  const top = dist(q[0], q[1]);
+  const right = dist(q[1], q[2]);
+  const bottom = dist(q[2], q[3]);
+  const left = dist(q[3], q[0]);
+  if (Math.min(top, right, bottom, left) < Math.min(w, h) * 0.12) return 0;
+  const hRatio = Math.min(top, bottom) / Math.max(top, bottom);
+  const vRatio = Math.min(left, right) / Math.max(left, right);
+  const angles = [0, 1, 2, 3].map((i) => {
+    const p = q[i];
+    const prev = q[(i + 3) % 4];
+    const next = q[(i + 1) % 4];
+    const ax = prev.x - p.x;
+    const ay = prev.y - p.y;
+    const bx = next.x - p.x;
+    const by = next.y - p.y;
+    const den = Math.hypot(ax, ay) * Math.hypot(bx, by) || 1;
+    const cos = clamp((ax * bx + ay * by) / den, -1, 1);
+    const deg = (Math.acos(cos) * 180) / Math.PI;
+    return 1 - Math.min(1, Math.abs(deg - 90) / 55);
+  });
+  const angleScore = angles.reduce((s, v) => s + v, 0) / 4;
+  const aspect = Math.max(top, bottom) / Math.max(left, right);
+  const aspectScore = aspect > 0.35 && aspect < 2.8 ? 1 : 0.45;
+  return (area / frame) * 40 + hRatio * 18 + vRatio * 18 + angleScore * 24 + aspectScore * 8;
+}
+
+function insetQuad(q: Point[], ratio: number): Point[] {
+  const cx = (q[0].x + q[1].x + q[2].x + q[3].x) / 4;
+  const cy = (q[0].y + q[1].y + q[2].y + q[3].y) / 4;
+  return q.map((p) => ({
+    x: p.x + (cx - p.x) * ratio,
+    y: p.y + (cy - p.y) * ratio,
+  }));
+}
+
 function enhanceColorScan(image: ImageData) {
-  const { data } = image;
+  const { data, width, height } = image;
   const n = data.length / 4;
   const lum: number[] = new Array(n);
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
@@ -129,13 +250,13 @@ function enhanceColorScan(image: ImageData) {
   }
   const sorted = lum.slice().sort((a, b) => a - b);
   const whiteL = sorted[Math.floor(n * 0.97)] || 255;
-  const blackL = sorted[Math.floor(n * 0.04)] || 0;
+  const blackL = sorted[Math.floor(n * 0.03)] || 0;
   let wr = 0;
   let wg = 0;
   let wb = 0;
   let wc = 0;
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
-    if (lum[p] >= whiteL * 0.92) {
+    if (lum[p] >= whiteL * 0.9) {
       wr += data[i];
       wg += data[i + 1];
       wb += data[i + 2];
@@ -145,7 +266,7 @@ function enhanceColorScan(image: ImageData) {
   const whiteR = wc ? wr / wc : 255;
   const whiteG = wc ? wg / wc : 255;
   const whiteB = wc ? wb / wc : 255;
-  const range = Math.max(18, whiteL - blackL);
+  const range = Math.max(22, whiteL - blackL);
   for (let i = 0; i < data.length; i += 4) {
     let r = (data[i] / whiteR) * 255;
     let g = (data[i + 1] / whiteG) * 255;
@@ -153,29 +274,49 @@ function enhanceColorScan(image: ImageData) {
     r = ((r - blackL) / range) * 255;
     g = ((g - blackL) / range) * 255;
     b = ((b - blackL) / range) * 255;
-    r = (r - 128) * 1.12 + 128;
-    g = (g - 128) * 1.12 + 128;
-    b = (b - 128) * 1.12 + 128;
+    r = (r - 128) * 1.18 + 128;
+    g = (g - 128) * 1.18 + 128;
+    b = (b - 128) * 1.18 + 128;
     const max = Math.max(r, g, b);
     const min = Math.min(r, g, b);
     const gray = (max + min) / 2;
-    const satBoost = 1.08;
-    r = gray + (r - gray) * satBoost;
-    g = gray + (g - gray) * satBoost;
-    b = gray + (b - gray) * satBoost;
+    r = gray + (r - gray) * 1.12;
+    g = gray + (g - gray) * 1.12;
+    b = gray + (b - gray) * 1.12;
     data[i] = clamp(r, 0, 255);
     data[i + 1] = clamp(g, 0, 255);
     data[i + 2] = clamp(b, 0, 255);
+  }
+  unsharp(data, width, height, 0.32);
+}
+
+function unsharp(data: Uint8ClampedArray, w: number, h: number, amount: number) {
+  const copy = new Uint8ClampedArray(data);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = (y * w + x) * 4;
+      for (let c = 0; c < 3; c++) {
+        const blur =
+          (copy[i + c] * 4 +
+            copy[i - 4 + c] +
+            copy[i + 4 + c] +
+            copy[i - w * 4 + c] +
+            copy[i + w * 4 + c]) /
+          8;
+        data[i + c] = clamp(copy[i + c] + (copy[i + c] - blur) * amount * 2, 0, 255);
+      }
+    }
   }
 }
 
 function outputSize(quad: Point[]) {
   const width = Math.max(dist(quad[0], quad[1]), dist(quad[3], quad[2]));
   const height = Math.max(dist(quad[0], quad[3]), dist(quad[1], quad[2]));
-  const scale = Math.min(1, MAX_OUTPUT / Math.max(width, height));
+  const longest = Math.max(width, height, 1);
+  const scale = Math.min(MAX_OUTPUT / longest, Math.max(1, 1100 / longest));
   return {
-    width: Math.max(400, Math.round(width * scale)),
-    height: Math.max(560, Math.round(height * scale)),
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
   };
 }
 
@@ -348,9 +489,40 @@ function dilate(binary: Uint8Array, w: number, h: number) {
   }
 }
 
-function largestComponent(binary: Uint8Array, w: number, h: number) {
+function erode(binary: Uint8Array, w: number, h: number) {
+  const copy = binary.slice();
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      binary[y * w + x] =
+        copy[y * w + x] &&
+        copy[y * w + x - 1] &&
+        copy[y * w + x + 1] &&
+        copy[(y - 1) * w + x] &&
+        copy[(y + 1) * w + x]
+          ? 1
+          : 0;
+    }
+  }
+}
+
+function openBinary(binary: Uint8Array, w: number, h: number) {
+  erode(binary, w, h);
+  dilate(binary, w, h);
+}
+
+function closeBinary(binary: Uint8Array, w: number, h: number) {
+  dilate(binary, w, h);
+  erode(binary, w, h);
+}
+
+function largestComponent(
+  binary: Uint8Array,
+  w: number,
+  h: number,
+  opts: { ignoreBorderHeavy: boolean },
+) {
   const seen = new Uint8Array(binary.length);
-  let best: { count: number; edge: Point[] } | null = null;
+  let best: { count: number; edge: Point[]; border: number } | null = null;
   const qx: number[] = [];
   const qy: number[] = [];
   for (let start = 0; start < binary.length; start++) {
@@ -362,13 +534,15 @@ function largestComponent(binary: Uint8Array, w: number, h: number) {
     seen[start] = 1;
     const edge: Point[] = [];
     let count = 0;
+    let border = 0;
     let qi = 0;
     while (qi < qx.length) {
       const x = qx[qi];
       const y = qy[qi];
       qi += 1;
       count += 1;
-      let border = false;
+      if (x === 0 || y === 0 || x === w - 1 || y === h - 1) border += 1;
+      let isEdge = false;
       for (const [dx, dy] of [
         [1, 0],
         [-1, 0],
@@ -378,7 +552,7 @@ function largestComponent(binary: Uint8Array, w: number, h: number) {
         const nx = x + dx;
         const ny = y + dy;
         if (nx < 0 || ny < 0 || nx >= w || ny >= h || !binary[ny * w + nx]) {
-          border = true;
+          isEdge = true;
           continue;
         }
         const ni = ny * w + nx;
@@ -388,9 +562,10 @@ function largestComponent(binary: Uint8Array, w: number, h: number) {
           qy.push(ny);
         }
       }
-      if (border && edge.length < 2500) edge.push({ x, y });
+      if (isEdge && edge.length < 4000) edge.push({ x, y });
     }
-    if (!best || count > best.count) best = { count, edge };
+    if (opts.ignoreBorderHeavy && border > count * 0.45 && count > w * h * 0.5) continue;
+    if (!best || count > best.count) best = { count, edge, border };
   }
   return best;
 }
@@ -415,73 +590,6 @@ function convexHull(points: Point[]): Point[] {
   return lower.concat(upper);
 }
 
-function approxQuad(hull: Point[], diag: number): Point[] | null {
-  if (hull.length === 4) return hull;
-  let epsilon = diag * 0.02;
-  let best: Point[] | null = null;
-  for (let i = 0; i < 18; i++) {
-    const simplified = rdp(hull, epsilon);
-    if (simplified.length === 4) return simplified;
-    if (simplified.length > 4) best = pickFour(simplified);
-    epsilon *= 1.22;
-  }
-  return best;
-}
-
-function rdp(points: Point[], epsilon: number): Point[] {
-  if (points.length < 3) return points;
-  const closed = [...points, points[0]];
-  const keep = rdpOpen(closed, epsilon);
-  keep.pop();
-  return keep;
-}
-
-function rdpOpen(points: Point[], epsilon: number): Point[] {
-  let maxD = 0;
-  let idx = 0;
-  const a = points[0];
-  const b = points[points.length - 1];
-  for (let i = 1; i < points.length - 1; i++) {
-    const d = perpDist(points[i], a, b);
-    if (d > maxD) {
-      maxD = d;
-      idx = i;
-    }
-  }
-  if (maxD > epsilon) {
-    const left = rdpOpen(points.slice(0, idx + 1), epsilon);
-    const right = rdpOpen(points.slice(idx), epsilon);
-    return left.slice(0, -1).concat(right);
-  }
-  return [a, b];
-}
-
-function pickFour(points: Point[]): Point[] {
-  let best: Point[] = points.slice(0, 4);
-  let bestArea = 0;
-  const n = points.length;
-  if (n > 24) {
-    const step = Math.ceil(n / 16);
-    const sampled = points.filter((_, i) => i % step === 0);
-    return pickFour(sampled.length >= 4 ? sampled : points.slice(0, 16));
-  }
-  for (let i = 0; i < n; i++) {
-    for (let j = i + 1; j < n; j++) {
-      for (let k = j + 1; k < n; k++) {
-        for (let l = k + 1; l < n; l++) {
-          const q = [points[i], points[j], points[k], points[l]];
-          const area = quadArea(orderQuad(q));
-          if (area > bestArea) {
-            bestArea = area;
-            best = q;
-          }
-        }
-      }
-    }
-  }
-  return best;
-}
-
 function orderQuad(points: Point[]): Point[] {
   const sorted = [...points];
   sorted.sort((a, b) => a.x + a.y - (b.x + b.y));
@@ -492,13 +600,6 @@ function orderQuad(points: Point[]): Point[] {
   const tr = rest[0] ?? { x: br.x, y: tl.y };
   const bl = rest[rest.length - 1] ?? { x: tl.x, y: br.y };
   return [tl, tr, br, bl];
-}
-
-function perpDist(p: Point, a: Point, b: Point) {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const len = Math.hypot(dx, dy) || 1;
-  return Math.abs(dy * p.x - dx * p.y + b.x * a.y - b.y * a.x) / len;
 }
 
 function dist(a: Point, b: Point) {

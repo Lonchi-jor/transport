@@ -12,7 +12,7 @@ Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC.
 
 Le bureau crée une course et l’attribue à un chauffeur. Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran** avec tous les chauffeurs. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’à la destination.
 
-Le téléphone du chauffeur affiche la course tout de suite. Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route** et **l’itinéraire** s’affiche sur la carte. Pour **terminer**, il scanne le **bon de livraison** (caméra ou import) : l’app recadre le document **en couleur** (type CamScanner) et le joint à la course. Le bureau peut **télécharger** le BL depuis `/admin`.
+Le téléphone du chauffeur affiche la course tout de suite. Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route** et **l’itinéraire** s’affiche sur la carte. Pour **terminer**, il scanne le **bon de livraison** : la caméra **détecte le papier**, le recadre toute seule (perspective + couleur, type CamScanner) et le joint à la course. Le bureau peut **télécharger** le BL depuis `/admin`.
 
 ## Test on your phone while you develop
 
