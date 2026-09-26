@@ -8,6 +8,7 @@ export type FleetDevice = {
   id: string;
   callSign: string;
   driverName: string;
+  phone: string | null;
   vehicleType: VehicleType;
   vehiclePlate: string | null;
   role: Role;
@@ -25,6 +26,7 @@ export type HeartbeatPayload = {
   id: string;
   callSign: string;
   driverName: string;
+  phone?: string | null;
   vehicleType: VehicleType;
   vehiclePlate?: string | null;
   role: Role;
@@ -69,6 +71,7 @@ export type Course = {
   assignedDeviceId: string | null;
   assignedCallSign: string | null;
   assignedDriverName: string | null;
+  assignedDriverPhone: string | null;
   vehicleType: VehicleType | null;
   vehiclePlate: string | null;
   status: CourseStatus;
@@ -113,6 +116,7 @@ export type FleetSnapshot = {
     id: string;
     callSign: string;
     driverName: string;
+    phone?: string;
     vehicleType: VehicleType;
     vehiclePlate?: string;
     pin?: string;

@@ -16,6 +16,7 @@ export async function PATCH(
   let body: {
     callSign?: string;
     driverName?: string;
+    phone?: string;
     vehicleType?: string;
     vehiclePlate?: string;
     pin?: string;
@@ -31,6 +32,7 @@ export async function PATCH(
   const result = updateDriver(id, {
     callSign: body.callSign ?? "",
     driverName: body.driverName ?? "",
+    phone: body.phone ?? "",
     vehicleType: body.vehicleType,
     vehiclePlate: body.vehiclePlate ?? "",
     pin: body.pin,

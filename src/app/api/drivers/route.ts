@@ -12,6 +12,7 @@ export async function POST(request: Request) {
   let body: {
     callSign?: string;
     driverName?: string;
+    phone?: string;
     vehicleType?: string;
     vehiclePlate?: string;
     pin?: string;
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
   const result = createDriver({
     callSign: body.callSign ?? "",
     driverName: body.driverName ?? "",
+    phone: body.phone ?? "",
     vehicleType: body.vehicleType,
     vehiclePlate: body.vehiclePlate ?? "",
     pin: body.pin,

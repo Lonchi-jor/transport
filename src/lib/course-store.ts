@@ -41,6 +41,7 @@ function normalizeCourse(item: Partial<Course>): Course | null {
     assignedDeviceId: item.assignedDeviceId ?? null,
     assignedCallSign: item.assignedCallSign ?? null,
     assignedDriverName: item.assignedDriverName ?? null,
+    assignedDriverPhone: item.assignedDriverPhone?.trim() || null,
     vehicleType,
     vehiclePlate: item.vehiclePlate ? normalizePlate(item.vehiclePlate) : null,
     status,
@@ -99,6 +100,7 @@ function emptyVehicle(course: Course): Course {
     ...course,
     vehicleType: null,
     vehiclePlate: null,
+    assignedDriverPhone: null,
   };
 }
 
@@ -127,6 +129,7 @@ function vehicleFromDriver(
     assignedDeviceId: deviceId,
     assignedCallSign: device?.callSign ?? account?.callSign ?? course.assignedCallSign,
     assignedDriverName: device?.driverName ?? account?.driverName ?? course.assignedDriverName,
+    assignedDriverPhone: account?.phone || course.assignedDriverPhone,
     vehicleType,
     vehiclePlate,
   };
@@ -146,6 +149,7 @@ function applyAssignment(
       assignedDeviceId: null,
       assignedCallSign: null,
       assignedDriverName: null,
+      assignedDriverPhone: null,
       status: course.status === "done" || course.status === "cancelled" ? course.status : "open",
       updatedAt: Date.now(),
     });
@@ -186,6 +190,7 @@ export function createCourse(draft: CourseDraft): Course {
     assignedDeviceId: null,
     assignedCallSign: null,
     assignedDriverName: null,
+    assignedDriverPhone: null,
     vehicleType: null,
     vehiclePlate: null,
     status: "open",

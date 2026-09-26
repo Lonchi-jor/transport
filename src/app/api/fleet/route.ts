@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     }
     body.callSign = account.callSign;
     body.driverName = account.driverName;
+    body.phone = account.phone;
     body.vehicleType = account.vehicleType;
     body.vehiclePlate = account.vehiclePlate;
   }

@@ -7,6 +7,7 @@ export type DriverAccount = {
   id: string;
   callSign: string;
   driverName: string;
+  phone: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
   pin: string;
@@ -30,6 +31,7 @@ function load() {
         id: item.id,
         callSign: item.callSign,
         driverName: item.driverName ?? "",
+        phone: normalizePhone(item.phone ?? ""),
         vehicleType: isVehicleType(item.vehicleType) ? item.vehicleType : "van",
         vehiclePlate: normalizePlate(item.vehiclePlate ?? ""),
         pin: String(item.pin ?? ""),
@@ -57,6 +59,14 @@ export function normalizePlate(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, " ");
 }
 
+export function normalizePhone(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+export function phoneKey(value: string) {
+  return value.replace(/\D/g, "");
+}
+
 function normalizePin(value: string) {
   return value.replace(/\D/g, "").slice(0, 6);
 }
@@ -70,6 +80,7 @@ function toPublic(account: DriverAccount): DriverPublic {
     id: account.id,
     callSign: account.callSign,
     driverName: account.driverName,
+    phone: account.phone,
     vehicleType: account.vehicleType,
     vehiclePlate: account.vehiclePlate,
     createdAt: account.createdAt,
@@ -100,9 +111,16 @@ export function findDriverByPlate(plate: string) {
   return listDrivers().find((d) => d.vehiclePlate === key) ?? null;
 }
 
+export function findDriverByPhone(phone: string) {
+  const key = phoneKey(phone);
+  if (key.length < 8) return null;
+  return listDrivers().find((d) => phoneKey(d.phone) === key) ?? null;
+}
+
 type DriverInput = {
   callSign: string;
   driverName: string;
+  phone: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
   pin?: string;
@@ -111,23 +129,33 @@ type DriverInput = {
 function validateDriver(input: DriverInput, ignoreId?: string): { error: string } | {
   callSign: string;
   driverName: string;
+  phone: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
   pin?: string;
 } {
   const callSign = normalizeCallSign(input.callSign);
   const driverName = input.driverName.trim();
+  const phone = normalizePhone(input.phone);
+  const digits = phoneKey(phone);
   const vehiclePlate = normalizePlate(input.vehiclePlate);
   if (callSign.length < 2) return { error: "Indiquez un indicatif (ex. ME-01)." };
   if (driverName.length < 2) return { error: "Indiquez le nom du chauffeur." };
+  if (digits.length < 8 || digits.length > 15) {
+    return { error: "Indiquez le numéro de téléphone du chauffeur." };
+  }
   if (vehiclePlate.length < 3) return { error: "Indiquez l’immatriculation du véhicule." };
   const sameCall = findDriverByCallSign(callSign);
   if (sameCall && sameCall.id !== ignoreId) return { error: "Cet indicatif existe déjà." };
+  const samePhone = findDriverByPhone(phone);
+  if (samePhone && samePhone.id !== ignoreId) {
+    return { error: "Ce numéro est déjà attribué à un autre chauffeur." };
+  }
   const samePlate = findDriverByPlate(vehiclePlate);
   if (samePlate && samePlate.id !== ignoreId) {
     return { error: "Ce véhicule est déjà attribué à un autre chauffeur." };
   }
-  return { callSign, driverName, vehicleType: input.vehicleType, vehiclePlate };
+  return { callSign, driverName, phone, vehicleType: input.vehicleType, vehiclePlate };
 }
 
 export function createDriver(input: DriverInput): DriverAccount | { error: string } {
@@ -140,6 +168,7 @@ export function createDriver(input: DriverInput): DriverAccount | { error: strin
     id: crypto.randomUUID(),
     callSign: parsed.callSign,
     driverName: parsed.driverName,
+    phone: parsed.phone,
     vehicleType: parsed.vehicleType,
     vehiclePlate: parsed.vehiclePlate,
     pin,
@@ -166,6 +195,7 @@ export function updateDriver(id: string, input: DriverInput): DriverAccount | { 
     ...existing,
     callSign: parsed.callSign,
     driverName: parsed.driverName,
+    phone: parsed.phone,
     vehicleType: parsed.vehicleType,
     vehiclePlate: parsed.vehiclePlate,
     pin,

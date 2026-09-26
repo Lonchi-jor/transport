@@ -1,8 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { telHref } from "@/lib/format";
 import { VEHICLE_META, VEHICLE_TYPES, type VehicleType } from "@/lib/types";
 
 export function Field({
@@ -73,5 +74,22 @@ export function Stat({ label, value, icon }: { label: string; value: string; ico
       <div className="mt-1 text-xl font-semibold text-[#2b308f]">{value}</div>
       <div className="text-[11px] text-[#5b6294]">{label}</div>
     </div>
+  );
+}
+
+export function PhoneLink({
+  phone,
+  className,
+  onClick,
+}: {
+  phone?: string | null;
+  className?: string;
+  onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
+}) {
+  if (!phone?.trim()) return null;
+  return (
+    <a href={telHref(phone)} className={className ?? "text-[#00a4e8] hover:underline"} onClick={onClick}>
+      {phone}
+    </a>
   );
 }

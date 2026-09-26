@@ -8,6 +8,7 @@ import CourseEditor from "@/components/course-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PhoneLink } from "@/components/admin-fields";
 import { cn } from "@/lib/utils";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
 import type { CourseStatus, FleetSnapshot, VehicleType } from "@/lib/types";
@@ -76,6 +77,7 @@ export default function CoursesBoard() {
         course.bnNumber,
         course.assignedCallSign,
         course.assignedDriverName,
+        course.assignedDriverPhone,
         course.vehiclePlate,
         course.notes,
       ]
@@ -313,6 +315,13 @@ export default function CoursesBoard() {
                               ? `${course.assignedCallSign} — ${course.assignedDriverName ?? ""}`
                               : "Non attribué"}
                           </div>
+                          {course.assignedDriverPhone ? (
+                            <PhoneLink
+                              phone={course.assignedDriverPhone}
+                              className="mt-1 block text-xs text-[#00a4e8] hover:underline"
+                              onClick={(event) => event.stopPropagation()}
+                            />
+                          ) : null}
                           <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(course)}</div>
                           {course.assignedDeviceId ? (
                             <Link

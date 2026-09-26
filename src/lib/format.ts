@@ -100,6 +100,10 @@ export function vehicleLine(input: {
   return [plate, type].filter(Boolean).join(" · ") || "Véhicule non renseigné";
 }
 
+export function telHref(phone: string) {
+  return `tel:${phone.replace(/[^\d+]/g, "")}`;
+}
+
 export function formatWhen(ts: number | null | undefined) {
   if (ts == null || !Number.isFinite(ts)) return null;
   return new Intl.DateTimeFormat("fr-FR", {

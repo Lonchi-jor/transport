@@ -173,6 +173,11 @@ export default function LeafletFleetMap({
             <div className="min-w-40 text-sm">
               <div className="font-semibold">{device.callSign}</div>
               <div>{device.driverName}</div>
+              {device.phone ? (
+                <div>
+                  <a href={`tel:${device.phone.replace(/[^\d+]/g, "")}`}>{device.phone}</a>
+                </div>
+              ) : null}
               <div>
                 {statusLabel(device, now)}
                 {kph(device.speedMps) != null ? ` · ${kph(device.speedMps)} km/h` : ""}

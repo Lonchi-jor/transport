@@ -7,7 +7,7 @@ import "leaflet/dist/leaflet.css";
 import AdminChrome from "@/components/admin-chrome";
 import DispatchMap from "@/components/dispatch-map";
 import CourseEditor from "@/components/course-editor";
-import { Field, VehicleFields } from "@/components/admin-fields";
+import { Field, PhoneLink, VehicleFields } from "@/components/admin-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +46,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
   const [saving, setSaving] = useState(false);
 
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
+  const assignedDriver = roster.find((item) => item.id === form.assignedDeviceId) ?? null;
 
   function fillVehicleFromDriver(driverId: string, current = form) {
     const driver = roster.find((item) => item.id === driverId);
@@ -272,6 +273,12 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                     vehiclePlate={form.vehiclePlate}
                     onChange={(patch) => setForm({ ...form, ...patch })}
                   />
+                  {assignedDriver?.phone ? (
+                    <p className="text-xs text-[#5b6294]">
+                      Téléphone :{" "}
+                      <PhoneLink phone={assignedDriver.phone} className="font-medium text-[#00a4e8] hover:underline" />
+                    </p>
+                  ) : null}
                   <div className="flex flex-wrap gap-3">
                     <Link
                       href={`/admin/chauffeurs?id=${encodeURIComponent(form.assignedDeviceId)}`}
@@ -356,6 +363,9 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                             ? `${course.assignedCallSign} · ${vehicleLine(course)}`
                             : "Non attribué"}
                         </div>
+                        {course.assignedDriverPhone ? (
+                          <div className="mt-1 text-xs text-[#00a4e8]">{course.assignedDriverPhone}</div>
+                        ) : null}
                       </div>
                       <Badge variant={course.status === "open" ? "outline" : "secondary"}>
                         {COURSE_STATUS_LABEL[course.status]}

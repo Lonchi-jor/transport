@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ClipboardList, Pencil, Radio, Trash2, UserPlus, X } from "lucide-react";
 import AdminChrome from "@/components/admin-chrome";
-import { Field, Stat, VehicleFields } from "@/components/admin-fields";
+import { Field, PhoneLink, Stat, VehicleFields } from "@/components/admin-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import {
 const emptyDriver = {
   callSign: "",
   driverName: "",
+  phone: "",
   vehicleType: "van" as VehicleType,
   vehiclePlate: "",
   pin: "",
@@ -46,7 +47,7 @@ export default function ChauffeursDashboard() {
     const needle = query.trim().toLowerCase();
     if (!needle) return roster;
     return roster.filter((driver) =>
-      [driver.callSign, driver.driverName, driver.vehiclePlate]
+      [driver.callSign, driver.driverName, driver.phone, driver.vehiclePlate]
         .join(" ")
         .toLowerCase()
         .includes(needle),
@@ -66,6 +67,7 @@ export default function ChauffeursDashboard() {
     setDriverForm({
       callSign: driver.callSign,
       driverName: driver.driverName,
+      phone: driver.phone ?? "",
       vehicleType: driver.vehicleType,
       vehiclePlate: driver.vehiclePlate ?? "",
       pin: "",
@@ -178,6 +180,18 @@ export default function ChauffeursDashboard() {
                   placeholder="Jean Mbarga"
                 />
               </Field>
+              <Field label="Téléphone" htmlFor="driverPhone">
+                <Input
+                  id="driverPhone"
+                  required
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  value={driverForm.phone}
+                  onChange={(e) => setDriverForm({ ...driverForm, phone: e.target.value })}
+                  placeholder="+237 6…"
+                />
+              </Field>
               <VehicleFields
                 idPrefix="driver"
                 vehicleType={driverForm.vehicleType}
@@ -229,7 +243,7 @@ export default function ChauffeursDashboard() {
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher un nom, un indicatif, une plaque…"
+              placeholder="Rechercher un nom, un indicatif, un téléphone, une plaque…"
               className="mb-3"
             />
             {filtered.length === 0 ? (
@@ -259,6 +273,11 @@ export default function ChauffeursDashboard() {
                           <div className="min-w-0">
                             <div className="font-semibold">{driver.callSign}</div>
                             <div className="text-xs text-[#5b6294]">{driver.driverName}</div>
+                            {driver.phone ? (
+                              <div className="mt-0.5 text-xs text-[#00a4e8]">{driver.phone}</div>
+                            ) : (
+                              <div className="mt-0.5 text-xs text-red-600">Téléphone manquant</div>
+                            )}
                             <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(driver)}</div>
                           </div>
                           <span
@@ -287,7 +306,7 @@ export default function ChauffeursDashboard() {
             <div className="rounded-2xl border border-dashed border-[#d5dcf0] bg-white px-6 py-16 text-center shadow-sm">
               <h2 className="text-lg font-semibold text-[#2b308f]">Fiche chauffeur</h2>
               <p className="mx-auto mt-2 max-w-md text-sm text-[#5b6294]">
-                Choisissez un chauffeur à gauche pour voir son véhicule, son PIN, son statut GPS et toutes ses courses.
+                Choisissez un chauffeur à gauche pour voir son téléphone, son véhicule, son PIN, son statut GPS et toutes ses courses.
               </p>
             </div>
           ) : (
@@ -300,6 +319,13 @@ export default function ChauffeursDashboard() {
                       {selected.callSign} · {selected.driverName}
                     </h2>
                     <p className="mt-1 text-sm text-[#2b308f]">{vehicleLine(selected)}</p>
+                    {selected.phone ? (
+                      <p className="mt-2 text-sm">
+                        <PhoneLink phone={selected.phone} className="font-medium text-[#00a4e8] hover:underline" />
+                      </p>
+                    ) : (
+                      <p className="mt-2 text-sm text-red-600">Téléphone manquant — complétez la fiche.</p>
+                    )}
                     <p className="mt-2 text-sm text-[#5b6294]">
                       PIN téléphone :{" "}
                       <span className="font-mono font-semibold text-[#2b308f]">{selected.pin ?? "••••"}</span>
