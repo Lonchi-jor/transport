@@ -1,12 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Monitor } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import PhoneAccess from "@/components/phone-access";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { VehicleType } from "@/lib/types";
 
@@ -23,16 +22,27 @@ type Props = {
   onJoin: (payload: JoinPayload) => void;
 };
 
+const fieldClass =
+  "h-11 w-full min-w-0 rounded-xl border border-input bg-transparent px-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+
+function readField(form: HTMLFormElement, name: string) {
+  const raw = new FormData(form).get(name);
+  if (typeof raw === "string" && raw.trim()) return raw;
+  const el = form.elements.namedItem(name);
+  if (el instanceof HTMLInputElement) return el.value;
+  return "";
+}
+
 export default function JoinScreen({ onJoin }: Props) {
-  const [callSign, setCallSign] = useState("");
-  const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function submit(event: React.FormEvent) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const code = pin.replace(/\D/g, "");
-    if (!callSign.trim()) {
+    const form = event.currentTarget;
+    const sign = readField(form, "callSign").trim();
+    const code = readField(form, "pin").replace(/\D/g, "");
+    if (!sign) {
       setError("Entrez l’indicatif donné par le bureau (ex. ME-01).");
       return;
     }
@@ -46,7 +56,7 @@ export default function JoinScreen({ onJoin }: Props) {
       const res = await fetch("/api/drivers/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ callSign: callSign.trim(), pin: code }),
+        body: JSON.stringify({ callSign: sign, pin: code }),
       });
       const data = (await res.json()) as {
         driver?: JoinPayload;
@@ -96,30 +106,40 @@ export default function JoinScreen({ onJoin }: Props) {
           </Link>
         </div>
 
-        <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-5 rounded-3xl border border-[#d5dcf0] bg-white p-5 shadow-[0_12px_40px_rgba(43,48,143,0.08)]">
+        <form
+          onSubmit={(event) => void submit(event)}
+          className="flex flex-col gap-5 rounded-3xl border border-[#d5dcf0] bg-white p-5 shadow-[0_12px_40px_rgba(43,48,143,0.08)]"
+        >
           <div className="grid gap-2">
             <Label htmlFor="callSign">Indicatif</Label>
-            <Input
+            <input
               id="callSign"
-              value={callSign}
-              onChange={(e) => setCallSign(e.target.value)}
+              name="callSign"
+              defaultValue=""
+              onInput={() => setError("")}
               placeholder="ME-01"
               autoCapitalize="characters"
-              className="h-11 rounded-xl text-base"
+              autoComplete="username"
+              className={fieldClass}
             />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="pin">Code PIN</Label>
-            <Input
+            <input
               id="pin"
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              name="pin"
+              defaultValue=""
+              onInput={(event) => {
+                const el = event.currentTarget;
+                el.value = el.value.replace(/\D/g, "").slice(0, 6);
+                setError("");
+              }}
               placeholder="••••"
               inputMode="numeric"
               maxLength={6}
-              autoComplete="one-time-code"
-              className="h-11 rounded-xl font-mono text-base tracking-widest"
+              autoComplete="current-password"
+              className={`${fieldClass} font-mono tracking-widest`}
             />
           </div>
 

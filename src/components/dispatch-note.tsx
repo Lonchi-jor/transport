@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export default function DispatchNote({
@@ -45,20 +45,61 @@ export default function DispatchNote({
 
 export function DispatchNoteHint({ notes }: { notes?: string | null }) {
   const text = notes?.trim();
+  const triggerRef = useRef<HTMLSpanElement>(null);
+  const hideTimer = useRef<number | null>(null);
   const [box, setBox] = useState<{ left: number; top: number } | null>(null);
+
+  function clearHide() {
+    if (hideTimer.current != null) {
+      window.clearTimeout(hideTimer.current);
+      hideTimer.current = null;
+    }
+  }
+
+  function show() {
+    const el = triggerRef.current;
+    if (!el) return;
+    clearHide();
+    const rect = el.getBoundingClientRect();
+    const width = 288;
+    const left = Math.min(Math.max(8, rect.left), Math.max(8, window.innerWidth - width - 8));
+    const estimatedHeight = 160;
+    const below = rect.bottom + 8;
+    const top =
+      below + estimatedHeight > window.innerHeight - 8
+        ? Math.max(8, rect.top - estimatedHeight - 8)
+        : below;
+    setBox({ left, top });
+  }
+
+  function hide() {
+    clearHide();
+    hideTimer.current = window.setTimeout(() => setBox(null), 60);
+  }
+
+  useEffect(() => {
+    if (!box) return;
+    const dismiss = () => setBox(null);
+    window.addEventListener("scroll", dismiss, true);
+    window.addEventListener("resize", dismiss);
+    return () => {
+      window.removeEventListener("scroll", dismiss, true);
+      window.removeEventListener("resize", dismiss);
+    };
+  }, [box]);
+
+  useEffect(() => () => clearHide(), []);
+
   if (!text) return null;
 
   return (
     <>
       <span
-        className="inline-flex cursor-default rounded-full bg-[#e7f6fd] px-2 py-0.5 text-[11px] font-medium text-[#00a4e8]"
-        onMouseEnter={(event) => {
-          const rect = event.currentTarget.getBoundingClientRect();
-          const width = 288;
-          const left = Math.min(rect.left, Math.max(8, window.innerWidth - width - 8));
-          setBox({ left, top: rect.bottom + 8 });
-        }}
-        onMouseLeave={() => setBox(null)}
+        ref={triggerRef}
+        className="inline-flex cursor-default items-center rounded-full bg-[#e7f6fd] px-2 py-0.5 text-[11px] font-medium text-[#00a4e8]"
+        aria-label="Note envoyée au chauffeur"
+        onPointerEnter={show}
+        onPointerLeave={hide}
         onClick={(event) => event.stopPropagation()}
       >
         Note envoyée

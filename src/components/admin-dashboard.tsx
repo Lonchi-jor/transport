@@ -7,7 +7,7 @@ import "leaflet/dist/leaflet.css";
 import AdminChrome from "@/components/admin-chrome";
 import DispatchMap from "@/components/dispatch-map";
 import CourseEditor from "@/components/course-editor";
-import DispatchNote from "@/components/dispatch-note";
+import { DispatchNoteHint } from "@/components/dispatch-note";
 import { Field, PhoneLink, VehicleFields } from "@/components/admin-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -370,7 +370,11 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                         {course.assignedDriverPhone ? (
                           <div className="mt-1 text-xs text-[#00a4e8]">{course.assignedDriverPhone}</div>
                         ) : null}
-                        {course.notes ? <div className="mt-2 text-left"><DispatchNote notes={course.notes} /></div> : null}
+                        {course.notes ? (
+                          <div className="mt-2 text-left">
+                            <DispatchNoteHint notes={course.notes} />
+                          </div>
+                        ) : null}
                       </div>
                       <Badge variant={course.status === "open" ? "outline" : "secondary"}>
                         {COURSE_STATUS_LABEL[course.status]}
