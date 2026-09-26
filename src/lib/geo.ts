@@ -83,6 +83,60 @@ export async function suggestPlaces(query: string): Promise<PlaceHit[]> {
     .filter((hit): hit is PlaceHit => Boolean(hit));
 }
 
+export async function reversePlace(lat: number, lng: number): Promise<PlaceHit | null> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const key = googleKey();
+  if (key) {
+    try {
+      const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+      url.searchParams.set("latlng", `${lat},${lng}`);
+      url.searchParams.set("language", "fr");
+      url.searchParams.set("key", key);
+      const res = await fetch(url, { cache: "no-store" });
+      const data = (await res.json()) as {
+        results?: { formatted_address?: string; geometry?: { location?: { lat: number; lng: number } } }[];
+      };
+      const first = data.results?.[0];
+      const loc = first?.geometry?.location;
+      if (first?.formatted_address) {
+        return {
+          label: first.formatted_address,
+          lat: loc?.lat ?? lat,
+          lng: loc?.lng ?? lng,
+        };
+      }
+    } catch {
+      /* Photon fallback */
+    }
+  }
+
+  const url = new URL("https://photon.komoot.io/reverse");
+  url.searchParams.set("lat", String(lat));
+  url.searchParams.set("lon", String(lng));
+  url.searchParams.set("lang", "fr");
+  const res = await fetch(url, {
+    cache: "no-store",
+    headers: { "User-Agent": "CCMM-Flotte/1.0" },
+  });
+  if (!res.ok) return { label: `${lat.toFixed(5)}, ${lng.toFixed(5)}`, lat, lng };
+  const data = (await res.json()) as {
+    features?: {
+      geometry?: { coordinates?: number[] };
+      properties?: Record<string, unknown>;
+    }[];
+    geometry?: { coordinates?: number[] };
+    properties?: Record<string, unknown>;
+  };
+  const feature = data.features?.[0] ?? (data.properties ? data : null);
+  const coords = feature?.geometry?.coordinates;
+  const label = formatPhotonLabel(feature?.properties ?? {}) || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+  return {
+    label,
+    lat: coords && coords.length >= 2 ? coords[1] : lat,
+    lng: coords && coords.length >= 2 ? coords[0] : lng,
+  };
+}
+
 export async function resolvePlace(
   address: string,
   lat?: number | null,
