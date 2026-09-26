@@ -11,6 +11,7 @@ import FleetMap from "@/components/fleet-map";
 import JoinScreen, { type JoinPayload } from "@/components/join-screen";
 import PhoneAccess from "@/components/phone-access";
 import DeliveryScanner from "@/components/delivery-scanner";
+import DispatchNote from "@/components/dispatch-note";
 import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
 import { COURSE_STATUS_LABEL, courseElapsedLabel, courseToMapRoute, DEFAULT_CENTER, formatAge, formatKm, kph, statusLabel, vehicleLine } from "@/lib/format";
@@ -56,6 +57,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [bnValue, setBnValue] = useState("");
   const [bnError, setBnError] = useState("");
   const [bnJobId, setBnJobId] = useState<string | null>(null);
+  const [bnNoteAck, setBnNoteAck] = useState(false);
   const [scanOpen, setScanOpen] = useState(false);
   const [scanJobId, setScanJobId] = useState<string | null>(null);
   const [phoneOpen, setPhoneOpen] = useState(false);
@@ -378,6 +380,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     setBnJobId(jobId);
     setBnValue("");
     setBnError("");
+    setBnNoteAck(false);
     setBnOpen(true);
   }
 
@@ -423,6 +426,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     [courses, session?.id],
   );
   const currentJob = myJobs.find((c) => c.status === "en_route") ?? myJobs[0] ?? null;
+  const bnJob = courses.find((course) => course.id === bnJobId) ?? null;
   const follow = useMemo(() => {
     if (gpsState !== "live" || !myPos) return null;
     return { lat: myPos.lat, lng: myPos.lng };
@@ -462,12 +466,27 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       <Sheet open={bnOpen} onOpenChange={setBnOpen}>
         <SheetContent side="bottom" className="rounded-t-3xl">
           <SheetHeader>
-            <SheetTitle>Numéro du BN</SheetTitle>
+            <SheetTitle>Lire la note, puis le BN</SheetTitle>
           </SheetHeader>
           <div className="space-y-3 px-4 pb-6">
-            <p className="text-sm text-muted-foreground">
-              La course est reçue. Entrez le numéro du bon (BN) pour la démarrer et suivre l’itinéraire.
-            </p>
+            {bnJob?.notes ? (
+              <>
+                <DispatchNote notes={bnJob.notes} />
+                <label className="flex items-start gap-2 text-sm leading-5">
+                  <input
+                    type="checkbox"
+                    className="mt-1 size-4 accent-[#00a4e8]"
+                    checked={bnNoteAck}
+                    onChange={(event) => setBnNoteAck(event.target.checked)}
+                  />
+                  <span>J’ai lu la note du dispatch. Elle m’est adressée.</span>
+                </label>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                La course est reçue. Entrez le numéro du bon (BN) pour la démarrer et suivre l’itinéraire.
+              </p>
+            )}
             <Input
               value={bnValue}
               onChange={(event) => setBnValue(event.target.value)}
@@ -477,8 +496,13 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
             {bnError ? <p className="text-sm text-red-600">{bnError}</p> : null}
             <Button
               className="h-11 w-full"
+              disabled={Boolean(bnJob?.notes?.trim()) && !bnNoteAck}
               onClick={() => {
                 if (!bnJobId) return;
+                if (bnJob?.notes?.trim() && !bnNoteAck) {
+                  setBnError("Lisez la note du dispatch avant de démarrer.");
+                  return;
+                }
                 if (!bnValue.trim()) {
                   setBnError("Le numéro du BN est obligatoire.");
                   return;
@@ -646,7 +670,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                     {job.pickupAddress} → {job.dropoffAddress}
                                   </div>
                                   <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
-                                  {job.notes ? <div className="mt-1 text-xs">{job.notes}</div> : null}
+                                  {job.notes ? <div className="mt-2"><DispatchNote notes={job.notes} /></div> : null}
                                   <div className="mt-3 flex gap-2">
                                     {job.status === "assigned" ? (
                                       <Button size="sm" onClick={() => askBn(job.id)}>
@@ -683,6 +707,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                     {job.pickupAddress} → {job.dropoffAddress}
                                   </div>
                                   <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
+                                  {job.notes ? <div className="mt-2"><DispatchNote notes={job.notes} /></div> : null}
                                   {job.bnNumber ? (
                                     <div className="mt-1 text-xs text-muted-foreground">BN {job.bnNumber}</div>
                                   ) : null}
@@ -783,6 +808,11 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
               </div>
               {currentJob.bnNumber ? (
                 <div className="mt-1 font-medium text-white">BN {currentJob.bnNumber}</div>
+              ) : null}
+              {currentJob.notes ? (
+                <div className="mt-2">
+                  <DispatchNote notes={currentJob.notes} tone="dark" />
+                </div>
               ) : null}
               <div className="mt-2 flex gap-2">
                 {currentJob.status === "assigned" ? (

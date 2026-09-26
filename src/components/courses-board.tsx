@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PhoneLink } from "@/components/admin-fields";
+import DispatchNote from "@/components/dispatch-note";
 import { cn } from "@/lib/utils";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
 import type { CourseStatus, FleetSnapshot, VehicleType } from "@/lib/types";
@@ -285,6 +286,11 @@ export default function CoursesBoard() {
                           <div className="mt-1 text-sm leading-snug">{course.clientName}</div>
                           {course.clientPhone ? (
                             <div className="text-xs text-[#5b6294]">{course.clientPhone}</div>
+                          ) : null}
+                          {course.notes ? (
+                            <div className="mt-2">
+                              <DispatchNote notes={course.notes} />
+                            </div>
                           ) : null}
                           <div className="mt-2 flex flex-wrap gap-1">
                             {course.bnNumber ? (

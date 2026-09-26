@@ -7,6 +7,7 @@ import "leaflet/dist/leaflet.css";
 import AdminChrome from "@/components/admin-chrome";
 import DispatchMap from "@/components/dispatch-map";
 import CourseEditor from "@/components/course-editor";
+import DispatchNote from "@/components/dispatch-note";
 import { Field, PhoneLink, VehicleFields } from "@/components/admin-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -239,16 +240,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                   onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
                 />
               </Field>
-              <Field label="Notes" htmlFor="notes">
-                <textarea
-                  id="notes"
-                  value={form.notes}
-                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  rows={2}
-                  className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  placeholder="Colis, accès, consignes…"
-                />
-              </Field>
               <Field label="Chauffeur" htmlFor="driver">
                 <select
                   id="driver"
@@ -302,6 +293,19 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                   </Link>
                 </p>
               )}
+              <Field label="Note au chauffeur" htmlFor="notes">
+                <textarea
+                  id="notes"
+                  value={form.notes}
+                  onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                  rows={3}
+                  className="w-full rounded-lg border border-input bg-transparent px-2.5 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                  placeholder="Accès, colis, consignes — le chauffeur lira ceci sur son téléphone."
+                />
+                <p className="text-xs text-[#5b6294]">
+                  Cette note lui est adressée. Elle s’affiche en grand sur le portable ; il doit la lire avant de démarrer.
+                </p>
+              </Field>
               {error ? <p className="text-sm text-red-600">{error}</p> : null}
               <Button type="submit" disabled={saving} className="h-10">
                 {saving ? "Envoi…" : "Donner la course"}
@@ -366,6 +370,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                         {course.assignedDriverPhone ? (
                           <div className="mt-1 text-xs text-[#00a4e8]">{course.assignedDriverPhone}</div>
                         ) : null}
+                        {course.notes ? <div className="mt-2 text-left"><DispatchNote notes={course.notes} /></div> : null}
                       </div>
                       <Badge variant={course.status === "open" ? "outline" : "secondary"}>
                         {COURSE_STATUS_LABEL[course.status]}
