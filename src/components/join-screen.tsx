@@ -32,11 +32,12 @@ export default function JoinScreen({ onJoin }: Props) {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    const code = pin.replace(/\D/g, "");
     if (!callSign.trim()) {
       setError("Entrez l’indicatif donné par le bureau (ex. ME-01).");
       return;
     }
-    if (!pin.trim()) {
+    if (code.length < 4) {
       setError("Entrez le code PIN donné par le bureau.");
       return;
     }
@@ -46,7 +47,7 @@ export default function JoinScreen({ onJoin }: Props) {
       const res = await fetch("/api/drivers/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ callSign: callSign.trim(), pin: pin.trim() }),
+        body: JSON.stringify({ callSign: callSign.trim(), pin: code }),
       });
       const data = (await res.json()) as {
         driver?: JoinPayload;
@@ -115,12 +116,12 @@ export default function JoinScreen({ onJoin }: Props) {
             <Input
               id="pin"
               value={pin}
-              onChange={(e) => setPin(e.target.value)}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
               placeholder="••••"
               inputMode="numeric"
               maxLength={6}
               autoComplete="one-time-code"
-              className="h-11 rounded-xl text-base tracking-[0.3em]"
+              className="h-11 rounded-xl font-mono text-base tracking-widest"
             />
           </div>
 
