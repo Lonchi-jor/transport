@@ -287,7 +287,10 @@ export default function CoursesBoard() {
                           {course.clientPhone ? (
                             <div className="text-xs text-[#5b6294]">{course.clientPhone}</div>
                           ) : null}
-                          {course.notes ? (
+                          {course.notes &&
+                          (course.status === "open" ||
+                            course.status === "assigned" ||
+                            course.status === "en_route") ? (
                             <div className="mt-2">
                               <DispatchNote notes={course.notes} />
                             </div>

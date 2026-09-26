@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ClipboardList, Pencil, Radio, Trash2, UserPlus, X } from "lucide-react";
 import AdminChrome from "@/components/admin-chrome";
 import { Field, PhoneLink, Stat, VehicleFields } from "@/components/admin-fields";
-import DispatchNote from "@/components/dispatch-note";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -442,11 +441,6 @@ export default function ChauffeursDashboard() {
                               </a>
                             ) : null}
                           </div>
-                          {course.notes ? (
-                            <div className="mt-2">
-                              <DispatchNote notes={course.notes} />
-                            </div>
-                          ) : null}
                         </li>
                       );
                     })}

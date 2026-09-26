@@ -707,7 +707,6 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                     {job.pickupAddress} → {job.dropoffAddress}
                                   </div>
                                   <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
-                                  {job.notes ? <div className="mt-2"><DispatchNote notes={job.notes} /></div> : null}
                                   {job.bnNumber ? (
                                     <div className="mt-1 text-xs text-muted-foreground">BN {job.bnNumber}</div>
                                   ) : null}
