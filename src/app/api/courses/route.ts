@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createCourse } from "@/lib/course-store";
+import { getDriver } from "@/lib/driver-store";
 import { drivingRoute, resolvePlace } from "@/lib/geo";
 import { radioSnapshot } from "@/lib/snapshot";
 import type { CourseDraft } from "@/lib/types";
@@ -22,6 +23,10 @@ export async function POST(request: Request) {
       { error: "Client, enlèvement et livraison sont obligatoires." },
       { status: 400 },
     );
+  }
+
+  if (body.assignedDeviceId && !getDriver(body.assignedDeviceId)) {
+    return NextResponse.json({ error: "Chauffeur inconnu. Créez-le d’abord dans le bureau." }, { status: 400 });
   }
 
   const pickup = await resolvePlace(body.pickupAddress, body.pickupLat, body.pickupLng);

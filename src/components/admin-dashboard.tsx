@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import Link from "next/link";
-import { ClipboardList, MapPinned, Radio, Truck } from "lucide-react";
+import { ClipboardList, MapPinned, Radio, Trash2, Truck, UserPlus } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import BrandLogo from "@/components/brand-logo";
 import DispatchMap from "@/components/dispatch-map";
@@ -12,7 +12,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import PlaceSuggest from "@/components/place-suggest";
 import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
+import { VEHICLE_META, VEHICLE_TYPES, type VehicleType } from "@/lib/types";
 import { COURSE_STATUS_LABEL, activeCourses, courseElapsedLabel, formatAge, formatKm, kph, statusLabel } from "@/lib/format";
+
+type RosterDriver = {
+  id: string;
+  callSign: string;
+  driverName: string;
+  vehicleType: VehicleType;
+  pin?: string;
+};
 
 type Props = {
   googleMapsApiKey: string;
@@ -32,24 +41,54 @@ const emptyForm = {
   assignedDeviceId: "",
 };
 
+const emptyDriver = {
+  callSign: "",
+  driverName: "",
+  vehicleType: "van" as VehicleType,
+  pin: "",
+};
+
 export default function AdminDashboard({ googleMapsApiKey }: Props) {
   const [devices, setDevices] = useState<FleetDevice[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [roster, setRoster] = useState<RosterDriver[]>([]);
+  const [createdNotice, setCreatedNotice] = useState("");
   const [now, setNow] = useState(0);
   const [online, setOnline] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [driverForm, setDriverForm] = useState(emptyDriver);
   const [error, setError] = useState("");
+  const [driverError, setDriverError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [savingDriver, setSavingDriver] = useState(false);
 
   const applySnapshot = useCallback((snapshot: FleetSnapshot) => {
     setDevices(snapshot.devices);
     setCourses(snapshot.courses ?? []);
     setNow(snapshot.now);
     setOnline(true);
+    if (snapshot.drivers) {
+      setRoster((prev) =>
+        snapshot.drivers!.map((driver) => ({
+          ...driver,
+          pin: driver.pin ?? prev.find((item) => item.id === driver.id)?.pin,
+        })),
+      );
+    }
   }, []);
+
+  useEffect(() => {
+    void fetch("/api/drivers")
+      .then((res) => res.json())
+      .then((data: FleetSnapshot & { drivers?: typeof roster }) => {
+        applySnapshot(data);
+        if (data.drivers) setRoster(data.drivers);
+      })
+      .catch(() => undefined);
+  }, [applySnapshot]);
 
   useEffect(() => {
     const source = new EventSource("/api/fleet/stream");
@@ -64,11 +103,60 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
     return () => source.close();
   }, [applySnapshot]);
 
-  const drivers = useMemo(
-    () => devices.filter((d) => d.role === "driver"),
-    [devices],
-  );
   const liveJobs = useMemo(() => activeCourses(courses), [courses]);
+  const liveById = useMemo(() => {
+    const map = new Map<string, FleetDevice>();
+    for (const device of devices) {
+      if (device.role === "driver") map.set(device.id, device);
+    }
+    return map;
+  }, [devices]);
+  const onlineCount = useMemo(
+    () => roster.filter((driver) => liveById.has(driver.id)).length,
+    [roster, liveById],
+  );
+
+  async function createDriver(event: FormEvent) {
+    event.preventDefault();
+    setSavingDriver(true);
+    setDriverError("");
+    try {
+      const res = await fetch("/api/drivers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(driverForm),
+      });
+      const data = (await res.json()) as FleetSnapshot & {
+        drivers?: RosterDriver[];
+        driver?: RosterDriver;
+        error?: string;
+      };
+      if (!res.ok) {
+        setDriverError(data.error || "Impossible de créer le chauffeur.");
+        return;
+      }
+      applySnapshot(data);
+      if (data.drivers) setRoster(data.drivers);
+      const created = data.driver;
+      if (created) {
+        setCreatedNotice(
+          `${created.callSign} · PIN ${created.pin} — donnez ces infos au chauffeur pour le téléphone.`,
+        );
+      }
+      setDriverForm(emptyDriver);
+    } catch {
+      setDriverError("Réseau indisponible.");
+    } finally {
+      setSavingDriver(false);
+    }
+  }
+
+  async function removeDriver(id: string) {
+    const res = await fetch(`/api/drivers/${id}`, { method: "DELETE" });
+    const data = (await res.json()) as FleetSnapshot & { drivers?: typeof roster };
+    applySnapshot(data);
+    if (data.drivers) setRoster(data.drivers);
+  }
 
   async function createJob(event: FormEvent) {
     event.preventDefault();
@@ -109,11 +197,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
     applySnapshot(data);
   }
 
-  async function startDemo() {
-    const res = await fetch("/api/fleet/demo", { method: "POST" });
-    applySnapshot((await res.json()) as FleetSnapshot);
-  }
-
   return (
     <div className="min-h-dvh bg-[#f4f7fc] text-[#1c2268]">
       <header className="border-b border-[#d5dcf0] bg-white">
@@ -122,7 +205,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
             <BrandLogo className="h-12 w-auto max-w-[220px] object-contain" />
             <div className="hidden border-l border-[#d5dcf0] pl-4 lg:block">
               <div className="text-sm font-semibold text-[#2b308f]">Tableau de bord dispatch</div>
-              <div className="text-xs text-[#5b6294]">Attribuez les courses aux chauffeurs CCMM</div>
+              <div className="text-xs text-[#5b6294]">Créez les chauffeurs, puis donnez les courses</div>
             </div>
           </div>
           <div className="flex items-center gap-3 text-xs">
@@ -153,9 +236,136 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
       <main className="mx-auto grid max-w-[1400px] gap-5 px-6 py-5 xl:grid-cols-[340px_minmax(0,1fr)]">
         <section className="space-y-5">
           <div className="grid grid-cols-3 gap-2">
-            <Stat label="Chauffeurs" value={String(drivers.length)} icon={<Truck className="size-4" />} />
+            <Stat label="Chauffeurs" value={String(roster.length)} icon={<Truck className="size-4" />} />
             <Stat label="Courses actives" value={String(liveJobs.length)} icon={<ClipboardList className="size-4" />} />
-            <Stat label="En ligne" value={online ? "OK" : "—"} icon={<Radio className="size-4" />} />
+            <Stat label="En ligne" value={String(onlineCount)} icon={<Radio className="size-4" />} />
+          </div>
+
+          <form onSubmit={createDriver} className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
+            <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-[#2b308f]">
+              <UserPlus className="size-4 text-[#00a4e8]" />
+              Nouveau chauffeur
+            </h2>
+            <p className="mb-3 text-xs leading-5 text-[#5b6294]">
+              Créez la fiche ici. Le chauffeur se connecte ensuite sur le téléphone uniquement avec l’indicatif et le PIN.
+            </p>
+            <div className="grid gap-3">
+              <Field label="Indicatif radio" htmlFor="callSign">
+                <Input
+                  id="callSign"
+                  required
+                  value={driverForm.callSign}
+                  onChange={(e) => setDriverForm({ ...driverForm, callSign: e.target.value.toUpperCase() })}
+                  placeholder="ME-01"
+                  autoCapitalize="characters"
+                />
+              </Field>
+              <Field label="Nom du chauffeur" htmlFor="driverName">
+                <Input
+                  id="driverName"
+                  required
+                  value={driverForm.driverName}
+                  onChange={(e) => setDriverForm({ ...driverForm, driverName: e.target.value })}
+                  placeholder="Jean Mbarga"
+                />
+              </Field>
+              <Field label="Véhicule" htmlFor="vehicleType">
+                <select
+                  id="vehicleType"
+                  value={driverForm.vehicleType}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, vehicleType: e.target.value as VehicleType })
+                  }
+                  className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none"
+                >
+                  {VEHICLE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {VEHICLE_META[type].label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Code PIN (4 à 6 chiffres)" htmlFor="pin">
+                <Input
+                  id="pin"
+                  value={driverForm.pin}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, pin: e.target.value.replace(/\D/g, "").slice(0, 6) })
+                  }
+                  placeholder="Laissez vide pour le générer"
+                  inputMode="numeric"
+                  autoComplete="off"
+                />
+              </Field>
+              {driverError ? <p className="text-sm text-red-600">{driverError}</p> : null}
+              {createdNotice ? (
+                <p className="rounded-lg bg-[#e7f6fd] px-3 py-2 text-sm font-medium text-[#2b308f]">
+                  {createdNotice}
+                </p>
+              ) : null}
+              <Button type="submit" disabled={savingDriver} className="h-10">
+                {savingDriver ? "Création…" : "Créer le chauffeur"}
+              </Button>
+            </div>
+          </form>
+
+          <div className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
+            <h2 className="mb-3 text-base font-semibold text-[#2b308f]">Chauffeurs</h2>
+            {roster.length === 0 ? (
+              <p className="text-sm text-[#5b6294]">
+                Aucun chauffeur pour l’instant. Créez-en un ci-dessus, puis donnez l’indicatif et le PIN pour le téléphone.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {roster.map((driver) => {
+                  const live = liveById.get(driver.id);
+                  const jobs = liveJobs.filter((c) => c.assignedDeviceId === driver.id);
+                  const isOnline = Boolean(live);
+                  return (
+                    <li key={driver.id} className="rounded-xl border border-[#d5dcf0] px-3 py-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!live) return;
+                            setSelectedId(driver.id);
+                            setMapOpen(true);
+                          }}
+                          className="min-w-0 flex-1 text-left"
+                        >
+                          <div className="font-semibold">{driver.callSign}</div>
+                          <div className="text-xs text-[#5b6294]">{driver.driverName}</div>
+                          <div className="mt-1 text-xs text-[#5b6294]">
+                            PIN {driver.pin ?? "••••"} · {VEHICLE_META[driver.vehicleType].label}
+                          </div>
+                        </button>
+                        <div className="flex flex-col items-end gap-1">
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                              isOnline ? "bg-[#e7f6fd] text-[#00a4e8]" : "bg-[#eef3fb] text-[#5b6294]"
+                            }`}
+                          >
+                            {isOnline && live ? statusLabel(live, now) : "Hors ligne"}
+                          </span>
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1 text-[11px] text-red-600 hover:underline"
+                            onClick={() => void removeDriver(driver.id)}
+                          >
+                            <Trash2 className="size-3" />
+                            Retirer
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-1 text-xs text-[#5b6294]">
+                        {jobs.length} course{jobs.length > 1 ? "s" : ""}
+                        {live && kph(live.speedMps) != null ? ` · ${kph(live.speedMps)} km/h` : ""}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
 
           <form onSubmit={createJob} className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
@@ -242,9 +452,10 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                   className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none"
                 >
                   <option value="">Attribuer plus tard</option>
-                  {drivers.map((driver) => (
+                  {roster.map((driver) => (
                     <option key={driver.id} value={driver.id}>
                       {driver.callSign} — {driver.driverName}
+                      {liveById.has(driver.id) ? " (en ligne)" : ""}
                     </option>
                   ))}
                 </select>
@@ -253,54 +464,13 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
               <Button type="submit" disabled={saving} className="h-10">
                 {saving ? "Envoi…" : "Donner la course"}
               </Button>
-              {drivers.length === 0 ? (
+              {roster.length === 0 ? (
                 <p className="text-xs text-[#5b6294]">
-                  Aucun chauffeur connecté. Ouvrez l’app téléphone ou{" "}
-                  <button type="button" className="text-[#00a4e8] underline" onClick={() => void startDemo()}>
-                    lancez la flotte démo
-                  </button>
-                  .
+                  Créez d’abord un chauffeur ci-dessus. Il n’a pas besoin d’être connecté pour recevoir la course.
                 </p>
               ) : null}
             </div>
           </form>
-
-          <div className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-base font-semibold text-[#2b308f]">Chauffeurs</h2>
-            {drivers.length === 0 ? (
-              <p className="text-sm text-[#5b6294]">Personne sur la radio pour le moment.</p>
-            ) : (
-              <ul className="space-y-2">
-                {drivers.map((driver) => {
-                  const jobs = liveJobs.filter((c) => c.assignedDeviceId === driver.id);
-                  return (
-                    <li key={driver.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedId(driver.id);
-                          setMapOpen(true);
-                        }}
-                        className="flex w-full items-start justify-between rounded-xl border border-[#d5dcf0] px-3 py-2 text-left hover:bg-[#f4f7fc]"
-                      >
-                        <div>
-                          <div className="font-semibold">{driver.callSign}</div>
-                          <div className="text-xs text-[#5b6294]">{driver.driverName}</div>
-                        </div>
-                        <div className="text-right text-xs">
-                          <div>{statusLabel(driver, now)}</div>
-                          <div className="text-[#5b6294]">
-                            {jobs.length} course{jobs.length > 1 ? "s" : ""}
-                            {kph(driver.speedMps) != null ? ` · ${kph(driver.speedMps)} km/h` : ""}
-                          </div>
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
         </section>
 
         <section className="space-y-5">
@@ -391,7 +561,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                             onClick={(event) => event.stopPropagation()}
                           >
                             <option value="">Non attribué</option>
-                            {drivers.map((driver) => (
+                            {roster.map((driver) => (
                               <option key={driver.id} value={driver.id}>
                                 {driver.callSign} — {driver.driverName}
                               </option>

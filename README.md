@@ -2,7 +2,7 @@
 
 Live vehicle map for **CCMM** — Construction Carrosserie Menuiserie Métallique.
 
-Every works phone that joins becomes a live unit on the shared map. Drivers broadcast GPS. The desk watches every connected vehicle.
+The desk creates each chauffeur (indicatif + PIN). The phone only logs in with those credentials. GPS, courses, BN and BL scan then run on the handset.
 
 The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#00A4E8`.
 
@@ -10,9 +10,17 @@ The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#0
 
 Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC.
 
-Le bureau crée une course et l’attribue à un chauffeur. Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran** avec tous les chauffeurs. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’à la destination.
+1. **Créez le chauffeur** : indicatif (ex. `ME-01`), nom, véhicule, et un code PIN (ou laissez vide, le bureau génère 4 chiffres).
+2. Donnez l’indicatif et le PIN au chauffeur.
+3. Créez une course et attribuez-la — même si le téléphone n’est pas encore connecté.
 
-Le téléphone du chauffeur affiche la course tout de suite. Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route** et **l’itinéraire** s’affiche sur la carte. Pour **terminer**, il scanne le **bon de livraison** : la caméra **détecte le papier**, le recadre toute seule (perspective + couleur, type CamScanner) et le joint à la course. Le bureau peut **télécharger** le BL depuis `/admin`.
+Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’à la destination.
+
+## Téléphone chauffeur
+
+Ouvrez [http://localhost:43147/](http://localhost:43147/) (ou le lien HTTPS `npm run phone`). Entrez **uniquement** l’indicatif et le PIN créés au bureau. Pas d’inscription sur le portable.
+
+Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route** et **l’itinéraire** s’affiche. Pour **terminer**, il scanne le **bon de livraison** : la caméra **détecte le papier**, le recadre (perspective + couleur, type CamScanner) et le joint à la course. Le bureau **télécharge** le BL depuis `/admin`.
 
 ## Test on your phone while you develop
 
@@ -31,24 +39,24 @@ npm run dev
 npm run phone
 ```
 
-3. Open the printed `https://….trycloudflare.com` URL on your phone, or scan the QR on the join screen.
-4. Join as **Driver** and allow location. Use **Add to Home Screen** (iPhone Share sheet) or **Install app** (Android) to run it like a native app.
+3. Open the printed `https://….trycloudflare.com` URL on your phone, or scan the QR on the login screen.
+4. Enter the **indicatif** and **PIN** created in `/admin`, then allow location. Use **Add to Home Screen** (iPhone Share sheet) or **Install app** (Android) to run it like a native app.
 5. Leave the two terminals running. Refresh the phone after you save code.
 
 ## What you get
 
-- Join as a **driver** or **dispatch desk**
+- Dispatch creates chauffeurs; the phone logs in with indicatif + PIN only
 - Live map of every connected CCMM vehicle
 - Vehicle list with speed, status, and last radio ping
 - Installable phone app (home screen / PWA)
 - **Google Maps** when you add an API key
 - OpenStreetMap fallback so the app still runs without a key
-- Real GPS by default; optional training route only if you ask for it
+- Real GPS by default
 - Address suggestions on pickup / dropoff (Google Places if keyed, Photon otherwise)
 - Driving itinerary on the map after the driver enters the BN and starts the job
 - Color CamScanner-style delivery-note scan before a job can be marked done; dispatch can download the JPEG
 
-Positions live in memory on the server. They disappear about 20 seconds after a device goes offline. There is no login and no database.
+Chauffeur accounts persist in `.data/drivers.json`. Live GPS positions stay in memory and drop about 20 seconds after a phone goes offline.
 
 ## Google Maps
 

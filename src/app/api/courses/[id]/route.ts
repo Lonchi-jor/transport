@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCourse, isCourseStatus, updateCourse } from "@/lib/course-store";
+import { getDriver } from "@/lib/driver-store";
 import { radioSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,9 @@ export async function PATCH(
   }
   if (body.status !== undefined && !isCourseStatus(body.status)) {
     return NextResponse.json({ error: "Statut inconnu" }, { status: 400 });
+  }
+  if (body.assignedDeviceId && !getDriver(body.assignedDeviceId)) {
+    return NextResponse.json({ error: "Chauffeur inconnu. Créez-le d’abord dans le bureau." }, { status: 400 });
   }
   const current = getCourse(id);
   if (body.status === "en_route") {

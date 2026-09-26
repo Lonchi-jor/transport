@@ -1,6 +1,7 @@
 import type { Course, CourseDraft, CourseStatus } from "./types";
 import { COURSE_STATUSES } from "./types";
 import { getDevice } from "./fleet-store";
+import { getDriver } from "./driver-store";
 
 const courses = new Map<string, Course>();
 let nextNumber = 1;
@@ -25,11 +26,12 @@ function applyAssignment(course: Course, deviceId: string | null): Course {
     };
   }
   const device = getDevice(deviceId);
+  const account = getDriver(deviceId);
   return {
     ...course,
     assignedDeviceId: deviceId,
-    assignedCallSign: device?.callSign ?? course.assignedCallSign,
-    assignedDriverName: device?.driverName ?? course.assignedDriverName,
+    assignedCallSign: device?.callSign ?? account?.callSign ?? course.assignedCallSign,
+    assignedDriverName: device?.driverName ?? account?.driverName ?? course.assignedDriverName,
     status: course.status === "open" ? "assigned" : course.status,
     updatedAt: Date.now(),
   };

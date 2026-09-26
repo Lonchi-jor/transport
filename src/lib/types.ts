@@ -94,6 +94,13 @@ export type CourseDraft = {
 export type FleetSnapshot = {
   devices: FleetDevice[];
   courses?: Course[];
+  drivers?: {
+    id: string;
+    callSign: string;
+    driverName: string;
+    vehicleType: VehicleType;
+    pin?: string;
+  }[];
   now: number;
   demo?: boolean;
 };
@@ -102,9 +109,9 @@ export const VEHICLE_META: Record<
   VehicleType,
   { label: string; color: string; short: string }
 > = {
-  bus: { label: "City bus", color: "#00a4e8", short: "BUS" },
+  bus: { label: "Bus", color: "#00a4e8", short: "BUS" },
   taxi: { label: "Taxi", color: "#2b308f", short: "TXI" },
-  truck: { label: "Freight truck", color: "#4d7fe8", short: "TRK" },
-  van: { label: "Shuttle van", color: "#1a9fe0", short: "VAN" },
-  bike: { label: "Courier bike", color: "#6c74d4", short: "BKE" },
+  truck: { label: "Camion", color: "#4d7fe8", short: "TRK" },
+  van: { label: "Fourgon", color: "#1a9fe0", short: "VAN" },
+  bike: { label: "Moto", color: "#6c74d4", short: "BKE" },
 };

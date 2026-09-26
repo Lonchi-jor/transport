@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 
 const SESSION_KEY = "transitlive-session";
 
-type Session = JoinPayload & { id: string };
+type Session = JoinPayload;
 
 type Props = {
   googleMapsApiKey: string;
@@ -105,6 +105,16 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+      if (res.status === 401) {
+        sessionStorage.removeItem(SESSION_KEY);
+        lastFix.current = null;
+        setHasFix(false);
+        setMyPos(null);
+        gpsModeRef.current = "idle";
+        setGpsState("idle");
+        setSession(null);
+        return;
+      }
       if (!res.ok) throw new Error("heartbeat failed");
       const snapshot = (await res.json()) as FleetSnapshot;
       applySnapshot(snapshot);
@@ -288,7 +298,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   }, [session, requestGps, stopSimulation]);
 
   function join(payload: JoinPayload) {
-    const next: Session = { ...payload, id: crypto.randomUUID() };
+    const next: Session = { ...payload };
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(next));
     requestGps(next);
     setSession(next);

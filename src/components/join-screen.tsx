@@ -2,19 +2,20 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BusFront, MapPinned, Monitor } from "lucide-react";
+import { Monitor } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import PhoneAccess from "@/components/phone-access";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { VEHICLE_META, VEHICLE_TYPES, type Role, type VehicleType } from "@/lib/types";
+import type { VehicleType } from "@/lib/types";
 
 export type JoinPayload = {
+  id: string;
   callSign: string;
   driverName: string;
   vehicleType: VehicleType;
-  role: Role;
+  role: "driver";
 };
 
 type Props = {
@@ -22,28 +23,49 @@ type Props = {
 };
 
 export default function JoinScreen({ onJoin }: Props) {
-  const [callSign, setCallSign] = useState("ME-01");
-  const [driverName, setDriverName] = useState("");
-  const [vehicleType, setVehicleType] = useState<VehicleType>("bus");
-  const [role, setRole] = useState<Role>("driver");
+  const [callSign, setCallSign] = useState("");
+  const [pin, setPin] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!callSign.trim()) {
-      setError("Enter a vehicle call sign so the desk can identify you.");
+      setError("Entrez l’indicatif donné par le bureau (ex. ME-01).");
       return;
     }
-    if (!driverName.trim()) {
-      setError("Enter the driver or dispatcher name.");
+    if (!pin.trim()) {
+      setError("Entrez le code PIN donné par le bureau.");
       return;
     }
-    onJoin({
-      callSign: callSign.trim().toUpperCase(),
-      driverName: driverName.trim(),
-      vehicleType,
-      role,
-    });
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/drivers/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ callSign: callSign.trim(), pin: pin.trim() }),
+      });
+      const data = (await res.json()) as {
+        driver?: JoinPayload;
+        error?: string;
+      };
+      if (!res.ok || !data.driver) {
+        setError(data.error || "Connexion impossible.");
+        return;
+      }
+      onJoin({
+        id: data.driver.id,
+        callSign: data.driver.callSign,
+        driverName: data.driver.driverName,
+        vehicleType: data.driver.vehicleType,
+        role: "driver",
+      });
+    } catch {
+      setError("Réseau indisponible.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -54,14 +76,13 @@ export default function JoinScreen({ onJoin }: Props) {
             <BrandLogo />
           </div>
           <p className="mt-4 text-sm font-medium tracking-wide text-[#00a4e8]">
-            Suivi de flotte · Fleet tracking
+            Connexion chauffeur
           </p>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-[#2b308f]">
-            Vehicles on the road
+            Entrez vos identifiants CCMM
           </h1>
           <p className="mt-2 max-w-sm text-sm leading-6 text-[#5b6294]">
-            Téléphone chauffeur : rejoignez la carte. Bureau : donnez les
-            courses depuis le tableau de bord.
+            Le bureau crée votre fiche. Sur le téléphone, connectez-vous seulement avec l’indicatif et le code PIN.
           </p>
           <Link
             href="/admin"
@@ -72,88 +93,37 @@ export default function JoinScreen({ onJoin }: Props) {
           </Link>
         </div>
 
-        <form onSubmit={submit} className="flex flex-col gap-5 rounded-3xl border border-[#d5dcf0] bg-white p-5 shadow-[0_12px_40px_rgba(43,48,143,0.08)]">
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setRole("driver")}
-              className={`rounded-2xl border px-3 py-3 text-left text-sm transition ${
-                role === "driver"
-                  ? "border-[#00a4e8] bg-[#00a4e8] text-white"
-                  : "border-[#d5dcf0] bg-[#f4f7fc] text-[#2b308f]"
-              }`}
-            >
-              <MapPinned className="mb-1 size-4" />
-              <div className="font-semibold">Driver</div>
-              <div className="text-xs opacity-80">Share this phone GPS</div>
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole("dispatcher")}
-              className={`rounded-2xl border px-3 py-3 text-left text-sm transition ${
-                role === "dispatcher"
-                  ? "border-[#2b308f] bg-[#2b308f] text-white"
-                  : "border-[#d5dcf0] bg-[#f4f7fc] text-[#2b308f]"
-              }`}
-            >
-              <BusFront className="mb-1 size-4" />
-              <div className="font-semibold">Dispatch</div>
-              <div className="text-xs opacity-80">Watch the whole fleet</div>
-            </button>
-          </div>
-
+        <form onSubmit={(event) => void submit(event)} className="flex flex-col gap-5 rounded-3xl border border-[#d5dcf0] bg-white p-5 shadow-[0_12px_40px_rgba(43,48,143,0.08)]">
           <div className="grid gap-2">
-            <Label htmlFor="callSign">Call sign</Label>
+            <Label htmlFor="callSign">Indicatif</Label>
             <Input
               id="callSign"
               value={callSign}
               onChange={(e) => setCallSign(e.target.value)}
-              placeholder="CAM-12"
+              placeholder="ME-01"
+              autoCapitalize="characters"
               className="h-11 rounded-xl text-base"
             />
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="driverName">
-              {role === "dispatcher" ? "Desk name" : "Driver name"}
-            </Label>
+            <Label htmlFor="pin">Code PIN</Label>
             <Input
-              id="driverName"
-              value={driverName}
-              onChange={(e) => setDriverName(e.target.value)}
-              placeholder={role === "dispatcher" ? "CCMM desk" : "Your name"}
-              className="h-11 rounded-xl text-base"
+              id="pin"
+              value={pin}
+              onChange={(e) => setPin(e.target.value)}
+              placeholder="••••"
+              inputMode="numeric"
+              maxLength={6}
+              autoComplete="one-time-code"
+              className="h-11 rounded-xl text-base tracking-[0.3em]"
             />
-          </div>
-
-          <div className="grid gap-2">
-            <Label>Vehicle type</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {VEHICLE_TYPES.map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => setVehicleType(type)}
-                  className={`rounded-xl border px-2 py-2 text-xs font-medium capitalize ${
-                    vehicleType === type
-                      ? "border-[#2b308f] bg-[#2b308f] text-white"
-                      : "border-[#d5dcf0] bg-[#f4f7fc] text-[#2b308f]"
-                  }`}
-                >
-                  <span
-                    className="mr-1 inline-block size-2 rounded-full"
-                    style={{ background: VEHICLE_META[type].color }}
-                  />
-                  {type}
-                </button>
-              ))}
-            </div>
           </div>
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
-          <Button type="submit" size="lg" className="h-12 rounded-xl text-base">
-            Join the map
+          <Button type="submit" size="lg" className="h-12 rounded-xl text-base" disabled={busy}>
+            {busy ? "Connexion…" : "Se connecter"}
           </Button>
         </form>
 
@@ -162,8 +132,7 @@ export default function JoinScreen({ onJoin }: Props) {
         </div>
 
         <p className="mt-auto pt-6 text-center text-xs leading-5 text-[#5b6294]">
-          CCMM — Construction Carrosserie Menuiserie Métallique. Open this app
-          on every works vehicle so the desk can see it live.
+          Pas encore de compte ? Demandez au dispatch de vous créer dans le tableau de bord admin.
         </p>
       </div>
     </div>

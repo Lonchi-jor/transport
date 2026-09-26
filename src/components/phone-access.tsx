@@ -99,7 +99,7 @@ export default function PhoneAccess({ compact = false }: Props) {
       </div>
       <ol className="mt-3 list-decimal space-y-1 pl-4 text-[11px] leading-5 text-[#5b6294]">
         <li>Open the link in Safari or Chrome on the phone.</li>
-        <li>Allow location when you join as a driver.</li>
+        <li>Allow location after you log in with the indicatif and PIN from the desk.</li>
         <li>
           iPhone: Share → Add to Home Screen. Android: menu → Install app.
         </li>
