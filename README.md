@@ -10,10 +10,12 @@ The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#0
 
 Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC.
 
-1. **Enregistrez le chauffeur** : indicatif (`ME-01`), nom, **véhicule** (type + immatriculation), et un code PIN (ou laissez vide, le bureau génère 4 chiffres).
-2. Donnez l’indicatif et le PIN au chauffeur. Vous pouvez **modifier** la fiche (nom, véhicule, PIN) à tout moment.
-3. Créez une course et **choisissez le chauffeur** : son véhicule se remplit tout seul. Vous pouvez encore le changer pour cette course seulement.
-4. Toutes les courses restent enregistrées (trajet, BN, BL, véhicule utilisé). Cliquez un chauffeur pour voir **son historique**.
+Le bouton **Chauffeurs** (en haut, ou la carte bleue à gauche) ouvre [http://localhost:43147/admin/chauffeurs](http://localhost:43147/admin/chauffeurs) : fiches, véhicules, PIN et historique de chaque chauffeur.
+
+1. **Enregistrez le chauffeur** dans **Chauffeurs** : indicatif (`ME-01`), nom, **véhicule** (type + immatriculation), et un code PIN.
+2. Donnez l’indicatif et le PIN au chauffeur. Vous pouvez **modifier** la fiche à tout moment.
+3. Sur **Courses**, créez une course et **choisissez le chauffeur** : son véhicule se remplit tout seul. Vous pouvez encore le changer pour cette course seulement.
+4. Cliquez un chauffeur dans **Chauffeurs** pour voir **toutes ses courses**.
 
 Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’à la destination.
 
