@@ -6,6 +6,5 @@ export type RosterDriver = {
   driverName: string;
   vehicleType: VehicleType;
   vehiclePlate?: string;
-  vehicleLabel?: string;
   pin?: string;
 };

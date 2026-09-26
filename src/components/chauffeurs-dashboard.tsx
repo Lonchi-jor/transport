@@ -26,7 +26,6 @@ const emptyDriver = {
   driverName: "",
   vehicleType: "van" as VehicleType,
   vehiclePlate: "",
-  vehicleLabel: "",
   pin: "",
 };
 
@@ -47,7 +46,7 @@ export default function ChauffeursDashboard() {
     const needle = query.trim().toLowerCase();
     if (!needle) return roster;
     return roster.filter((driver) =>
-      [driver.callSign, driver.driverName, driver.vehiclePlate, driver.vehicleLabel]
+      [driver.callSign, driver.driverName, driver.vehiclePlate]
         .join(" ")
         .toLowerCase()
         .includes(needle),
@@ -69,7 +68,6 @@ export default function ChauffeursDashboard() {
       driverName: driver.driverName,
       vehicleType: driver.vehicleType,
       vehiclePlate: driver.vehiclePlate ?? "",
-      vehicleLabel: driver.vehicleLabel ?? "",
       pin: "",
     });
     openDriver(driver.id);
@@ -184,7 +182,6 @@ export default function ChauffeursDashboard() {
                 idPrefix="driver"
                 vehicleType={driverForm.vehicleType}
                 vehiclePlate={driverForm.vehiclePlate}
-                vehicleLabel={driverForm.vehicleLabel}
                 plateRequired
                 onChange={(patch) => setDriverForm({ ...driverForm, ...patch })}
               />

@@ -43,7 +43,6 @@ function normalizeCourse(item: Partial<Course>): Course | null {
     assignedDriverName: item.assignedDriverName ?? null,
     vehicleType,
     vehiclePlate: item.vehiclePlate ? normalizePlate(item.vehiclePlate) : null,
-    vehicleLabel: item.vehicleLabel?.trim() || null,
     status,
     startedAt: item.startedAt ?? null,
     finishedAt: item.finishedAt ?? null,
@@ -100,7 +99,6 @@ function emptyVehicle(course: Course): Course {
     ...course,
     vehicleType: null,
     vehiclePlate: null,
-    vehicleLabel: null,
   };
 }
 
@@ -110,7 +108,6 @@ function vehicleFromDriver(
   overlay?: {
     vehicleType?: VehicleType | null;
     vehiclePlate?: string | null;
-    vehicleLabel?: string | null;
   },
 ): Course {
   const device = getDevice(deviceId);
@@ -125,10 +122,6 @@ function vehicleFromDriver(
         ? normalizePlate(overlay.vehiclePlate)
         : null
       : (account?.vehiclePlate || device?.vehiclePlate || course.vehiclePlate);
-  const vehicleLabel =
-    overlay?.vehicleLabel !== undefined
-      ? overlay.vehicleLabel?.trim() || null
-      : (account?.vehicleLabel || device?.vehicleLabel || course.vehicleLabel);
   return {
     ...course,
     assignedDeviceId: deviceId,
@@ -136,7 +129,6 @@ function vehicleFromDriver(
     assignedDriverName: device?.driverName ?? account?.driverName ?? course.assignedDriverName,
     vehicleType,
     vehiclePlate,
-    vehicleLabel,
   };
 }
 
@@ -146,7 +138,6 @@ function applyAssignment(
   overlay?: {
     vehicleType?: VehicleType | null;
     vehiclePlate?: string | null;
-    vehicleLabel?: string | null;
   },
 ): Course {
   if (!deviceId) {
@@ -197,7 +188,6 @@ export function createCourse(draft: CourseDraft): Course {
     assignedDriverName: null,
     vehicleType: null,
     vehiclePlate: null,
-    vehicleLabel: null,
     status: "open",
     startedAt: null,
     finishedAt: null,
@@ -208,7 +198,6 @@ export function createCourse(draft: CourseDraft): Course {
     course = applyAssignment(course, draft.assignedDeviceId, {
       vehicleType: draft.vehicleType,
       vehiclePlate: draft.vehiclePlate,
-      vehicleLabel: draft.vehicleLabel,
     });
   }
   courses.set(course.id, course);
@@ -224,15 +213,11 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
     next = applyAssignment(next, patch.assignedDeviceId, {
       vehicleType: patch.vehicleType,
       vehiclePlate: patch.vehiclePlate,
-      vehicleLabel: patch.vehicleLabel,
     });
   } else {
     if (patch.vehicleType !== undefined) next.vehicleType = patch.vehicleType;
     if (patch.vehiclePlate !== undefined) {
       next.vehiclePlate = patch.vehiclePlate ? normalizePlate(patch.vehiclePlate) : null;
-    }
-    if (patch.vehicleLabel !== undefined) {
-      next.vehicleLabel = patch.vehicleLabel?.trim() || null;
     }
   }
   if (patch.notes !== undefined) {

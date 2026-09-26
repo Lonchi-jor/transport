@@ -34,7 +34,6 @@ const emptyForm = {
   assignedDeviceId: "",
   vehicleType: "van" as VehicleType,
   vehiclePlate: "",
-  vehicleLabel: "",
 };
 
 export default function AdminDashboard({ googleMapsApiKey }: Props) {
@@ -56,7 +55,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
         assignedDeviceId: "",
         vehicleType: "van" as VehicleType,
         vehiclePlate: "",
-        vehicleLabel: "",
       };
     }
     return {
@@ -64,7 +62,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
       assignedDeviceId: driver.id,
       vehicleType: driver.vehicleType,
       vehiclePlate: driver.vehiclePlate ?? "",
-      vehicleLabel: driver.vehicleLabel ?? "",
     };
   }
 
@@ -82,7 +79,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
           assignedDeviceId: form.assignedDeviceId || null,
           vehicleType: form.assignedDeviceId ? form.vehicleType : null,
           vehiclePlate: form.assignedDeviceId ? form.vehiclePlate : null,
-          vehicleLabel: form.assignedDeviceId ? form.vehicleLabel : null,
         }),
       });
       const data = (await res.json()) as FleetSnapshot & { error?: string };
@@ -107,7 +103,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
       status?: string;
       vehicleType?: VehicleType | null;
       vehiclePlate?: string | null;
-      vehicleLabel?: string | null;
     },
   ) {
     const res = await fetch(`/api/courses/${id}`, {
@@ -275,7 +270,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                     idPrefix="job"
                     vehicleType={form.vehicleType}
                     vehiclePlate={form.vehiclePlate}
-                    vehicleLabel={form.vehicleLabel}
                     onChange={(patch) => setForm({ ...form, ...patch })}
                   />
                   <div className="flex flex-wrap gap-3">

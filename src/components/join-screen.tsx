@@ -16,7 +16,6 @@ export type JoinPayload = {
   driverName: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
-  vehicleLabel: string;
   role: "driver";
 };
 
@@ -63,7 +62,6 @@ export default function JoinScreen({ onJoin }: Props) {
         driverName: data.driver.driverName,
         vehicleType: data.driver.vehicleType,
         vehiclePlate: data.driver.vehiclePlate ?? "",
-        vehicleLabel: data.driver.vehicleLabel ?? "",
         role: "driver",
       });
     } catch {

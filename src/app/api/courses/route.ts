@@ -58,7 +58,6 @@ export async function POST(request: Request) {
     durationSeconds: route?.durationSeconds ?? null,
     vehicleType: vehicleType ?? undefined,
     vehiclePlate: body.vehiclePlate,
-    vehicleLabel: body.vehicleLabel,
   });
   return NextResponse.json({ course, ...radioSnapshot() });
 }

@@ -17,7 +17,6 @@ export async function PATCH(
     notes?: string;
     vehicleType?: string | null;
     vehiclePlate?: string | null;
-    vehicleLabel?: string | null;
   };
   try {
     body = (await request.json()) as typeof body;
@@ -56,7 +55,6 @@ export async function PATCH(
     notes: body.notes,
     vehicleType: isVehicleType(body.vehicleType) ? body.vehicleType : body.vehicleType === null ? null : undefined,
     vehiclePlate: body.vehiclePlate,
-    vehicleLabel: body.vehicleLabel,
   });
   if (!course) {
     return NextResponse.json({ error: "Course introuvable ou BN manquant" }, { status: 404 });

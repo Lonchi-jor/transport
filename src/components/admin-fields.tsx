@@ -26,16 +26,14 @@ export function VehicleFields({
   idPrefix,
   vehicleType,
   vehiclePlate,
-  vehicleLabel,
   plateRequired,
   onChange,
 }: {
   idPrefix: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
-  vehicleLabel: string;
   plateRequired?: boolean;
-  onChange: (patch: { vehicleType?: VehicleType; vehiclePlate?: string; vehicleLabel?: string }) => void;
+  onChange: (patch: { vehicleType?: VehicleType; vehiclePlate?: string }) => void;
 }) {
   return (
     <div className="grid gap-3 rounded-xl border border-[#e4e9f6] bg-[#f8faff] p-3">
@@ -62,14 +60,6 @@ export function VehicleFields({
           onChange={(e) => onChange({ vehiclePlate: e.target.value.toUpperCase() })}
           placeholder="LT 1234 CE"
           autoCapitalize="characters"
-        />
-      </Field>
-      <Field label="Nom du véhicule (optionnel)" htmlFor={`${idPrefix}-label`}>
-        <Input
-          id={`${idPrefix}-label`}
-          value={vehicleLabel}
-          onChange={(e) => onChange({ vehicleLabel: e.target.value })}
-          placeholder="Fourgon bleu"
         />
       </Field>
     </div>

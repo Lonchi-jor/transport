@@ -9,7 +9,6 @@ export type DriverAccount = {
   driverName: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
-  vehicleLabel: string;
   pin: string;
   createdAt: number;
   updatedAt: number;
@@ -33,7 +32,6 @@ function load() {
         driverName: item.driverName ?? "",
         vehicleType: isVehicleType(item.vehicleType) ? item.vehicleType : "van",
         vehiclePlate: normalizePlate(item.vehiclePlate ?? ""),
-        vehicleLabel: (item.vehicleLabel ?? "").trim(),
         pin: String(item.pin ?? ""),
         createdAt: item.createdAt ?? Date.now(),
         updatedAt: item.updatedAt ?? item.createdAt ?? Date.now(),
@@ -74,7 +72,6 @@ function toPublic(account: DriverAccount): DriverPublic {
     driverName: account.driverName,
     vehicleType: account.vehicleType,
     vehiclePlate: account.vehiclePlate,
-    vehicleLabel: account.vehicleLabel,
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,
   };
@@ -108,7 +105,6 @@ type DriverInput = {
   driverName: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
-  vehicleLabel?: string;
   pin?: string;
 };
 
@@ -117,13 +113,11 @@ function validateDriver(input: DriverInput, ignoreId?: string): { error: string 
   driverName: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
-  vehicleLabel: string;
   pin?: string;
 } {
   const callSign = normalizeCallSign(input.callSign);
   const driverName = input.driverName.trim();
   const vehiclePlate = normalizePlate(input.vehiclePlate);
-  const vehicleLabel = (input.vehicleLabel ?? "").trim();
   if (callSign.length < 2) return { error: "Indiquez un indicatif (ex. ME-01)." };
   if (driverName.length < 2) return { error: "Indiquez le nom du chauffeur." };
   if (vehiclePlate.length < 3) return { error: "Indiquez l’immatriculation du véhicule." };
@@ -133,7 +127,7 @@ function validateDriver(input: DriverInput, ignoreId?: string): { error: string 
   if (samePlate && samePlate.id !== ignoreId) {
     return { error: "Ce véhicule est déjà attribué à un autre chauffeur." };
   }
-  return { callSign, driverName, vehicleType: input.vehicleType, vehiclePlate, vehicleLabel };
+  return { callSign, driverName, vehicleType: input.vehicleType, vehiclePlate };
 }
 
 export function createDriver(input: DriverInput): DriverAccount | { error: string } {
@@ -148,7 +142,6 @@ export function createDriver(input: DriverInput): DriverAccount | { error: strin
     driverName: parsed.driverName,
     vehicleType: parsed.vehicleType,
     vehiclePlate: parsed.vehiclePlate,
-    vehicleLabel: parsed.vehicleLabel,
     pin,
     createdAt: now,
     updatedAt: now,
@@ -175,7 +168,6 @@ export function updateDriver(id: string, input: DriverInput): DriverAccount | { 
     driverName: parsed.driverName,
     vehicleType: parsed.vehicleType,
     vehiclePlate: parsed.vehiclePlate,
-    vehicleLabel: parsed.vehicleLabel,
     pin,
     updatedAt: Date.now(),
   };

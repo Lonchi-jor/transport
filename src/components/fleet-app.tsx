@@ -34,7 +34,6 @@ function loadSession(): Session | null {
     return {
       ...parsed,
       vehiclePlate: parsed.vehiclePlate ?? "",
-      vehicleLabel: parsed.vehicleLabel ?? "",
     };
   } catch {
     return null;
@@ -94,13 +93,11 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         const me = snapshot.drivers?.find((driver) => driver.id === current.id);
         if (!me) return current;
         const vehiclePlate = me.vehiclePlate ?? current.vehiclePlate;
-        const vehicleLabel = me.vehicleLabel ?? current.vehicleLabel;
         if (
           current.callSign === me.callSign &&
           current.driverName === me.driverName &&
           current.vehicleType === me.vehicleType &&
-          current.vehiclePlate === vehiclePlate &&
-          current.vehicleLabel === vehicleLabel
+          current.vehiclePlate === vehiclePlate
         ) {
           return current;
         }
@@ -110,7 +107,6 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           driverName: me.driverName,
           vehicleType: me.vehicleType,
           vehiclePlate,
-          vehicleLabel,
         };
         sessionStorage.setItem(SESSION_KEY, JSON.stringify(next));
         return next;
@@ -126,7 +122,6 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       driverName: current.driverName,
       vehicleType: current.vehicleType,
       vehiclePlate: current.vehiclePlate,
-      vehicleLabel: current.vehicleLabel,
       role: current.role,
       sharing: current.role === "driver" && Boolean(fix),
       simulated: gpsModeRef.current === "simulated",

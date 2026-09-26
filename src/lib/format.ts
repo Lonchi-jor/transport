@@ -94,12 +94,10 @@ export function formatElapsed(ms: number | null) {
 export function vehicleLine(input: {
   vehicleType?: VehicleType | null;
   vehiclePlate?: string | null;
-  vehicleLabel?: string | null;
 }) {
-  const name = input.vehicleLabel?.trim() || null;
   const plate = input.vehiclePlate?.trim() || null;
   const type = input.vehicleType ? VEHICLE_META[input.vehicleType].label : null;
-  return [name, plate, type].filter(Boolean).join(" · ") || "Véhicule non renseigné";
+  return [plate, type].filter(Boolean).join(" · ") || "Véhicule non renseigné";
 }
 
 export function formatWhen(ts: number | null | undefined) {

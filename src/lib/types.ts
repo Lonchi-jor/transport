@@ -10,7 +10,6 @@ export type FleetDevice = {
   driverName: string;
   vehicleType: VehicleType;
   vehiclePlate: string | null;
-  vehicleLabel: string | null;
   role: Role;
   lat: number | null;
   lng: number | null;
@@ -28,7 +27,6 @@ export type HeartbeatPayload = {
   driverName: string;
   vehicleType: VehicleType;
   vehiclePlate?: string | null;
-  vehicleLabel?: string | null;
   role: Role;
   lat?: number | null;
   lng?: number | null;
@@ -73,7 +71,6 @@ export type Course = {
   assignedDriverName: string | null;
   vehicleType: VehicleType | null;
   vehiclePlate: string | null;
-  vehicleLabel: string | null;
   status: CourseStatus;
   startedAt: number | null;
   finishedAt: number | null;
@@ -98,7 +95,6 @@ export type CourseDraft = {
   assignedDeviceId?: string | null;
   vehicleType?: VehicleType | null;
   vehiclePlate?: string | null;
-  vehicleLabel?: string | null;
 };
 
 export type CoursePatch = {
@@ -108,7 +104,6 @@ export type CoursePatch = {
   notes?: string;
   vehicleType?: VehicleType | null;
   vehiclePlate?: string | null;
-  vehicleLabel?: string | null;
 };
 
 export type FleetSnapshot = {
@@ -120,7 +115,6 @@ export type FleetSnapshot = {
     driverName: string;
     vehicleType: VehicleType;
     vehiclePlate?: string;
-    vehicleLabel?: string;
     pin?: string;
   }[];
   now: number;

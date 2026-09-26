@@ -77,7 +77,6 @@ export default function CoursesBoard() {
         course.assignedCallSign,
         course.assignedDriverName,
         course.vehiclePlate,
-        course.vehicleLabel,
         course.notes,
       ]
         .filter(Boolean)
@@ -109,7 +108,6 @@ export default function CoursesBoard() {
       status?: string;
       vehicleType?: VehicleType | null;
       vehiclePlate?: string | null;
-      vehicleLabel?: string | null;
     },
   ) {
     const res = await fetch(`/api/courses/${id}`, {

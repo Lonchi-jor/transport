@@ -14,7 +14,6 @@ export async function POST(request: Request) {
     driverName?: string;
     vehicleType?: string;
     vehiclePlate?: string;
-    vehicleLabel?: string;
     pin?: string;
   };
   try {
@@ -30,7 +29,6 @@ export async function POST(request: Request) {
     driverName: body.driverName ?? "",
     vehicleType: body.vehicleType,
     vehiclePlate: body.vehiclePlate ?? "",
-    vehicleLabel: body.vehicleLabel,
     pin: body.pin,
   });
   if ("error" in result) {

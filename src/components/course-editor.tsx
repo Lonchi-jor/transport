@@ -19,14 +19,12 @@ export default function CourseEditor({
       assignedDeviceId?: string | null;
       vehicleType?: VehicleType | null;
       vehiclePlate?: string | null;
-      vehicleLabel?: string | null;
     },
   ) => Promise<void>;
 }) {
   const [assignedDeviceId, setAssignedDeviceId] = useState(course.assignedDeviceId ?? "");
   const [vehicleType, setVehicleType] = useState<VehicleType>(course.vehicleType ?? "van");
   const [vehiclePlate, setVehiclePlate] = useState(course.vehiclePlate ?? "");
-  const [vehicleLabel, setVehicleLabel] = useState(course.vehicleLabel ?? "");
   const [saving, setSaving] = useState(false);
 
   function pickDriver(id: string) {
@@ -34,12 +32,10 @@ export default function CourseEditor({
     setAssignedDeviceId(id);
     if (!driver) {
       setVehiclePlate("");
-      setVehicleLabel("");
       return;
     }
     setVehicleType(driver.vehicleType);
     setVehiclePlate(driver.vehiclePlate ?? "");
-    setVehicleLabel(driver.vehicleLabel ?? "");
   }
 
   async function submit(event: FormEvent) {
@@ -49,7 +45,6 @@ export default function CourseEditor({
       assignedDeviceId: assignedDeviceId || null,
       vehicleType: assignedDeviceId ? vehicleType : null,
       vehiclePlate: assignedDeviceId ? vehiclePlate : null,
-      vehicleLabel: assignedDeviceId ? vehicleLabel : null,
     });
     setSaving(false);
   }
@@ -81,11 +76,9 @@ export default function CourseEditor({
             idPrefix={`edit-${course.id}`}
             vehicleType={vehicleType}
             vehiclePlate={vehiclePlate}
-            vehicleLabel={vehicleLabel}
             onChange={(patch) => {
               if (patch.vehicleType) setVehicleType(patch.vehicleType);
               if (patch.vehiclePlate !== undefined) setVehiclePlate(patch.vehiclePlate);
-              if (patch.vehicleLabel !== undefined) setVehicleLabel(patch.vehicleLabel);
             }}
           />
         ) : (

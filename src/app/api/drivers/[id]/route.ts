@@ -18,7 +18,6 @@ export async function PATCH(
     driverName?: string;
     vehicleType?: string;
     vehiclePlate?: string;
-    vehicleLabel?: string;
     pin?: string;
   };
   try {
@@ -34,7 +33,6 @@ export async function PATCH(
     driverName: body.driverName ?? "",
     vehicleType: body.vehicleType,
     vehiclePlate: body.vehiclePlate ?? "",
-    vehicleLabel: body.vehicleLabel,
     pin: body.pin,
   });
   if ("error" in result) {
