@@ -1,10 +1,47 @@
 import { NextResponse } from "next/server";
-import { deleteDriver, getDriver } from "@/lib/driver-store";
-import { listCourses, updateCourse } from "@/lib/course-store";
+import { deleteDriver, getDriver, isVehicleType, updateDriver } from "@/lib/driver-store";
 import { removeDevice } from "@/lib/fleet-store";
 import { adminSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  if (!getDriver(id)) {
+    return NextResponse.json({ error: "Chauffeur introuvable" }, { status: 404 });
+  }
+  let body: {
+    callSign?: string;
+    driverName?: string;
+    vehicleType?: string;
+    vehiclePlate?: string;
+    vehicleLabel?: string;
+    pin?: string;
+  };
+  try {
+    body = (await request.json()) as typeof body;
+  } catch {
+    return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
+  }
+  if (!isVehicleType(body.vehicleType)) {
+    return NextResponse.json({ error: "Type de véhicule inconnu." }, { status: 400 });
+  }
+  const result = updateDriver(id, {
+    callSign: body.callSign ?? "",
+    driverName: body.driverName ?? "",
+    vehicleType: body.vehicleType,
+    vehiclePlate: body.vehiclePlate ?? "",
+    vehicleLabel: body.vehicleLabel,
+    pin: body.pin,
+  });
+  if ("error" in result) {
+    return NextResponse.json({ error: result.error }, { status: 400 });
+  }
+  return NextResponse.json({ driver: result, ...adminSnapshot() });
+}
 
 export async function DELETE(
   _request: Request,
@@ -13,11 +50,6 @@ export async function DELETE(
   const { id } = await params;
   if (!getDriver(id)) {
     return NextResponse.json({ error: "Chauffeur introuvable" }, { status: 404 });
-  }
-  for (const course of listCourses()) {
-    if (course.assignedDeviceId === id) {
-      updateCourse(course.id, { assignedDeviceId: null });
-    }
   }
   removeDevice(id);
   deleteDriver(id);

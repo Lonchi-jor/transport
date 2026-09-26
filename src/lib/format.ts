@@ -1,4 +1,5 @@
-import type { Course, CourseStatus, FleetDevice } from "@/lib/types";
+import type { Course, CourseStatus, FleetDevice, VehicleType } from "@/lib/types";
+import { VEHICLE_META } from "@/lib/types";
 
 export type MapFollow = {
   lat: number;
@@ -88,6 +89,17 @@ export function formatElapsed(ms: number | null) {
   if (h > 0) return `${h} h ${m} min`;
   if (m > 0) return s > 0 && m < 10 ? `${m} min ${s} s` : `${m} min`;
   return `${s} s`;
+}
+
+export function vehicleLine(input: {
+  vehicleType?: VehicleType | null;
+  vehiclePlate?: string | null;
+  vehicleLabel?: string | null;
+}) {
+  const name = input.vehicleLabel?.trim() || null;
+  const plate = input.vehiclePlate?.trim() || null;
+  const type = input.vehicleType ? VEHICLE_META[input.vehicleType].label : null;
+  return [name, plate, type].filter(Boolean).join(" · ") || "Véhicule non renseigné";
 }
 
 export function courseElapsedLabel(course: Course, now: number) {

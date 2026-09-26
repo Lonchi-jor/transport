@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { createCourse } from "@/lib/course-store";
-import { getDriver } from "@/lib/driver-store";
+import { getDriver, isVehicleType } from "@/lib/driver-store";
 import { drivingRoute, resolvePlace } from "@/lib/geo";
 import { radioSnapshot } from "@/lib/snapshot";
-import type { CourseDraft } from "@/lib/types";
+import type { CourseDraft, VehicleType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +43,8 @@ export async function POST(request: Request) {
       )
     : null;
 
+  const vehicleType: VehicleType | null = isVehicleType(body.vehicleType) ? body.vehicleType : null;
+
   const course = createCourse({
     ...body,
     pickupAddress: pickup.label || body.pickupAddress,
@@ -54,6 +56,9 @@ export async function POST(request: Request) {
     routePath: route?.path ?? [],
     distanceMeters: route?.distanceMeters ?? null,
     durationSeconds: route?.durationSeconds ?? null,
+    vehicleType: vehicleType ?? undefined,
+    vehiclePlate: body.vehiclePlate,
+    vehicleLabel: body.vehicleLabel,
   });
   return NextResponse.json({ course, ...radioSnapshot() });
 }

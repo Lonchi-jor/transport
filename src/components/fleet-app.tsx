@@ -13,7 +13,7 @@ import PhoneAccess from "@/components/phone-access";
 import DeliveryScanner from "@/components/delivery-scanner";
 import type { Course, FleetDevice, FleetSnapshot } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
-import { COURSE_STATUS_LABEL, courseToMapRoute, DEFAULT_CENTER, formatAge, kph, statusLabel } from "@/lib/format";
+import { COURSE_STATUS_LABEL, courseElapsedLabel, courseToMapRoute, DEFAULT_CENTER, formatAge, formatKm, kph, statusLabel, vehicleLine } from "@/lib/format";
 import { Input } from "@/components/ui/input";
 
 const SESSION_KEY = "transitlive-session";
@@ -28,7 +28,14 @@ function loadSession(): Session | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = sessionStorage.getItem(SESSION_KEY);
-    return raw ? (JSON.parse(raw) as Session) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Session;
+    if (!parsed?.id) return null;
+    return {
+      ...parsed,
+      vehiclePlate: parsed.vehiclePlate ?? "",
+      vehicleLabel: parsed.vehicleLabel ?? "",
+    };
   } catch {
     return null;
   }
@@ -81,6 +88,34 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     setNow(snapshot.now);
     if (typeof snapshot.demo === "boolean") setDemo(snapshot.demo);
     setOnline(true);
+    if (snapshot.drivers) {
+      setSession((current) => {
+        if (!current) return current;
+        const me = snapshot.drivers?.find((driver) => driver.id === current.id);
+        if (!me) return current;
+        const vehiclePlate = me.vehiclePlate ?? current.vehiclePlate;
+        const vehicleLabel = me.vehicleLabel ?? current.vehicleLabel;
+        if (
+          current.callSign === me.callSign &&
+          current.driverName === me.driverName &&
+          current.vehicleType === me.vehicleType &&
+          current.vehiclePlate === vehiclePlate &&
+          current.vehicleLabel === vehicleLabel
+        ) {
+          return current;
+        }
+        const next: Session = {
+          ...current,
+          callSign: me.callSign,
+          driverName: me.driverName,
+          vehicleType: me.vehicleType,
+          vehiclePlate,
+          vehicleLabel,
+        };
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify(next));
+        return next;
+      });
+    }
   }, []);
 
   const sendHeartbeat = useCallback(async (current: Session) => {
@@ -90,6 +125,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       callSign: current.callSign,
       driverName: current.driverName,
       vehicleType: current.vehicleType,
+      vehiclePlate: current.vehiclePlate,
+      vehicleLabel: current.vehicleLabel,
       role: current.role,
       sharing: current.role === "driver" && Boolean(fix),
       simulated: gpsModeRef.current === "simulated",
@@ -381,6 +418,15 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       ),
     [courses, session?.id],
   );
+  const myHistory = useMemo(
+    () =>
+      courses.filter(
+        (course) =>
+          course.assignedDeviceId === session?.id &&
+          (course.status === "done" || course.status === "cancelled"),
+      ),
+    [courses, session?.id],
+  );
   const currentJob = myJobs.find((c) => c.status === "en_route") ?? myJobs[0] ?? null;
   const follow = useMemo(() => {
     if (gpsState !== "live" || !myPos) return null;
@@ -541,6 +587,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
               <div className="text-sm font-semibold">
                 {session.callSign} · {session.driverName}
               </div>
+              <div className="text-xs text-blue-100">{vehicleLine(session)}</div>
               <div className="text-xs text-blue-100">
                 {session.role === "driver" ? "Broadcasting this device" : "Dispatch console"}
                 {gpsState === "live"
@@ -579,38 +626,83 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                     <SheetTitle>Vos courses</SheetTitle>
                   </SheetHeader>
                   <div className="overflow-y-auto px-4 pb-6">
-                    {myJobs.length === 0 ? (
+                    {myJobs.length === 0 && myHistory.length === 0 ? (
                       <p className="py-8 text-sm text-muted-foreground">
-                        Le bureau n’a pas encore attribué de course à ce véhicule.
+                        Aucune course enregistrée pour ce chauffeur.
                       </p>
                     ) : (
-                      <ul className="space-y-2">
-                        {myJobs.map((job) => (
-                          <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="font-semibold">{job.reference}</div>
-                              <Badge>{COURSE_STATUS_LABEL[job.status]}</Badge>
-                            </div>
-                            <div className="mt-1 text-sm">{job.clientName}</div>
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {job.pickupAddress} → {job.dropoffAddress}
-                            </div>
-                            {job.notes ? <div className="mt-1 text-xs">{job.notes}</div> : null}
-                            <div className="mt-3 flex gap-2">
-                              {job.status === "assigned" ? (
-                                <Button size="sm" onClick={() => askBn(job.id)}>
-                                  Démarrer
-                                </Button>
-                              ) : null}
-                              {job.status === "en_route" ? (
-                                <Button size="sm" onClick={() => askDelivery(job.id)}>
-                                  Terminer — scanner le BL
-                                </Button>
-                              ) : null}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="space-y-5">
+                        <section>
+                          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            En cours
+                          </h3>
+                          {myJobs.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Pas de course active.</p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {myJobs.map((job) => (
+                                <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="font-semibold">{job.reference}</div>
+                                    <Badge>{COURSE_STATUS_LABEL[job.status]}</Badge>
+                                  </div>
+                                  <div className="mt-1 text-sm">{job.clientName}</div>
+                                  <div className="mt-1 text-xs text-muted-foreground">
+                                    {job.pickupAddress} → {job.dropoffAddress}
+                                  </div>
+                                  <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
+                                  {job.notes ? <div className="mt-1 text-xs">{job.notes}</div> : null}
+                                  <div className="mt-3 flex gap-2">
+                                    {job.status === "assigned" ? (
+                                      <Button size="sm" onClick={() => askBn(job.id)}>
+                                        Démarrer
+                                      </Button>
+                                    ) : null}
+                                    {job.status === "en_route" ? (
+                                      <Button size="sm" onClick={() => askDelivery(job.id)}>
+                                        Terminer — scanner le BL
+                                      </Button>
+                                    ) : null}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </section>
+                        <section>
+                          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Historique
+                          </h3>
+                          {myHistory.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">Pas encore de course terminée.</p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {myHistory.map((job) => (
+                                <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="font-semibold">{job.reference}</div>
+                                    <Badge variant="secondary">{COURSE_STATUS_LABEL[job.status]}</Badge>
+                                  </div>
+                                  <div className="mt-1 text-sm">{job.clientName}</div>
+                                  <div className="mt-1 text-xs text-muted-foreground">
+                                    {job.pickupAddress} → {job.dropoffAddress}
+                                  </div>
+                                  <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
+                                  {job.bnNumber ? (
+                                    <div className="mt-1 text-xs text-muted-foreground">BN {job.bnNumber}</div>
+                                  ) : null}
+                                  {formatKm(job.distanceMeters) ? (
+                                    <div className="mt-1 text-xs text-muted-foreground">{formatKm(job.distanceMeters)}</div>
+                                  ) : null}
+                                  {courseElapsedLabel(job, now) ? (
+                                    <div className="mt-1 text-xs font-medium">{courseElapsedLabel(job, now)}</div>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </section>
+                      </div>
                     )}
                   </div>
                 </SheetContent>
@@ -662,7 +754,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                 ) : null}
                               </div>
                               <div className="mt-1 text-xs text-muted-foreground">
-                                {device.driverName} · {VEHICLE_META[device.vehicleType].label}
+                                {device.driverName} · {vehicleLine(device)}
                               </div>
                             </div>
                             <div className="text-right text-xs">

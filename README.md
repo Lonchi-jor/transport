@@ -10,9 +10,10 @@ The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#0
 
 Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC.
 
-1. **Créez le chauffeur** : indicatif (ex. `ME-01`), nom, véhicule, et un code PIN (ou laissez vide, le bureau génère 4 chiffres).
-2. Donnez l’indicatif et le PIN au chauffeur.
-3. Créez une course et attribuez-la — même si le téléphone n’est pas encore connecté.
+1. **Enregistrez le chauffeur** : indicatif (`ME-01`), nom, **véhicule** (type + immatriculation), et un code PIN (ou laissez vide, le bureau génère 4 chiffres).
+2. Donnez l’indicatif et le PIN au chauffeur. Vous pouvez **modifier** la fiche (nom, véhicule, PIN) à tout moment.
+3. Créez une course et **choisissez le chauffeur** : son véhicule se remplit tout seul. Vous pouvez encore le changer pour cette course seulement.
+4. Toutes les courses restent enregistrées (trajet, BN, BL, véhicule utilisé). Cliquez un chauffeur pour voir **son historique**.
 
 Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’à la destination.
 
@@ -56,7 +57,7 @@ npm run phone
 - Driving itinerary on the map after the driver enters the BN and starts the job
 - Color CamScanner-style delivery-note scan before a job can be marked done; dispatch can download the JPEG
 
-Chauffeur accounts persist in `.data/drivers.json`. Live GPS positions stay in memory and drop about 20 seconds after a phone goes offline.
+Chauffeur accounts persist in `.data/drivers.json`. Courses (and the vehicle used on each trip) persist in `.data/courses.json`. Live GPS positions stay in memory and drop about 20 seconds after a phone goes offline.
 
 ## Google Maps
 

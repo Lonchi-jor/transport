@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCourse, isCourseStatus, updateCourse } from "@/lib/course-store";
-import { getDriver } from "@/lib/driver-store";
+import { getDriver, isVehicleType } from "@/lib/driver-store";
 import { radioSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
@@ -10,13 +10,17 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  let body: { assignedDeviceId?: string | null; status?: string; bnNumber?: string };
+  let body: {
+    assignedDeviceId?: string | null;
+    status?: string;
+    bnNumber?: string;
+    notes?: string;
+    vehicleType?: string | null;
+    vehiclePlate?: string | null;
+    vehicleLabel?: string | null;
+  };
   try {
-    body = (await request.json()) as {
-      assignedDeviceId?: string | null;
-      status?: string;
-      bnNumber?: string;
-    };
+    body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
   }
@@ -25,6 +29,9 @@ export async function PATCH(
   }
   if (body.assignedDeviceId && !getDriver(body.assignedDeviceId)) {
     return NextResponse.json({ error: "Chauffeur inconnu. Créez-le d’abord dans le bureau." }, { status: 400 });
+  }
+  if (body.vehicleType != null && body.vehicleType !== "" && !isVehicleType(body.vehicleType)) {
+    return NextResponse.json({ error: "Type de véhicule inconnu." }, { status: 400 });
   }
   const current = getCourse(id);
   if (body.status === "en_route") {
@@ -46,6 +53,10 @@ export async function PATCH(
     assignedDeviceId: body.assignedDeviceId,
     status: isCourseStatus(body.status) ? body.status : undefined,
     bnNumber: body.bnNumber,
+    notes: body.notes,
+    vehicleType: isVehicleType(body.vehicleType) ? body.vehicleType : body.vehicleType === null ? null : undefined,
+    vehiclePlate: body.vehiclePlate,
+    vehicleLabel: body.vehicleLabel,
   });
   if (!course) {
     return NextResponse.json({ error: "Course introuvable ou BN manquant" }, { status: 404 });

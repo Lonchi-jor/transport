@@ -42,6 +42,8 @@ export async function POST(request: Request) {
     body.callSign = account.callSign;
     body.driverName = account.driverName;
     body.vehicleType = account.vehicleType;
+    body.vehiclePlate = account.vehiclePlate;
+    body.vehicleLabel = account.vehicleLabel;
   }
 
   const device = heartbeat(body);

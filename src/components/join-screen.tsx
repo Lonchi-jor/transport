@@ -15,6 +15,8 @@ export type JoinPayload = {
   callSign: string;
   driverName: string;
   vehicleType: VehicleType;
+  vehiclePlate: string;
+  vehicleLabel: string;
   role: "driver";
 };
 
@@ -59,6 +61,8 @@ export default function JoinScreen({ onJoin }: Props) {
         callSign: data.driver.callSign,
         driverName: data.driver.driverName,
         vehicleType: data.driver.vehicleType,
+        vehiclePlate: data.driver.vehiclePlate ?? "",
+        vehicleLabel: data.driver.vehicleLabel ?? "",
         role: "driver",
       });
     } catch {

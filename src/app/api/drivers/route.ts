@@ -9,7 +9,14 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let body: { callSign?: string; driverName?: string; vehicleType?: string; pin?: string };
+  let body: {
+    callSign?: string;
+    driverName?: string;
+    vehicleType?: string;
+    vehiclePlate?: string;
+    vehicleLabel?: string;
+    pin?: string;
+  };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -22,6 +29,8 @@ export async function POST(request: Request) {
     callSign: body.callSign ?? "",
     driverName: body.driverName ?? "",
     vehicleType: body.vehicleType,
+    vehiclePlate: body.vehiclePlate ?? "",
+    vehicleLabel: body.vehicleLabel,
     pin: body.pin,
   });
   if ("error" in result) {
