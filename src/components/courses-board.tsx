@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PhoneLink } from "@/components/admin-fields";
-import DispatchNote from "@/components/dispatch-note";
+import { DispatchNoteHint } from "@/components/dispatch-note";
 import { cn } from "@/lib/utils";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
 import type { CourseStatus, FleetSnapshot, VehicleType } from "@/lib/types";
@@ -287,15 +287,8 @@ export default function CoursesBoard() {
                           {course.clientPhone ? (
                             <div className="text-xs text-[#5b6294]">{course.clientPhone}</div>
                           ) : null}
-                          {course.notes &&
-                          (course.status === "open" ||
-                            course.status === "assigned" ||
-                            course.status === "en_route") ? (
-                            <div className="mt-2">
-                              <DispatchNote notes={course.notes} />
-                            </div>
-                          ) : null}
                           <div className="mt-2 flex flex-wrap gap-1">
+                            {course.notes ? <DispatchNoteHint notes={course.notes} /> : null}
                             {course.bnNumber ? (
                               <span className="rounded-full bg-[#eef3fb] px-2 py-0.5 text-[11px] font-medium text-[#2b308f]">
                                 BN {course.bnNumber}

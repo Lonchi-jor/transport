@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { createPortal } from "react-dom";
+
 export default function DispatchNote({
   notes,
   tone = "light",
@@ -37,5 +40,44 @@ export default function DispatchNote({
         {text}
       </p>
     </div>
+  );
+}
+
+export function DispatchNoteHint({ notes }: { notes?: string | null }) {
+  const text = notes?.trim();
+  const [box, setBox] = useState<{ left: number; top: number } | null>(null);
+  if (!text) return null;
+
+  return (
+    <>
+      <span
+        className="inline-flex cursor-default rounded-full bg-[#e7f6fd] px-2 py-0.5 text-[11px] font-medium text-[#00a4e8]"
+        onMouseEnter={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const width = 288;
+          const left = Math.min(rect.left, Math.max(8, window.innerWidth - width - 8));
+          setBox({ left, top: rect.bottom + 8 });
+        }}
+        onMouseLeave={() => setBox(null)}
+        onClick={(event) => event.stopPropagation()}
+      >
+        Note envoyée
+      </span>
+      {box
+        ? createPortal(
+            <div
+              role="tooltip"
+              className="pointer-events-none fixed z-[400] w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-[#00a4e8]/35 bg-white px-3 py-2 text-sm leading-5 text-[#1c2268] shadow-lg"
+              style={{ left: box.left, top: box.top }}
+            >
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-[#00a4e8]">
+                Note du dispatch
+              </div>
+              <p className="mt-1 whitespace-pre-wrap">{text}</p>
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
