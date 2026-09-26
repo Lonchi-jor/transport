@@ -142,8 +142,6 @@ export default function ChauffeursDashboard() {
       <AdminChrome
         active="chauffeurs"
         online={online}
-        title="Chauffeurs"
-        subtitle="Fiches, véhicules, PIN et historique des courses"
       />
 
       <main className="mx-auto grid max-w-[1400px] gap-5 px-4 py-5 sm:px-6 xl:grid-cols-[360px_minmax(0,1fr)]">
@@ -359,13 +357,21 @@ export default function ChauffeursDashboard() {
                       Client, trajet, véhicule utilisé, BN, BL — tout reste enregistré.
                     </p>
                   </div>
-                  <Link href="/admin" className="text-xs font-medium text-[#00a4e8] hover:underline">
-                    Donner une course
-                  </Link>
+                  <div className="flex flex-col items-end gap-1">
+                    <Link href="/admin" className="text-xs font-medium text-[#00a4e8] hover:underline">
+                      Donner une course
+                    </Link>
+                    <Link
+                      href={`/admin/courses?chauffeur=${encodeURIComponent(selected.id)}`}
+                      className="text-xs font-medium text-[#00a4e8] hover:underline"
+                    >
+                      Toutes ses courses
+                    </Link>
+                  </div>
                 </div>
                 {selectedJobs.length === 0 ? (
                   <p className="px-4 py-10 text-sm text-[#5b6294]">
-                    Aucune course pour ce chauffeur. Attribuez-en une depuis l’écran Courses.
+                    Aucune course pour ce chauffeur. Attribuez-en une depuis le tableau de bord.
                   </p>
                 ) : (
                   <ul className="divide-y divide-[#d5dcf0]">

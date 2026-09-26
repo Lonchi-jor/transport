@@ -2,27 +2,19 @@
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
-import { MapPinned, Truck } from "lucide-react";
+import { ClipboardList, MapPinned, Truck } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import AdminChrome from "@/components/admin-chrome";
 import DispatchMap from "@/components/dispatch-map";
+import CourseEditor from "@/components/course-editor";
 import { Field, VehicleFields } from "@/components/admin-fields";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PlaceSuggest from "@/components/place-suggest";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import type { Course, FleetSnapshot, VehicleType } from "@/lib/types";
-import type { RosterDriver } from "@/lib/roster";
+import type { FleetSnapshot, VehicleType } from "@/lib/types";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
-import {
-  COURSE_STATUS_LABEL,
-  courseElapsedLabel,
-  formatAge,
-  formatKm,
-  vehicleLine,
-} from "@/lib/format";
+import { COURSE_STATUS_LABEL, vehicleLine } from "@/lib/format";
 
 type Props = {
   googleMapsApiKey: string;
@@ -46,7 +38,7 @@ const emptyForm = {
 };
 
 export default function AdminDashboard({ googleMapsApiKey }: Props) {
-  const { devices, courses, roster, now, online, liveById, applySnapshot } = useAdminFleet();
+  const { devices, courses, roster, now, online, liveById, liveJobs, applySnapshot } = useAdminFleet();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
@@ -131,8 +123,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
       <AdminChrome
         active="dispatch"
         online={online}
-        title="Tableau de bord dispatch"
-        subtitle="Courses, carte et attribution"
         extra={
           <Button
             type="button"
@@ -152,6 +142,23 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
 
       <main className="mx-auto grid max-w-[1400px] gap-5 px-4 py-5 sm:px-6 xl:grid-cols-[340px_minmax(0,1fr)]">
         <section className="space-y-5">
+          <Link
+            href="/admin/courses"
+            className="flex items-center justify-between rounded-2xl border border-[#2b308f]/20 bg-white px-4 py-3 shadow-sm transition hover:border-[#2b308f]"
+          >
+            <div className="flex items-center gap-3">
+              <span className="flex size-10 items-center justify-center rounded-xl bg-[#eef3fb] text-[#2b308f]">
+                <ClipboardList className="size-5" />
+              </span>
+              <div>
+                <div className="text-sm font-semibold text-[#2b308f]">Courses</div>
+                <div className="text-xs text-[#5b6294]">
+                  {courses.length} enregistrée{courses.length > 1 ? "s" : ""} · filtre par chauffeur, statut, dates
+                </div>
+              </div>
+            </div>
+            <span className="text-xs font-medium text-[#00a4e8]">Ouvrir →</span>
+          </Link>
           <Link
             href="/admin/chauffeurs"
             className="flex items-center justify-between rounded-2xl border border-[#00a4e8]/30 bg-[#e7f6fd] px-4 py-3 shadow-sm transition hover:border-[#00a4e8]"
@@ -271,12 +278,20 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                     vehicleLabel={form.vehicleLabel}
                     onChange={(patch) => setForm({ ...form, ...patch })}
                   />
-                  <Link
-                    href={`/admin/chauffeurs?id=${encodeURIComponent(form.assignedDeviceId)}`}
-                    className="text-xs font-medium text-[#00a4e8] hover:underline"
-                  >
-                    Voir la fiche de ce chauffeur
-                  </Link>
+                  <div className="flex flex-wrap gap-3">
+                    <Link
+                      href={`/admin/chauffeurs?id=${encodeURIComponent(form.assignedDeviceId)}`}
+                      className="text-xs font-medium text-[#00a4e8] hover:underline"
+                    >
+                      Fiche chauffeur
+                    </Link>
+                    <Link
+                      href={`/admin/courses?chauffeur=${encodeURIComponent(form.assignedDeviceId)}`}
+                      className="text-xs font-medium text-[#00a4e8] hover:underline"
+                    >
+                      Ses courses
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <p className="text-xs text-[#5b6294]">
@@ -316,254 +331,49 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
           ) : null}
 
           <div className="overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white shadow-sm">
-            <div className="border-b border-[#d5dcf0] px-4 py-3">
-              <h2 className="text-base font-semibold text-[#2b308f]">Toutes les courses</h2>
-              <p className="text-xs text-[#5b6294]">
-                Chaque course garde chauffeur, véhicule, trajet et durées.
-              </p>
-            </div>
-            {courses.length === 0 ? (
-              <p className="px-4 py-10 text-sm text-[#5b6294]">Aucune course. Créez-en une à gauche.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
-                  <thead className="bg-[#f4f7fc] text-xs uppercase tracking-wide text-[#5b6294]">
-                    <tr>
-                      <th className="px-4 py-2 font-medium">Réf.</th>
-                      <th className="px-4 py-2 font-medium">Trajet</th>
-                      <th className="px-4 py-2 font-medium">Chauffeur / véhicule</th>
-                      <th className="px-4 py-2 font-medium">Statut</th>
-                      <th className="px-4 py-2 font-medium">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {courses.map((course) => {
-                      const elapsed = courseElapsedLabel(course, now);
-                      return (
-                        <tr
-                          key={course.id}
-                          className={`cursor-pointer border-t border-[#d5dcf0] align-top hover:bg-[#f4f7fc] ${
-                            course.id === selectedCourseId ? "bg-[#eef3fb]" : ""
-                          }`}
-                          onClick={() => setSelectedCourseId(course.id)}
-                        >
-                          <td className="w-[200px] px-4 py-3">
-                            <div className="font-semibold text-[#2b308f]">{course.reference}</div>
-                            <div className="mt-1 text-sm leading-snug">{course.clientName}</div>
-                            {course.clientPhone ? (
-                              <div className="mt-0.5 text-xs text-[#5b6294]">{course.clientPhone}</div>
-                            ) : null}
-                            <div className="mt-2 flex flex-wrap gap-1">
-                              {course.bnNumber ? (
-                                <span className="rounded-full bg-[#eef3fb] px-2 py-0.5 text-[11px] font-medium text-[#2b308f]">
-                                  BN {course.bnNumber}
-                                </span>
-                              ) : null}
-                              {course.hasDeliveryScan ? (
-                                <span className="rounded-full bg-[#e7f6fd] px-2 py-0.5 text-[11px] font-medium text-[#00a4e8]">
-                                  BL scanné
-                                </span>
-                              ) : null}
-                            </div>
-                          </td>
-                          <td className="max-w-[340px] px-4 py-3">
-                            <div className="text-[11px] font-medium uppercase tracking-wide text-[#5b6294]">Départ</div>
-                            <div className="text-sm leading-snug">{course.pickupAddress}</div>
-                            <div className="mt-2 text-[11px] font-medium uppercase tracking-wide text-[#00a4e8]">Arrivée</div>
-                            <div className="text-sm leading-snug">{course.dropoffAddress}</div>
-                            <div className="mt-2 flex flex-col gap-0.5 text-xs text-[#5b6294]">
-                              {formatKm(course.distanceMeters) ? <span>{formatKm(course.distanceMeters)}</span> : null}
-                              {elapsed ? (
-                                <span className="font-medium text-[#2b308f]">{elapsed}</span>
-                              ) : (
-                                <span>Pas encore démarrée</span>
-                              )}
-                            </div>
-                            {course.notes ? <div className="mt-1 text-xs text-[#5b6294]">{course.notes}</div> : null}
-                          </td>
-                          <td className="px-4 py-3">
-                            <select
-                              value={course.assignedDeviceId ?? ""}
-                              onChange={(e) =>
-                                void patchCourse(course.id, {
-                                  assignedDeviceId: e.target.value || null,
-                                })
-                              }
-                              className="h-8 max-w-52 rounded-lg border border-input bg-transparent px-2 text-xs"
-                              onClick={(event) => event.stopPropagation()}
-                            >
-                              <option value="">Non attribué</option>
-                              {roster.map((driver) => (
-                                <option key={driver.id} value={driver.id}>
-                                  {driver.callSign} — {driver.driverName}
-                                </option>
-                              ))}
-                            </select>
-                            <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(course)}</div>
-                            {course.assignedDeviceId ? (
-                              <Link
-                                href={`/admin/chauffeurs?id=${encodeURIComponent(course.assignedDeviceId)}`}
-                                className="mt-1 inline-block text-xs text-[#00a4e8] hover:underline"
-                                onClick={(event) => event.stopPropagation()}
-                              >
-                                Fiche chauffeur
-                              </Link>
-                            ) : null}
-                            {course.assignedCallSign ? (
-                              <div className="mt-1 text-xs text-[#5b6294]">
-                                {course.assignedCallSign} · {formatAge(course.updatedAt, now)}
-                              </div>
-                            ) : null}
-                          </td>
-                          <td className="px-4 py-3">
-                            <Badge variant={course.status === "open" ? "outline" : "secondary"}>
-                              {COURSE_STATUS_LABEL[course.status]}
-                            </Badge>
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col items-start gap-1">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  setSelectedCourseId(course.id);
-                                }}
-                              >
-                                Modifier
-                              </Button>
-                              {course.hasDeliveryScan ? (
-                                <a
-                                  href={`/api/courses/${course.id}/delivery`}
-                                  download={`${course.reference}-bon-livraison.jpg`}
-                                  className={cn(
-                                    buttonVariants({ size: "sm" }),
-                                    "h-8 rounded-lg",
-                                  )}
-                                  onClick={(event) => event.stopPropagation()}
-                                >
-                                  Télécharger le BL
-                                </a>
-                              ) : course.status === "done" ? (
-                                <span className="text-xs text-[#5b6294]">BL manquant</span>
-                              ) : null}
-                              {course.status !== "cancelled" && course.status !== "done" ? (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    void patchCourse(course.id, { status: "cancelled" });
-                                  }}
-                                >
-                                  Annuler
-                                </Button>
-                              ) : null}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+            <div className="flex items-start justify-between gap-3 border-b border-[#d5dcf0] px-4 py-3">
+              <div>
+                <h2 className="text-base font-semibold text-[#2b308f]">Courses en cours</h2>
+                <p className="text-xs text-[#5b6294]">L’historique complet est dans Courses.</p>
               </div>
+              <Link href="/admin/courses" className="text-xs font-medium text-[#00a4e8] hover:underline">
+                Toutes les courses
+              </Link>
+            </div>
+            {liveJobs.length === 0 ? (
+              <p className="px-4 py-8 text-sm text-[#5b6294]">Aucune course active. Créez-en une à gauche.</p>
+            ) : (
+              <ul className="divide-y divide-[#d5dcf0]">
+                {liveJobs.map((course) => (
+                  <li key={course.id}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedCourseId(course.id)}
+                      className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-[#f4f7fc]"
+                    >
+                      <div>
+                        <div className="font-semibold text-[#2b308f]">{course.reference}</div>
+                        <div className="text-sm">{course.clientName}</div>
+                        <div className="mt-1 text-xs text-[#5b6294]">
+                          {course.pickupAddress} → {course.dropoffAddress}
+                        </div>
+                        <div className="mt-1 text-xs text-[#2b308f]">
+                          {course.assignedCallSign
+                            ? `${course.assignedCallSign} · ${vehicleLine(course)}`
+                            : "Non attribué"}
+                        </div>
+                      </div>
+                      <Badge variant={course.status === "open" ? "outline" : "secondary"}>
+                        {COURSE_STATUS_LABEL[course.status]}
+                      </Badge>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         </section>
       </main>
     </div>
-  );
-}
-
-function CourseEditor({
-  course,
-  roster,
-  onSave,
-}: {
-  course: Course;
-  roster: RosterDriver[];
-  onSave: (
-    id: string,
-    body: {
-      assignedDeviceId?: string | null;
-      vehicleType?: VehicleType | null;
-      vehiclePlate?: string | null;
-      vehicleLabel?: string | null;
-    },
-  ) => Promise<void>;
-}) {
-  const [assignedDeviceId, setAssignedDeviceId] = useState(course.assignedDeviceId ?? "");
-  const [vehicleType, setVehicleType] = useState<VehicleType>(course.vehicleType ?? "van");
-  const [vehiclePlate, setVehiclePlate] = useState(course.vehiclePlate ?? "");
-  const [vehicleLabel, setVehicleLabel] = useState(course.vehicleLabel ?? "");
-  const [saving, setSaving] = useState(false);
-
-  function pickDriver(id: string) {
-    const driver = roster.find((item) => item.id === id);
-    setAssignedDeviceId(id);
-    if (!driver) {
-      setVehiclePlate("");
-      setVehicleLabel("");
-      return;
-    }
-    setVehicleType(driver.vehicleType);
-    setVehiclePlate(driver.vehiclePlate ?? "");
-    setVehicleLabel(driver.vehicleLabel ?? "");
-  }
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    await onSave(course.id, {
-      assignedDeviceId: assignedDeviceId || null,
-      vehicleType: assignedDeviceId ? vehicleType : null,
-      vehiclePlate: assignedDeviceId ? vehiclePlate : null,
-      vehicleLabel: assignedDeviceId ? vehicleLabel : null,
-    });
-    setSaving(false);
-  }
-
-  return (
-    <form onSubmit={(event) => void submit(event)} className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
-      <h3 className="text-base font-semibold text-[#2b308f]">Modifier {course.reference}</h3>
-      <p className="mb-3 text-xs text-[#5b6294]">
-        Changez le chauffeur : son véhicule se remet tout seul. Vous pouvez encore corriger l’immatriculation pour cette course.
-      </p>
-      <div className="grid gap-3">
-        <Field label="Chauffeur" htmlFor="edit-driver">
-          <select
-            id="edit-driver"
-            value={assignedDeviceId}
-            onChange={(e) => pickDriver(e.target.value)}
-            className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none"
-          >
-            <option value="">Non attribué</option>
-            {roster.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {driver.callSign} — {driver.driverName}
-              </option>
-            ))}
-          </select>
-        </Field>
-        {assignedDeviceId ? (
-          <VehicleFields
-            idPrefix="edit"
-            vehicleType={vehicleType}
-            vehiclePlate={vehiclePlate}
-            vehicleLabel={vehicleLabel}
-            onChange={(patch) => {
-              if (patch.vehicleType) setVehicleType(patch.vehicleType);
-              if (patch.vehiclePlate !== undefined) setVehiclePlate(patch.vehiclePlate);
-              if (patch.vehicleLabel !== undefined) setVehicleLabel(patch.vehicleLabel);
-            }}
-          />
-        ) : (
-          <p className="text-xs text-[#5b6294]">Attribuez un chauffeur pour coller son véhicule.</p>
-        )}
-      </div>
-      <Button type="submit" className="mt-3 h-9" disabled={saving}>
-        {saving ? "Enregistrement…" : "Enregistrer la course"}
-      </Button>
-    </form>
   );
 }

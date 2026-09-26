@@ -8,14 +8,16 @@ The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#0
 
 ## Tableau de bord dispatch (ordinateur)
 
-Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC.
+Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC. Le bloc **Tableau de bord dispatch** (à côté du logo, avec le sous-titre *Courses, carte et attribution*) est un bouton : il ramène toujours au dispatch.
 
-Le bouton **Chauffeurs** (en haut, ou la carte bleue à gauche) ouvre [http://localhost:43147/admin/chauffeurs](http://localhost:43147/admin/chauffeurs) : fiches, véhicules, PIN et historique de chaque chauffeur.
+- **Tableau de bord** : carte, nouvelle course, courses en cours.
+- **Courses** : [http://localhost:43147/admin/courses](http://localhost:43147/admin/courses) — toutes les courses de tous les chauffeurs, avec filtres (chauffeur, sans chauffeur, statut, dates, type de véhicule, BL, recherche).
+- **Chauffeurs** : [http://localhost:43147/admin/chauffeurs](http://localhost:43147/admin/chauffeurs) — fiches, véhicules, PIN et historique.
 
 1. **Enregistrez le chauffeur** dans **Chauffeurs** : indicatif (`ME-01`), nom, **véhicule** (type + immatriculation), et un code PIN.
 2. Donnez l’indicatif et le PIN au chauffeur. Vous pouvez **modifier** la fiche à tout moment.
-3. Sur **Courses**, créez une course et **choisissez le chauffeur** : son véhicule se remplit tout seul. Vous pouvez encore le changer pour cette course seulement.
-4. Cliquez un chauffeur dans **Chauffeurs** pour voir **toutes ses courses**.
+3. Sur le **tableau de bord**, créez une course et **choisissez le chauffeur** : son véhicule se remplit tout seul.
+4. Ouvrez **Courses** pour l’historique complet.
 
 Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’à la destination.
 

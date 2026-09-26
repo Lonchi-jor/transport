@@ -102,6 +102,15 @@ export function vehicleLine(input: {
   return [name, plate, type].filter(Boolean).join(" · ") || "Véhicule non renseigné";
 }
 
+export function formatWhen(ts: number | null | undefined) {
+  if (ts == null || !Number.isFinite(ts)) return null;
+  return new Intl.DateTimeFormat("fr-FR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Africa/Douala",
+  }).format(new Date(ts));
+}
+
 export function courseElapsedLabel(course: Course, now: number) {
   if (!course.startedAt) return null;
   if (course.status === "en_route") {

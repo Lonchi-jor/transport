@@ -2,39 +2,59 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ClipboardList, Truck } from "lucide-react";
+import { ClipboardList, LayoutDashboard, Truck } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type Props = {
-  active: "dispatch" | "chauffeurs";
+  active: "dispatch" | "courses" | "chauffeurs";
   online: boolean;
-  title: string;
-  subtitle: string;
   extra?: ReactNode;
 };
 
-export default function AdminChrome({ active, online, title, subtitle, extra }: Props) {
+export default function AdminChrome({ active, online, extra }: Props) {
   return (
     <header className="border-b border-[#d5dcf0] bg-white">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-4">
-          <BrandLogo className="h-12 w-auto max-w-[200px] object-contain" />
-          <div className="hidden border-l border-[#d5dcf0] pl-4 sm:block">
-            <div className="text-sm font-semibold text-[#2b308f]">{title}</div>
-            <div className="text-xs text-[#5b6294]">{subtitle}</div>
-          </div>
+        <div className="flex items-center gap-3">
+          <BrandLogo className="h-12 w-auto max-w-[180px] object-contain" />
+          <Link
+            href="/admin"
+            aria-current={active === "dispatch" ? "page" : undefined}
+            className={cn(
+              "hidden cursor-pointer rounded-xl border px-3 py-2 text-left transition sm:block",
+              active === "dispatch"
+                ? "border-[#00a4e8]/50 bg-[#e7f6fd] shadow-sm"
+                : "border-[#d5dcf0] hover:border-[#00a4e8] hover:bg-[#f4f7fc]",
+            )}
+          >
+            <div className="flex items-center gap-2 text-sm font-semibold text-[#2b308f]">
+              <LayoutDashboard className="size-4 text-[#00a4e8]" />
+              Tableau de bord dispatch
+            </div>
+            <div className="pl-6 text-xs text-[#5b6294]">Courses, carte et attribution</div>
+          </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin"
+            className={cn(
+              buttonVariants({ variant: active === "dispatch" ? "default" : "secondary", size: "default" }),
+              "rounded-xl sm:hidden",
+            )}
+          >
+            <LayoutDashboard className="size-4" />
+            Tableau de bord
+          </Link>
           <span className="inline-flex items-center gap-2 rounded-full bg-[#eef3fb] px-3 py-1 text-xs font-medium">
             <span className={`size-2 rounded-full ${online ? "bg-[#00a4e8]" : "bg-red-500"}`} />
             {online ? "Radio live" : "Hors ligne"}
           </span>
           <Link
-            href="/admin"
+            href="/admin/courses"
             className={cn(
-              buttonVariants({ variant: active === "dispatch" ? "default" : "secondary", size: "default" }),
+              buttonVariants({ variant: active === "courses" ? "default" : "secondary", size: "default" }),
               "rounded-xl",
             )}
           >
