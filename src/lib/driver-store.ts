@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
-import type { VehicleType } from "./types";
+import type { TrailerUnit, VehicleType } from "./types";
 import { MAX_TRAILERS, VEHICLE_TYPES } from "./types";
 
 export type DriverAccount = {
@@ -11,6 +11,7 @@ export type DriverAccount = {
   vehicleType: VehicleType;
   vehiclePlate: string;
   trailerPlates: string[];
+  trailers: TrailerUnit[];
   pin: string;
   createdAt: number;
   updatedAt: number;
@@ -33,14 +34,17 @@ function load() {
     drivers.clear();
     for (const item of list) {
       if (!item?.id || !item.callSign) continue;
+      const vehicleType = isVehicleType(item.vehicleType) ? item.vehicleType : "van";
+      const trailers = normalizeTrailers(item.trailers ?? item.trailerPlates, vehicleType);
       drivers.set(item.id, {
         id: item.id,
         callSign: item.callSign,
         driverName: item.driverName ?? "",
         phone: normalizePhone(item.phone ?? ""),
-        vehicleType: isVehicleType(item.vehicleType) ? item.vehicleType : "van",
+        vehicleType: trailers[0]?.type ?? vehicleType,
         vehiclePlate: normalizePlate(item.vehiclePlate ?? ""),
-        trailerPlates: normalizeTrailerPlates(item.trailerPlates),
+        trailerPlates: trailers.map((trailer) => trailer.plate),
+        trailers,
         pin: String(item.pin ?? ""),
         createdAt: item.createdAt ?? Date.now(),
         updatedAt: item.updatedAt ?? item.createdAt ?? Date.now(),
@@ -66,19 +70,30 @@ export function normalizePlate(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, " ");
 }
 
-export function normalizeTrailerPlates(value: unknown): string[] {
+export function normalizeTrailers(value: unknown, fallbackType: VehicleType = "van"): TrailerUnit[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<string>();
-  const plates: string[] = [];
+  const trailers: TrailerUnit[] = [];
   for (const item of value) {
-    if (typeof item !== "string") continue;
-    const plate = normalizePlate(item);
+    let plate = "";
+    let type = fallbackType;
+    if (typeof item === "string") {
+      plate = normalizePlate(item);
+    } else if (item && typeof item === "object") {
+      const record = item as { plate?: unknown; type?: unknown };
+      plate = typeof record.plate === "string" ? normalizePlate(record.plate) : "";
+      if (isVehicleType(record.type)) type = record.type;
+    }
     if (plate.length < 3 || seen.has(plate)) continue;
     seen.add(plate);
-    plates.push(plate);
-    if (plates.length >= MAX_TRAILERS) break;
+    trailers.push({ type, plate });
+    if (trailers.length >= MAX_TRAILERS) break;
   }
-  return plates;
+  return trailers;
+}
+
+export function normalizeTrailerPlates(value: unknown): string[] {
+  return normalizeTrailers(value).map((trailer) => trailer.plate);
 }
 
 export function driverPlates(driver: Pick<DriverAccount, "vehiclePlate" | "trailerPlates">) {
@@ -110,6 +125,7 @@ function toPublic(account: DriverAccount): DriverPublic {
     vehicleType: account.vehicleType,
     vehiclePlate: account.vehiclePlate,
     trailerPlates: account.trailerPlates,
+    trailers: account.trailers,
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,
   };
@@ -156,6 +172,7 @@ type DriverInput = {
   vehicleType: VehicleType;
   vehiclePlate: string;
   trailerPlates?: string[];
+  trailers?: TrailerUnit[];
   pin?: string;
 };
 
@@ -166,6 +183,7 @@ function validateDriver(input: DriverInput, ignoreId?: string): { error: string 
   vehicleType: VehicleType;
   vehiclePlate: string;
   trailerPlates: string[];
+  trailers: TrailerUnit[];
   pin?: string;
 } {
   const callSign = normalizeCallSign(input.callSign);
@@ -173,7 +191,9 @@ function validateDriver(input: DriverInput, ignoreId?: string): { error: string 
   const phone = normalizePhone(input.phone);
   const digits = phoneKey(phone);
   const vehiclePlate = normalizePlate(input.vehiclePlate);
-  const trailerPlates = normalizeTrailerPlates(input.trailerPlates);
+  const trailers = normalizeTrailers(input.trailers ?? input.trailerPlates, input.vehicleType);
+  const trailerPlates = trailers.map((trailer) => trailer.plate);
+  const vehicleType = trailers[0]?.type ?? input.vehicleType;
   if (callSign.length < 2) return { error: "Indiquez un indicatif (ex. ME-01)." };
   if (driverName.length < 2) return { error: "Indiquez le nom du chauffeur." };
   if (digits.length < 8 || digits.length > 15) {
@@ -195,7 +215,7 @@ function validateDriver(input: DriverInput, ignoreId?: string): { error: string 
       return { error: `La plaque ${plate} est déjà attribuée à ${samePlate.callSign}.` };
     }
   }
-  return { callSign, driverName, phone, vehicleType: input.vehicleType, vehiclePlate, trailerPlates };
+  return { callSign, driverName, phone, vehicleType, vehiclePlate, trailerPlates, trailers };
 }
 
 export function createDriver(input: DriverInput): DriverAccount | { error: string } {
@@ -212,6 +232,7 @@ export function createDriver(input: DriverInput): DriverAccount | { error: strin
     vehicleType: parsed.vehicleType,
     vehiclePlate: parsed.vehiclePlate,
     trailerPlates: parsed.trailerPlates,
+    trailers: parsed.trailers,
     pin,
     createdAt: now,
     updatedAt: now,
@@ -240,6 +261,7 @@ export function updateDriver(id: string, input: DriverInput): DriverAccount | { 
     vehicleType: parsed.vehicleType,
     vehiclePlate: parsed.vehiclePlate,
     trailerPlates: parsed.trailerPlates,
+    trailers: parsed.trailers,
     pin,
     updatedAt: Date.now(),
   };

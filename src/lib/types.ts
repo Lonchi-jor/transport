@@ -60,6 +60,11 @@ export type CourseStop = {
 export const MAX_TOUR_STOPS = 8;
 export const MAX_TRAILERS = 4;
 
+export type TrailerUnit = {
+  type: VehicleType;
+  plate: string;
+};
+
 export type Course = {
   id: string;
   reference: string;
@@ -156,6 +161,7 @@ export type FleetSnapshot = {
     vehicleType: VehicleType;
     vehiclePlate?: string;
     trailerPlates?: string[];
+    trailers?: TrailerUnit[];
     pin?: string;
     lastLat?: number | null;
     lastLng?: number | null;

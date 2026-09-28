@@ -3,6 +3,7 @@ import { deleteDriver, getDriver, isVehicleType, updateDriver } from "@/lib/driv
 import { removeDevice } from "@/lib/fleet-store";
 import { deletePresence } from "@/lib/presence-store";
 import { adminSnapshot } from "@/lib/snapshot";
+import type { TrailerUnit } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export async function PATCH(
     vehicleType?: string;
     vehiclePlate?: string;
     trailerPlates?: string[];
+    trailers?: TrailerUnit[];
     pin?: string;
   };
   try {
@@ -38,6 +40,7 @@ export async function PATCH(
     vehicleType: body.vehicleType,
     vehiclePlate: body.vehiclePlate ?? "",
     trailerPlates: body.trailerPlates,
+    trailers: body.trailers,
     pin: body.pin,
   });
   if ("error" in result) {

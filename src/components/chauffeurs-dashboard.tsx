@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ClipboardList, Pencil, Radio, Trash2, UserPlus, X } from "lucide-react";
 import AdminChrome from "@/components/admin-chrome";
-import { Field, PhoneLink, Stat, TrailerFields } from "@/components/admin-fields";
+import { Field, PhoneLink, Stat, TrailerFields, type TrailerDraft } from "@/components/admin-fields";
 import { PresenceBadge, PresenceLegend } from "@/components/presence-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ const emptyDriver = {
   phone: "",
   vehicleType: "van" as VehicleType,
   vehiclePlate: "",
-  trailerPlates: [""],
+  trailers: [{ type: "van" as VehicleType, plate: "" }] as TrailerDraft[],
   pin: "",
 };
 
@@ -67,7 +67,7 @@ export default function ChauffeursDashboard() {
     const needle = query.trim().toLowerCase();
     if (!needle) return roster;
     return roster.filter((driver) =>
-      [driver.callSign, driver.driverName, driver.phone, driver.vehiclePlate, ...(driver.trailerPlates ?? [])]
+      [driver.callSign, driver.driverName, driver.phone, driver.vehiclePlate, ...(driver.trailerPlates ?? []), ...(driver.trailers ?? []).map((trailer) => trailer.plate)]
         .join(" ")
         .toLowerCase()
         .includes(needle),
@@ -106,7 +106,12 @@ export default function ChauffeursDashboard() {
       phone: driver.phone ?? "",
       vehicleType: driver.vehicleType,
       vehiclePlate: driver.vehiclePlate ?? "",
-      trailerPlates: driver.trailerPlates?.length ? [...driver.trailerPlates] : [""],
+      trailers:
+        driver.trailers?.length
+          ? driver.trailers.map((trailer) => ({ type: trailer.type, plate: trailer.plate }))
+          : driver.trailerPlates?.length
+            ? driver.trailerPlates.map((plate) => ({ type: driver.vehicleType, plate }))
+            : [{ type: driver.vehicleType, plate: "" }],
       pin: "",
     });
     openDriver(driver.id);
@@ -126,7 +131,12 @@ export default function ChauffeursDashboard() {
       const res = await fetch(editingDriverId ? `/api/drivers/${editingDriverId}` : "/api/drivers", {
         method: editingDriverId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(driverForm),
+        body: JSON.stringify({
+          ...driverForm,
+          vehicleType: driverForm.trailers[0]?.type ?? driverForm.vehicleType,
+          trailerPlates: driverForm.trailers.map((trailer) => trailer.plate),
+          trailers: driverForm.trailers,
+        }),
       });
       const data = (await res.json()) as FleetSnapshot & {
         drivers?: RosterDriver[];
@@ -282,10 +292,14 @@ export default function ChauffeursDashboard() {
               </Field>
               <TrailerFields
                 idPrefix="driver"
-                vehicleType={driverForm.vehicleType}
-                plates={driverForm.trailerPlates}
-                onTypeChange={(vehicleType) => setDriverForm({ ...driverForm, vehicleType })}
-                onChange={(trailerPlates) => setDriverForm({ ...driverForm, trailerPlates })}
+                trailers={driverForm.trailers}
+                onChange={(trailers) =>
+                  setDriverForm({
+                    ...driverForm,
+                    trailers,
+                    vehicleType: trailers[0]?.type ?? "van",
+                  })
+                }
               />
               <Field
                 label={editingDriverId ? "Nouveau PIN (optionnel)" : "Code PIN (4 à 6 chiffres)"}

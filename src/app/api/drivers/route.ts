@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createDriver, isVehicleType } from "@/lib/driver-store";
 import { adminSnapshot } from "@/lib/snapshot";
+import type { TrailerUnit } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export async function POST(request: Request) {
     vehicleType?: string;
     vehiclePlate?: string;
     trailerPlates?: string[];
+    trailers?: TrailerUnit[];
     pin?: string;
   };
   try {
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
     vehicleType: body.vehicleType,
     vehiclePlate: body.vehiclePlate ?? "",
     trailerPlates: body.trailerPlates,
+    trailers: body.trailers,
     pin: body.pin,
   });
   if ("error" in result) {

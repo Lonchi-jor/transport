@@ -1,4 +1,4 @@
-import type { VehicleType } from "@/lib/types";
+import type { TrailerUnit, VehicleType } from "@/lib/types";
 
 export type RosterDriver = {
   id: string;
@@ -8,6 +8,7 @@ export type RosterDriver = {
   vehicleType: VehicleType;
   vehiclePlate?: string;
   trailerPlates?: string[];
+  trailers?: TrailerUnit[];
   pin?: string;
   lastLat?: number | null;
   lastLng?: number | null;

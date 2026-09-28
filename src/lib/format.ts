@@ -1,4 +1,4 @@
-import type { Course, CourseStatus, CourseStop, FleetDevice, VehicleType } from "@/lib/types";
+import type { Course, CourseStatus, CourseStop, FleetDevice, TrailerUnit, VehicleType } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
 
 export type MapFollow = {
@@ -137,11 +137,27 @@ export function vehicleLine(input: {
   vehicleType?: VehicleType | null;
   vehiclePlate?: string | null;
   trailerPlates?: string[] | null;
+  trailers?: TrailerUnit[] | null;
 }) {
   const tractor = input.vehiclePlate?.trim() || null;
-  const trailers = (input.trailerPlates ?? []).map((plate) => plate.trim()).filter(Boolean);
-  const plates = [tractor, ...trailers].filter(Boolean).join(" + ");
-  const type = input.vehicleType ? VEHICLE_META[input.vehicleType].label : null;
+  const trailerBits =
+    input.trailers && input.trailers.length > 0
+      ? input.trailers
+          .map((trailer) => {
+            const plate = trailer.plate.trim();
+            if (!plate) return "";
+            const type = VEHICLE_META[trailer.type]?.label;
+            return [type, plate].filter(Boolean).join(" ");
+          })
+          .filter(Boolean)
+      : (input.trailerPlates ?? []).map((plate) => plate.trim()).filter(Boolean);
+  const plates = [tractor, ...trailerBits].filter(Boolean).join(" + ");
+  const type =
+    input.trailers && input.trailers.length > 0
+      ? null
+      : input.vehicleType
+        ? VEHICLE_META[input.vehicleType].label
+        : null;
   return [plates, type].filter(Boolean).join(" · ") || "Véhicule non renseigné";
 }
 

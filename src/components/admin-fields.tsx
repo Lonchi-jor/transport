@@ -212,30 +212,29 @@ export function DriverAssignSelect({
   );
 }
 
+export type TrailerDraft = {
+  type: VehicleType;
+  plate: string;
+};
+
 export function TrailerFields({
   idPrefix,
-  vehicleType,
-  plates,
-  onTypeChange,
+  trailers,
   onChange,
 }: {
   idPrefix: string;
-  vehicleType: VehicleType;
-  plates: string[];
-  onTypeChange: (type: VehicleType) => void;
-  onChange: (plates: string[]) => void;
+  trailers: TrailerDraft[];
+  onChange: (trailers: TrailerDraft[]) => void;
 }) {
-  const list = plates.length > 0 ? plates : [""];
+  const list = trailers.length > 0 ? trailers : [{ type: "van" as VehicleType, plate: "" }];
 
-  function patchAt(index: number, value: string) {
-    const next = [...list];
-    next[index] = value;
-    onChange(next);
+  function patchAt(index: number, patch: Partial<TrailerDraft>) {
+    onChange(list.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
   }
 
   function removeAt(index: number) {
     if (list.length <= 1) {
-      onChange([""]);
+      onChange([{ type: list[0]?.type ?? "van", plate: "" }]);
       return;
     }
     onChange(list.filter((_, itemIndex) => itemIndex !== index));
@@ -244,48 +243,55 @@ export function TrailerFields({
   return (
     <div className="grid gap-3 rounded-xl border border-[#e4e9f6] bg-[#f8faff] p-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-[#5b6294]">Remorque</div>
-      <Field label="Type" htmlFor={`${idPrefix}-trailer-type`}>
-        <select
-          id={`${idPrefix}-trailer-type`}
-          value={vehicleType}
-          onChange={(event) => onTypeChange(event.target.value as VehicleType)}
-          className="h-9 w-full rounded-lg border border-input bg-white px-2.5 text-sm outline-none"
+      {list.map((trailer, index) => (
+        <div
+          key={`${idPrefix}-trailer-${index}`}
+          className={list.length > 1 ? "grid gap-3 rounded-lg border border-[#e4e9f6] bg-white p-3" : "grid gap-3"}
         >
-          {VEHICLE_TYPES.map((type) => (
-            <option key={type} value={type}>
-              {VEHICLE_META[type].label}
-            </option>
-          ))}
-        </select>
-      </Field>
-      {list.map((plate, index) => (
-        <div key={`${idPrefix}-trailer-${index}`} className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <Field
-              label={list.length > 1 ? `Immatriculation ${index + 1}` : "Immatriculation"}
-              htmlFor={`${idPrefix}-trailer-${index}`}
-            >
-              <Input
-                id={`${idPrefix}-trailer-${index}`}
-                value={plate}
-                onChange={(event) => patchAt(index, event.target.value.toUpperCase())}
-                placeholder="CE 5678 XX"
-                autoCapitalize="characters"
-              />
-            </Field>
-          </div>
           {list.length > 1 ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="mt-6 size-8 shrink-0 text-[#5b6294]"
-              onClick={() => removeAt(index)}
-              aria-label={`Retirer la remorque ${index + 1}`}
-            >
-              <Trash2 className="size-4" />
-            </Button>
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-xs font-semibold text-[#2b308f]">Remorque {index + 1}</div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 shrink-0 text-[#5b6294]"
+                onClick={() => removeAt(index)}
+                aria-label={`Retirer la remorque ${index + 1}`}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
           ) : null}
+          <Field
+            label="Type"
+            htmlFor={`${idPrefix}-trailer-type-${index}`}
+          >
+            <select
+              id={`${idPrefix}-trailer-type-${index}`}
+              value={trailer.type}
+              onChange={(event) => patchAt(index, { type: event.target.value as VehicleType })}
+              className="h-9 w-full rounded-lg border border-input bg-white px-2.5 text-sm outline-none"
+            >
+              {VEHICLE_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {VEHICLE_META[type].label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field
+            label="Immatriculation"
+            htmlFor={`${idPrefix}-trailer-${index}`}
+          >
+            <Input
+              id={`${idPrefix}-trailer-${index}`}
+              value={trailer.plate}
+              onChange={(event) => patchAt(index, { plate: event.target.value.toUpperCase() })}
+              placeholder="CE 5678 XX"
+              autoCapitalize="characters"
+            />
+          </Field>
         </div>
       ))}
       <Button
@@ -293,7 +299,7 @@ export function TrailerFields({
         variant="secondary"
         className="h-9 rounded-xl"
         disabled={list.length >= MAX_TRAILERS}
-        onClick={() => onChange([...list, ""])}
+        onClick={() => onChange([...list, { type: "van", plate: "" }])}
       >
         <Plus className="size-4" />
         Ajouter une remorque
