@@ -26,6 +26,18 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [prefillDriverId, setPrefillDriverId] = useState<string | null>(null);
+
+  function openComposer(driverId?: string | null) {
+    setPrefillDriverId(driverId ?? null);
+    setMapOpen(false);
+    setComposerOpen(true);
+  }
+
+  function closeComposer() {
+    setComposerOpen(false);
+    setPrefillDriverId(null);
+  }
 
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
   const runningJobs = courses
@@ -79,7 +91,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
 
       <main className="mx-auto grid max-w-[1400px] gap-5 px-4 py-5 sm:px-6 xl:grid-cols-[340px_minmax(0,1fr)]">
         <section className="space-y-5">
-          <NewCourseButton onClick={() => setComposerOpen(true)} />
+          <NewCourseButton onClick={() => openComposer(null)} />
           <Link
             href="/admin/courses"
             className="flex items-center justify-between rounded-2xl border border-[#2b308f]/20 bg-white px-4 py-3 shadow-sm transition hover:border-[#2b308f]"
@@ -121,11 +133,13 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
             googleMapsApiKey={googleMapsApiKey}
             devices={devices}
             courses={courses}
+            roster={roster}
             now={now}
             selectedId={selectedId}
             onSelect={setSelectedId}
             open={mapOpen}
             onOpenChange={setMapOpen}
+            onAssignCourse={(driverId) => openComposer(driverId)}
           />
 
           {selectedCourse ? (
@@ -195,11 +209,13 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
 
       {composerOpen ? (
         <CourseComposer
+          key={prefillDriverId ?? "new"}
           open
-          onClose={() => setComposerOpen(false)}
+          onClose={closeComposer}
           roster={roster}
           courses={courses}
           liveById={liveById}
+          assignDriverId={prefillDriverId}
           onCreated={(data: FleetSnapshot) => {
             applySnapshot(data);
             setSelectedCourseId(data.courses?.[0]?.id ?? null);

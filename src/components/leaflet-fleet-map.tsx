@@ -117,6 +117,7 @@ type Props = {
   selfId: string | null;
   route: MapRoute | null;
   frameSelfAndRoute?: boolean;
+  onAssignCourse?: (driverId: string) => void;
 };
 
 export default function LeafletFleetMap({
@@ -131,6 +132,7 @@ export default function LeafletFleetMap({
   selfId,
   route,
   frameSelfAndRoute = false,
+  onAssignCourse,
 }: Props) {
   const positioned = useMemo(() => devicesWithPosition(devices), [devices]);
 
@@ -221,6 +223,19 @@ export default function LeafletFleetMap({
               </div>
               {formatWhen(device.lastSeen) ? (
                 <div>Horodatage : {formatWhen(device.lastSeen)}</div>
+              ) : null}
+              {onAssignCourse ? (
+                <button
+                  type="button"
+                  className="mt-2 w-full rounded-lg bg-[#2b308f] px-2 py-1.5 text-xs font-semibold text-white"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onAssignCourse(device.id);
+                  }}
+                >
+                  Attribuer une course
+                </button>
               ) : null}
             </div>
           </Popup>

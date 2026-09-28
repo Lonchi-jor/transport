@@ -78,7 +78,21 @@ type Props = {
   courses: Course[];
   liveById: Map<string, unknown>;
   onCreated: (snapshot: FleetSnapshot) => void;
+  assignDriverId?: string | null;
 };
+
+function draftForDriver(roster: RosterDriver[], driverId?: string | null): CourseDraftForm {
+  const driver = driverId ? roster.find((item) => item.id === driverId) : null;
+  if (!driver) return { ...emptyCourseDraft, stops: [emptyStop()] };
+  return {
+    ...emptyCourseDraft,
+    stops: [emptyStop()],
+    assignedDeviceId: driver.id,
+    vehicleType: driver.vehicleType,
+    vehiclePlate: driver.vehiclePlate ?? "",
+    trailerPlates: driver.trailerPlates ?? driver.trailers?.map((trailer) => trailer.plate) ?? [],
+  };
+}
 
 async function lookupAddress(lat: number, lng: number): Promise<PlaceHit> {
   try {
@@ -91,8 +105,16 @@ async function lookupAddress(lat: number, lng: number): Promise<PlaceHit> {
   return { label: `${lat.toFixed(5)}, ${lng.toFixed(5)}`, lat, lng };
 }
 
-export default function CourseComposer({ open, onClose, roster, courses, liveById, onCreated }: Props) {
-  const [form, setForm] = useState<CourseDraftForm>({ ...emptyCourseDraft, stops: [emptyStop()] });
+export default function CourseComposer({
+  open,
+  onClose,
+  roster,
+  courses,
+  liveById,
+  onCreated,
+  assignDriverId = null,
+}: Props) {
+  const [form, setForm] = useState<CourseDraftForm>(() => draftForDriver(roster, assignDriverId));
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [pinFocus, setPinFocus] = useState<PinFocus>("voyage");
@@ -338,9 +360,11 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
         <div>
           <div className="text-sm font-semibold">Nouvelle course</div>
           <p className="text-[11px] text-blue-200">
-            {pinFocus === "voyage"
-              ? "Recherchez le point de voyage : la carte s’y rend. Glissez le pin pour l’ajuster."
-              : "Placez une destination du tour de ville, ou ajoutez-en une autre."}
+            {assignDriverId && assignedDriver
+              ? `${assignedDriver.callSign} est déjà attribué. Placez le voyage, puis le tour de ville.`
+              : pinFocus === "voyage"
+                ? "Recherchez le point de voyage : la carte s’y rend. Glissez le pin pour l’ajuster."
+                : "Placez une destination du tour de ville, ou ajoutez-en une autre."}
           </p>
         </div>
         <Button variant="secondary" size="sm" className="rounded-xl" onClick={onClose}>
@@ -401,6 +425,16 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
           </div>
 
           <div className="grid gap-3">
+            {assignDriverId && assignedDriver ? (
+              <div className="rounded-xl bg-[#e7f6fd] px-3 py-2 text-xs text-[#2b308f]">
+                <span className="font-semibold">{assignedDriver.callSign}</span>
+                {" · "}
+                {assignedDriver.driverName}
+                <div className="mt-0.5 font-normal text-[#5b6294]">
+                  Chauffeur déjà renseigné. Entrez le voyage et les destinations du tour.
+                </div>
+              </div>
+            ) : null}
             <Field label="Client" htmlFor="composer-client">
               <Input
                 id="composer-client"

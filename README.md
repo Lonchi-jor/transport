@@ -20,7 +20,7 @@ Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC. L
 4. Ouvrez **Courses** pour l’historique complet. Le bureau ne voit pas le texte de la note dans le tableau : une pastille **Note envoyée** le signale, et le texte apparaît au survol (sans cliquer).
 5. Quand le chauffeur **termine** (scan du BL), la **cloche du dispatch** n’alerte que le poste qui a créé cette course. Un autre ordinateur du bureau ne reçoit pas cette alerte.
 
-Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’aux destinations du tour.
+Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur ouvre sa fiche : **Attribuer une course** envoie vers la création, **chauffeur et véhicule déjà remplis** — il reste le voyage et les destinations. S’il a déjà deux courses, le bouton est désactivé. Un chauffeur qui a **démarré** (BN validé) voit aussi l’itinéraire de **sa position actuelle** jusqu’aux destinations du tour.
 
 ## Téléphone chauffeur
 

@@ -1,41 +1,58 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MapPinned, Maximize2, X } from "lucide-react";
+import { ClipboardPlus, MapPinned, Maximize2, X } from "lucide-react";
 import FleetMap from "@/components/fleet-map";
-import { PresenceLegend } from "@/components/presence-badge";
+import { PhoneLink } from "@/components/admin-fields";
+import { PresenceBadge, PresenceLegend } from "@/components/presence-badge";
 import { Button } from "@/components/ui/button";
+import {
+  assignmentBlockedMessage,
+  isDriverAtCapacity,
+  liveJobsForDriver,
+  MAX_LIVE_JOBS,
+} from "@/lib/assignment";
 import type { Course, CourseStop, FleetDevice } from "@/lib/types";
-import { COURSE_STATUS_LABEL, courseStops, formatKm, formatMinutes, tourLine, type MapRoute } from "@/lib/format";
+import { COURSE_STATUS_LABEL, courseStops, formatKm, formatMinutes, tourLine, vehicleLine, type MapRoute } from "@/lib/format";
+import type { RosterDriver } from "@/lib/roster";
 
 type Props = {
   googleMapsApiKey: string;
   devices: FleetDevice[];
   courses: Course[];
+  roster: RosterDriver[];
   now: number;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onAssignCourse: (driverId: string) => void;
 };
 
 export default function DispatchMap({
   googleMapsApiKey,
   devices,
   courses,
+  roster,
   now,
   selectedId,
   onSelect,
   open,
   onOpenChange,
+  onAssignCourse,
 }: Props) {
   const [route, setRoute] = useState<MapRoute | null>(null);
-  const [hint, setHint] = useState("Cliquez un chauffeur pour voir sa course.");
+  const [hint, setHint] = useState("Cliquez un chauffeur pour lui attribuer une course.");
   const snapshotRef = useRef({ devices, courses });
   useEffect(() => {
     snapshotRef.current = { devices, courses };
   }, [devices, courses]);
   const drivers = devices.filter((d) => d.role === "driver");
+  const selectedDevice = drivers.find((device) => device.id === selectedId) ?? null;
+  const selectedRoster = roster.find((driver) => driver.id === selectedId) ?? null;
+  const selectedHeld = selectedId ? liveJobsForDriver(courses, selectedId) : [];
+  const selectedFull = selectedId ? isDriverAtCapacity(courses, selectedId) : false;
+  const selectedCallSign = selectedDevice?.callSign ?? selectedRoster?.callSign ?? null;
 
   const traceDriver = useCallback(async (id: string) => {
     const { devices: liveDevices, courses: liveCourses } = snapshotRef.current;
@@ -45,8 +62,8 @@ export default function DispatchMap({
         setRoute(null);
         setHint(
           driver
-            ? `${driver.callSign} n’a pas de course démarrée (BN validé).`
-            : "Cliquez un chauffeur pour voir sa course.",
+            ? `${driver.callSign} n’a pas de course démarrée. Attribuez-lui une course depuis la fiche.`
+            : "Cliquez un chauffeur pour lui attribuer une course.",
         );
         return;
       }
@@ -113,7 +130,7 @@ export default function DispatchMap({
     if (!selectedId) {
       const clear = window.setTimeout(() => {
         setRoute(null);
-        setHint("Cliquez un chauffeur pour voir sa course.");
+        setHint("Cliquez un chauffeur pour lui attribuer une course.");
       }, 0);
       return () => window.clearTimeout(clear);
     }
@@ -208,7 +225,67 @@ export default function DispatchMap({
               onUserPan={() => undefined}
               selfId={null}
               route={route}
+              onAssignCourse={onAssignCourse}
             />
+            {selectedDevice ? (
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-4 md:inset-x-auto md:left-4 md:w-[380px]">
+                <div className="pointer-events-auto rounded-2xl border border-[#d5dcf0] bg-white p-4 text-[#1c2268] shadow-2xl">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-[#2b308f]">
+                        {selectedDevice.callSign} · {selectedDevice.driverName}
+                      </div>
+                      <p className="mt-1 text-xs text-[#5b6294]">
+                        {vehicleLine(selectedRoster ?? selectedDevice)}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      aria-label="Fermer la fiche"
+                      className="rounded-lg p-1 text-[#5b6294] hover:bg-[#f4f7fc]"
+                      onClick={() => onSelect(null)}
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <PresenceBadge
+                      connected={selectedDevice.connected}
+                      lastSeen={selectedDevice.lastSeen}
+                      now={now}
+                    />
+                    <span className="text-[11px] text-[#5b6294]">
+                      {selectedHeld.length === 0
+                        ? "Aucune course en cours"
+                        : `${selectedHeld.length} / ${MAX_LIVE_JOBS} course${selectedHeld.length > 1 ? "s" : ""}`}
+                    </span>
+                  </div>
+                  {selectedDevice.phone ? (
+                    <p className="mt-2 text-xs">
+                      <PhoneLink phone={selectedDevice.phone} className="font-medium text-[#00a4e8] hover:underline" />
+                    </p>
+                  ) : null}
+                  {selectedFull ? (
+                    <p className="mt-3 text-xs text-red-600">
+                      {assignmentBlockedMessage(selectedHeld, selectedCallSign)}
+                    </p>
+                  ) : (
+                    <p className="mt-3 text-xs text-[#5b6294]">
+                      La fiche chauffeur sera déjà remplie. Il restera le voyage et les destinations.
+                    </p>
+                  )}
+                  <Button
+                    type="button"
+                    className="mt-3 h-10 w-full"
+                    disabled={selectedFull}
+                    onClick={() => onAssignCourse(selectedDevice.id)}
+                  >
+                    <ClipboardPlus className="size-4" />
+                    Attribuer une course
+                  </Button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}
