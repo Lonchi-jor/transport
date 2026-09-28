@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCourse, isCourseStatus, updateCourse } from "@/lib/course-store";
 import { getDriver, isVehicleType } from "@/lib/driver-store";
 import { snapshotFromRequest } from "@/lib/snapshot";
-import { isCourseAssignError } from "@/lib/assignment";
+import { isCourseRuleError } from "@/lib/assignment";
 
 export const dynamic = "force-dynamic";
 
@@ -60,7 +60,7 @@ export async function PATCH(
       vehiclePlate: body.vehiclePlate,
     });
   } catch (error) {
-    if (isCourseAssignError(error)) {
+    if (isCourseRuleError(error)) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     throw error;

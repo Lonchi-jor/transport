@@ -184,6 +184,8 @@ function GoogleMapInner({
             key={device.id}
             position={{ lat: device.lat as number, lng: device.lng as number }}
             title={`${device.callSign} · ${device.driverName} · ${hover}`}
+            clickable
+            draggable={false}
             label={{
               text: isSelf ? "YOU" : device.callSign,
               color: isSelf ? "#ffffff" : "#0b1220",

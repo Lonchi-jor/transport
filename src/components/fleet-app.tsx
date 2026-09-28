@@ -18,13 +18,13 @@ import {
   COURSE_STATUS_LABEL,
   courseElapsedLabel,
   courseToMapRoute,
-  DEFAULT_CENTER,
   formatKm,
   shortPlace,
   vehicleLine,
   type MapRoute,
 } from "@/lib/format";
 import { Input } from "@/components/ui/input";
+import { inProgressJobForDriver, liveJobsForDriver, startBlockedMessage } from "@/lib/assignment";
 
 const SESSION_KEY = "transitlive-session";
 
@@ -66,7 +66,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [now, setNow] = useState(0);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [gpsState, setGpsState] = useState<"idle" | "live" | "denied" | "waiting" | "simulated">("idle");
+  const [gpsState, setGpsState] = useState<"idle" | "live" | "denied" | "waiting">("idle");
   const [gpsHint, setGpsHint] = useState("");
   const [online, setOnline] = useState(true);
   const [jobsOpen, setJobsOpen] = useState(false);
@@ -85,9 +85,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [recenterKey, setRecenterKey] = useState(0);
   const [liveRoute, setLiveRoute] = useState<MapRoute | null>(null);
   const watchId = useRef<number | null>(null);
-  const simTimer = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastFix = useRef<{ lat: number; lng: number; heading: number | null; speedMps: number | null; accuracy: number | null } | null>(null);
-  const gpsModeRef = useRef<"idle" | "live" | "denied" | "waiting" | "simulated">("idle");
+  const gpsModeRef = useRef<"idle" | "live" | "denied" | "waiting">("idle");
   const gpsBoundId = useRef<string | null>(null);
   const sessionRef = useRef<Session | null>(null);
 
@@ -180,7 +179,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       vehiclePlate: current.vehiclePlate,
       role: current.role,
       sharing: current.role === "driver" && Boolean(fix),
-      simulated: gpsModeRef.current === "simulated",
+      simulated: false,
       lat: current.role === "driver" ? fix?.lat ?? null : null,
       lng: current.role === "driver" ? fix?.lng ?? null : null,
       heading: fix?.heading ?? null,
@@ -211,16 +210,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     }
   }, [applySnapshot]);
 
-  const stopSimulation = useCallback(() => {
-    if (simTimer.current) {
-      clearInterval(simTimer.current);
-      simTimer.current = null;
-    }
-  }, []);
-
   const applyRealFix = useCallback(
     (pos: GeolocationPosition, current: Session) => {
-      stopSimulation();
       const firstLive = gpsModeRef.current !== "live";
       lastFix.current = {
         lat: pos.coords.latitude,
@@ -241,34 +232,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       });
       void sendHeartbeat(current);
     },
-    [sendHeartbeat, stopSimulation],
+    [sendHeartbeat],
   );
-
-  const startSimulation = useCallback((current: Session) => {
-    if (simTimer.current) clearInterval(simTimer.current);
-    const origin = { lat: DEFAULT_CENTER.lat, lng: DEFAULT_CENTER.lng };
-    let t = 0;
-    gpsModeRef.current = "simulated";
-    setGpsState("simulated");
-    setGpsHint(
-      "This pin is a training route near Nairobi, not your phone. Tap Use my real GPS and allow location.",
-    );
-    simTimer.current = setInterval(() => {
-      t += 1;
-      const lat = origin.lat + Math.sin(t / 18) * 0.008;
-      const lng = origin.lng + Math.cos(t / 14) * 0.01;
-      lastFix.current = {
-        lat,
-        lng,
-        heading: (t * 12) % 360,
-        speedMps: 8.5,
-        accuracy: 12,
-      };
-      setHasFix(true);
-      setMyPos({ lat, lng, accuracy: 12 });
-      void sendHeartbeat(current);
-    }, 2000);
-  }, [sendHeartbeat]);
 
   const requestGps = useCallback(
     (current: Session) => {
@@ -375,7 +340,6 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         navigator.geolocation.clearWatch(watchId.current);
         watchId.current = null;
       }
-      stopSimulation();
       return;
     }
     const timer = window.setTimeout(() => {
@@ -384,7 +348,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       }
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [session, requestGps, stopSimulation]);
+  }, [session, requestGps]);
 
   function join(payload: JoinPayload) {
     const next: Session = { ...payload };
@@ -431,6 +395,14 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   }
 
   function askBn(jobId: string) {
+    const job = courses.find((course) => course.id === jobId);
+    if (job && session?.id) {
+      const blocking = inProgressJobForDriver(courses, session.id, job.id);
+      if (blocking) {
+        setBnError(startBlockedMessage(blocking, job.reference));
+        return;
+      }
+    }
     setBnJobId(jobId);
     setBnValue("");
     setBnError("");
@@ -462,16 +434,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   }
 
   const myJobs = useMemo(() => {
-    const live = courses.filter(
-      (course) =>
-        course.assignedDeviceId === session?.id &&
-        (course.status === "assigned" || course.status === "en_route"),
-    );
-    const current =
-      live.find((course) => course.status === "en_route") ??
-      [...live].sort((a, b) => b.updatedAt - a.updatedAt)[0] ??
-      null;
-    return current ? [current] : [];
+    if (!session?.id) return [];
+    return liveJobsForDriver(courses, session.id);
   }, [courses, session?.id]);
   const myHistory = useMemo(
     () =>
@@ -483,6 +447,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     [courses, session?.id],
   );
   const currentJob = myJobs.find((c) => c.status === "en_route") ?? myJobs[0] ?? null;
+  const queuedJob = myJobs.find((job) => job.id !== currentJob?.id) ?? null;
+  const blockingStart = currentJob?.status === "en_route" ? currentJob : null;
   const myAlerts = useMemo(
     () =>
       notifications.filter(
@@ -586,7 +552,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         speedMps: fromServer?.speedMps ?? null,
         accuracy: myPos.accuracy,
         sharing: true,
-        simulated: gpsState === "simulated",
+        simulated: false,
         lastSeen: now,
       },
     ];
@@ -711,28 +677,17 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
 
       {gpsState !== "live" && session.role === "driver" ? (
         <div className="absolute top-[5.5rem] right-3 z-50 max-w-[17rem] rounded-xl border border-[#00a4e8]/40 bg-[#151a45] p-3 text-xs leading-5 text-white shadow-lg">
-          <div className="font-semibold text-[#7dd8f7]">
-            {gpsState === "simulated" ? "Not your real position" : "Waiting for your GPS"}
-          </div>
+          <div className="font-semibold text-[#7dd8f7]">En attente du GPS</div>
           <p className="mt-1 text-blue-100">
-            {gpsHint || "Allow location so the YOU pin is this phone, not the training city."}
+            {gpsHint || "Autorisez la localisation : le pin suit uniquement le GPS de ce téléphone."}
           </p>
           <Button
             size="sm"
             className="mt-2 h-8 w-full rounded-lg"
             onClick={() => requestGps(session)}
           >
-            Use my real GPS
+            Activer ma géolocalisation
           </Button>
-          {gpsState !== "simulated" ? (
-            <button
-              type="button"
-              className="mt-2 w-full text-center text-[11px] text-blue-200/70 underline"
-              onClick={() => startSimulation(session)}
-            >
-              Use training route instead
-            </button>
-          ) : null}
         </div>
       ) : null}
 
@@ -779,7 +734,9 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                 {!dockOpen ? (
                   <div className="truncate text-[11px] text-blue-100">
                     {currentJob
-                      ? `${currentJob.reference} · ${COURSE_STATUS_LABEL[currentJob.status]} · ${currentJob.clientName}`
+                      ? `${currentJob.reference} · ${COURSE_STATUS_LABEL[currentJob.status]}${
+                          queuedJob ? ` · puis ${queuedJob.reference}` : ""
+                        }`
                       : vehicleLine(session)}
                   </div>
                 ) : null}
@@ -801,11 +758,9 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                     {session.role === "driver" ? "En ligne" : "Dispatch"}
                     {gpsState === "live"
                       ? ` · GPS${myPos?.accuracy != null ? ` ±${Math.round(myPos.accuracy)} m` : ""}`
-                      : gpsState === "simulated"
-                        ? " · GPS d’entraînement"
-                        : gpsState === "waiting"
-                          ? " · GPS…"
-                          : ""}
+                      : gpsState === "waiting"
+                        ? " · GPS…"
+                        : ""}
                   </div>
                 </div>
                 <div className="flex shrink-0 gap-2">
@@ -861,8 +816,19 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                       </div>
                                       <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
                                       {job.notes ? <div className="mt-2"><DispatchNote notes={job.notes} /></div> : null}
-                                      <div className="mt-3 flex gap-2">
-                                        {job.status === "assigned" ? (
+                                      {job.clientPhone ? (
+                                        <div className="mt-1 text-xs text-muted-foreground">{job.clientPhone}</div>
+                                      ) : null}
+                                      {formatKm(job.distanceMeters) ? (
+                                        <div className="mt-1 text-xs text-muted-foreground">{formatKm(job.distanceMeters)}</div>
+                                      ) : null}
+                                      <div className="mt-3 flex flex-col gap-2">
+                                        {job.status === "assigned" && blockingStart ? (
+                                          <p className="text-xs leading-5 text-amber-800">
+                                            {startBlockedMessage(blockingStart, job.reference)}
+                                          </p>
+                                        ) : null}
+                                        {job.status === "assigned" && !blockingStart ? (
                                           <Button size="sm" onClick={() => askBn(job.id)}>
                                             Démarrer
                                           </Button>
@@ -963,6 +929,25 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                   En attente d’une course du bureau.
                 </p>
               )}
+              {queuedJob ? (
+                <div className="mt-2 rounded-2xl border border-white/15 bg-black/20 px-3 py-2 text-xs text-blue-50">
+                  <div className="font-medium text-[#7dd8f7]">Prochaine course · {queuedJob.reference}</div>
+                  <div className="mt-1 text-blue-100">{queuedJob.clientName}</div>
+                  <div className="mt-1 text-blue-100">
+                    {shortPlace(queuedJob.pickupAddress)} → {shortPlace(queuedJob.dropoffAddress)}
+                  </div>
+                  {queuedJob.notes ? (
+                    <div className="mt-2">
+                      <DispatchNote notes={queuedJob.notes} tone="dark" />
+                    </div>
+                  ) : null}
+                  <p className="mt-2 text-[11px] leading-4 text-amber-100">
+                    {currentJob?.status === "en_route"
+                      ? startBlockedMessage(currentJob, queuedJob.reference)
+                      : "Visible dès maintenant. Vous la démarrerez après la course en cours."}
+                  </p>
+                </div>
+              ) : null}
             </div>
           ) : currentJob ? (
             <div className="flex items-center justify-between gap-2 px-4 pb-3">

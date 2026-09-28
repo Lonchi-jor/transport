@@ -3,7 +3,7 @@ import { createCourse } from "@/lib/course-store";
 import { getDriver, isVehicleType } from "@/lib/driver-store";
 import { drivingRoute, resolvePlace } from "@/lib/geo";
 import { radioSnapshot } from "@/lib/snapshot";
-import { isCourseAssignError } from "@/lib/assignment";
+import { isCourseRuleError } from "@/lib/assignment";
 import type { CourseDraft, VehicleType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({ course, ...radioSnapshot() });
   } catch (error) {
-    if (isCourseAssignError(error)) {
+    if (isCourseRuleError(error)) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     throw error;

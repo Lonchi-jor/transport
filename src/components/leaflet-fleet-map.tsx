@@ -178,6 +178,7 @@ export default function LeafletFleetMap({
           key={device.id}
           position={[device.lat as number, device.lng as number]}
           icon={markerIcon(device, device.id === selectedId, device.id === selfId, now)}
+          draggable={false}
           eventHandlers={{ click: () => onSelect(device.id) }}
         >
           <Tooltip direction="top" offset={[0, -28]} opacity={1} className="fleet-hover">
@@ -208,7 +209,6 @@ export default function LeafletFleetMap({
               {formatWhen(device.lastSeen) ? (
                 <div>Horodatage : {formatWhen(device.lastSeen)}</div>
               ) : null}
-              {device.simulated ? <div>Training / fake GPS</div> : null}
             </div>
           </Popup>
         </Marker>

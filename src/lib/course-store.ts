@@ -9,8 +9,10 @@ import { shortPlace } from "./format";
 import {
   assignmentBlockedMessage,
   CourseAssignError,
-  heldCourseForDriver,
-  isHandsFullStatus,
+  CourseStartError,
+  inProgressJobForDriver,
+  isDriverAtCapacity,
+  liveJobsForDriver,
 } from "./assignment";
 
 const FILE = path.join(process.cwd(), ".data", "courses.json");
@@ -98,21 +100,25 @@ export function listCourses(): Course[] {
 
 export function listCoursesForDriver(driverId: string): Course[] {
   const mine = listCourses().filter((course) => course.assignedDeviceId === driverId);
-  const live = mine
-    .filter((course) => isHandsFullStatus(course.status))
-    .sort((a, b) => {
-      if (a.status !== b.status) return a.status === "en_route" ? -1 : 1;
-      return b.updatedAt - a.updatedAt;
-    });
+  const live = liveJobsForDriver(mine, driverId);
   const history = mine.filter((course) => course.status === "done" || course.status === "cancelled");
-  return [...(live[0] ? [live[0]] : []), ...history];
+  return [...live, ...history];
 }
 
 function assertCanAssign(driverId: string, exceptCourseId?: string) {
-  const held = heldCourseForDriver(listCourses(), driverId, exceptCourseId);
-  if (!held) return;
+  if (!isDriverAtCapacity(listCourses(), driverId, exceptCourseId)) return;
+  const held = liveJobsForDriver(listCourses(), driverId, exceptCourseId);
   const account = getDriver(driverId);
   throw new CourseAssignError(assignmentBlockedMessage(held, account?.callSign));
+}
+
+function assertCanStart(course: Course) {
+  if (!course.assignedDeviceId) return;
+  const blocking = inProgressJobForDriver(listCourses(), course.assignedDeviceId, course.id);
+  if (!blocking) return;
+  throw new CourseStartError(
+    `Terminez d’abord ${blocking.reference} avant de démarrer ${course.reference}.`,
+  );
 }
 
 export function getCourse(id: string) {
@@ -303,6 +309,7 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
       return null;
     }
     if (patch.status === "en_route") {
+      assertCanStart(next);
       next.startedAt = next.startedAt ?? Date.now();
     }
     if (patch.status === "done" || patch.status === "cancelled") {

@@ -13,7 +13,7 @@ import type { Course, FleetSnapshot, VehicleType } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
 import type { PlaceHit } from "@/lib/geo";
 import { ensureDispatcherId } from "@/lib/dispatcher";
-import { assignmentBlockedMessage, heldCourseForDriver } from "@/lib/assignment";
+import { assignmentBlockedMessage, isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
 
 const CourseComposerMap = dynamic(() => import("@/components/course-composer-map"), {
   ssr: false,
@@ -106,8 +106,8 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
       }));
       return;
     }
-    const held = heldCourseForDriver(courses, driver.id);
-    if (held) {
+    const held = liveJobsForDriver(courses, driver.id);
+    if (isDriverAtCapacity(courses, driver.id)) {
       setError(assignmentBlockedMessage(held, driver.callSign));
       setForm((current) => ({
         ...current,
@@ -231,8 +231,8 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
       return;
     }
     if (form.assignedDeviceId) {
-      const held = heldCourseForDriver(courses, form.assignedDeviceId);
-      if (held) {
+      const held = liveJobsForDriver(courses, form.assignedDeviceId);
+      if (isDriverAtCapacity(courses, form.assignedDeviceId)) {
         setError(assignmentBlockedMessage(held, assignedDriver?.callSign));
         return;
       }
@@ -439,8 +439,8 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
               </div>
             ) : (
               <p className="text-xs text-[#5b6294]">
-                Choisissez le chauffeur : son véhicule se remplit tout seul. Un chauffeur déjà en course (attribuée ou
-                en cours) n’est pas disponible.{" "}
+                Choisissez le chauffeur : son véhicule se remplit tout seul. Jusqu’à deux courses : la seconde
+                s’affiche sur le téléphone, mais il doit terminer la première avant de la démarrer.{" "}
                 <Link href="/admin/chauffeurs" className="text-[#00a4e8] hover:underline">
                   Gérer les chauffeurs
                 </Link>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DriverAssignSelect, Field, VehicleFields } from "@/components/admin-fields";
 import type { Course, VehicleType } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
-import { assignmentBlockedMessage, heldCourseForDriver } from "@/lib/assignment";
+import { assignmentBlockedMessage, isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
 
 export default function CourseEditor({
   course,
@@ -33,8 +33,8 @@ export default function CourseEditor({
 
   function pickDriver(id: string) {
     if (id) {
-      const held = heldCourseForDriver(courses, id, course.id);
-      if (held) {
+      const held = liveJobsForDriver(courses, id, course.id);
+      if (isDriverAtCapacity(courses, id, course.id)) {
         setError(assignmentBlockedMessage(held, roster.find((item) => item.id === id)?.callSign));
         return;
       }
@@ -53,8 +53,8 @@ export default function CourseEditor({
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (assignedDeviceId) {
-      const held = heldCourseForDriver(courses, assignedDeviceId, course.id);
-      if (held) {
+      const held = liveJobsForDriver(courses, assignedDeviceId, course.id);
+      if (isDriverAtCapacity(courses, assignedDeviceId, course.id)) {
         setError(assignmentBlockedMessage(held, roster.find((item) => item.id === assignedDeviceId)?.callSign));
         return;
       }
@@ -74,7 +74,8 @@ export default function CourseEditor({
     <form onSubmit={(event) => void submit(event)} className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
       <h3 className="text-base font-semibold text-[#2b308f]">Modifier {course.reference}</h3>
       <p className="mb-3 text-xs text-[#5b6294]">
-        Un chauffeur ne peut avoir qu’une course à la fois. Changez le chauffeur : son véhicule se remet tout seul.
+        Un chauffeur peut avoir jusqu’à deux courses. La seconde est visible sur le téléphone, mais il doit
+        terminer la première avant de la démarrer. Changez le chauffeur : son véhicule se remet tout seul.
       </p>
       <div className="grid gap-3">
         <Field label="Chauffeur" htmlFor={`edit-driver-${course.id}`}>

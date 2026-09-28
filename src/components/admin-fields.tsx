@@ -4,7 +4,7 @@ import type { MouseEvent, ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { telHref } from "@/lib/format";
-import { heldCourseForDriver } from "@/lib/assignment";
+import { isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
 import type { Course } from "@/lib/types";
 import { VEHICLE_META, VEHICLE_TYPES, type VehicleType } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
@@ -54,14 +54,17 @@ export function DriverAssignSelect({
     >
       <option value="">{emptyLabel}</option>
       {roster.map((driver) => {
-        const held = heldCourseForDriver(courses, driver.id, exceptCourseId);
-        const suffix = held
-          ? ` (occupé · ${held.reference})`
-          : liveById?.has(driver.id)
-            ? " (en ligne)"
-            : "";
+        const live = liveJobsForDriver(courses, driver.id, exceptCourseId);
+        const full = isDriverAtCapacity(courses, driver.id, exceptCourseId);
+        const suffix = full
+          ? ` (complet · ${live.map((job) => job.reference).join(" · ")})`
+          : live.length === 1
+            ? ` (1 course · ${live[0].reference})`
+            : liveById?.has(driver.id)
+              ? " (en ligne)"
+              : "";
         return (
-          <option key={driver.id} value={driver.id} disabled={Boolean(held)}>
+          <option key={driver.id} value={driver.id} disabled={full}>
             {driver.callSign} — {driver.driverName}
             {suffix}
           </option>
