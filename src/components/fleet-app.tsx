@@ -74,6 +74,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [online, setOnline] = useState(true);
   const [jobsOpen, setJobsOpen] = useState(false);
   const [jobsView, setJobsView] = useState<"now" | "history">("now");
+  const jobsListRef = useRef<HTMLDivElement>(null);
   const [bnOpen, setBnOpen] = useState(false);
   const [bnValue, setBnValue] = useState("");
   const [bnError, setBnError] = useState("");
@@ -470,6 +471,10 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       ),
     [notifications, session?.id],
   );
+
+  useEffect(() => {
+    jobsListRef.current?.scrollTo({ top: 0 });
+  }, [jobsView, jobsOpen]);
   const bnJob = courses.find((course) => course.id === bnJobId) ?? null;
   const follow = useMemo(() => {
     if (!myPos) return null;
@@ -819,68 +824,73 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                     <SheetContent
                       side="bottom"
                       showCloseButton={false}
-                      className="flex h-[min(78dvh,40rem)] flex-col gap-0 rounded-t-3xl p-0"
+                      className="flex max-h-[min(70dvh,calc(100dvh-6.5rem))] flex-col gap-0 overflow-hidden rounded-t-3xl p-0 data-[side=bottom]:h-[min(70dvh,calc(100dvh-6.5rem))] data-[side=bottom]:max-h-[min(70dvh,calc(100dvh-6.5rem))]"
                     >
-                      <SheetHeader className="shrink-0 border-b border-border p-3">
-                        <div className="flex items-start gap-3">
+                      <div className="sticky top-0 z-20 shrink-0 border-b border-[#d5dcf0] bg-white">
+                        <SheetHeader className="p-3 pb-2">
+                          <div className="flex items-start gap-3">
+                            <div className="min-w-0 flex-1">
+                              <SheetTitle>
+                                {jobsView === "history" ? "Historique" : "Courses attribuées"}
+                              </SheetTitle>
+                              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                {jobsView === "history"
+                                  ? "Faites défiler vos courses terminées. La croix ferme et ramène à la carte."
+                                  : "Uniquement la course (ou les deux) que le bureau vous a donnée maintenant."}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              aria-label="Fermer et revenir à la carte"
+                              className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-[#d5dcf0] bg-[#f4f7fc] text-[#2b308f] shadow-sm"
+                              onClick={() => setJobsOpen(false)}
+                            >
+                              <X className="size-5" />
+                            </button>
+                          </div>
+                        </SheetHeader>
+                        <div className="grid grid-cols-2 gap-2 px-3 pb-3">
                           <button
                             type="button"
-                            aria-label="Fermer et revenir à la carte"
-                            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-[#d5dcf0] bg-white text-[#2b308f] shadow-sm"
-                            onClick={() => setJobsOpen(false)}
+                            onClick={() => setJobsView("now")}
+                            className={`rounded-xl px-3 py-2.5 text-left text-xs font-semibold ${
+                              jobsView === "now"
+                                ? "bg-[#2b308f] text-white"
+                                : "bg-[#eef3fb] text-[#5b6294]"
+                            }`}
                           >
-                            <X className="size-5" />
+                            Maintenant
+                            <div className="mt-0.5 font-normal opacity-90">
+                              {myJobs.length === 0
+                                ? "Aucune attribuée"
+                                : `${myJobs.length} attribuée${myJobs.length > 1 ? "s" : ""}`}
+                            </div>
                           </button>
-                          <div className="min-w-0 flex-1 pt-1">
-                            <SheetTitle>
-                              {jobsView === "history" ? "Historique" : "Courses attribuées"}
-                            </SheetTitle>
-                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                              {jobsView === "history"
-                                ? "Vos courses terminées ou annulées — pas celles des autres chauffeurs."
-                                : "Uniquement la course (ou les deux) que le bureau vous a donnée maintenant."}
-                            </p>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setJobsView("history")}
+                            className={`rounded-xl px-3 py-2.5 text-left text-xs font-semibold ${
+                              jobsView === "history"
+                                ? "bg-[#2b308f] text-white"
+                                : "bg-[#eef3fb] text-[#5b6294]"
+                            }`}
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              <History className="size-3.5" />
+                              Historique
+                            </span>
+                            <div className="mt-0.5 font-normal opacity-90">
+                              {myHistory.length === 0
+                                ? "Pas encore"
+                                : `${myHistory.length} terminée${myHistory.length > 1 ? "s" : ""}`}
+                            </div>
+                          </button>
                         </div>
-                      </SheetHeader>
-                      <div className="grid shrink-0 grid-cols-2 gap-2 px-4 py-3">
-                        <button
-                          type="button"
-                          onClick={() => setJobsView("now")}
-                          className={`rounded-xl px-3 py-2.5 text-left text-xs font-semibold ${
-                            jobsView === "now"
-                              ? "bg-[#2b308f] text-white"
-                              : "bg-[#eef3fb] text-[#5b6294]"
-                          }`}
-                        >
-                          Maintenant
-                          <div className="mt-0.5 font-normal opacity-90">
-                            {myJobs.length === 0
-                              ? "Aucune attribuée"
-                              : `${myJobs.length} attribuée${myJobs.length > 1 ? "s" : ""}`}
-                          </div>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setJobsView("history")}
-                          className={`rounded-xl px-3 py-2.5 text-left text-xs font-semibold ${
-                            jobsView === "history"
-                              ? "bg-[#2b308f] text-white"
-                              : "bg-[#eef3fb] text-[#5b6294]"
-                          }`}
-                        >
-                          <span className="inline-flex items-center gap-1">
-                            <History className="size-3.5" />
-                            Historique
-                          </span>
-                          <div className="mt-0.5 font-normal opacity-90">
-                            {myHistory.length === 0
-                              ? "Pas encore"
-                              : `${myHistory.length} terminée${myHistory.length > 1 ? "s" : ""}`}
-                          </div>
-                        </button>
                       </div>
-                      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+                      <div
+                        ref={jobsListRef}
+                        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+                      >
                         {jobsView === "now" ? (
                           myJobs.length === 0 ? (
                             <p className="py-8 text-sm text-muted-foreground">
@@ -938,30 +948,30 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                         ) : (
                           <ul className="space-y-2">
                             {myHistory.map((job) => (
-                              <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
-                                <div className="flex items-center justify-between gap-2">
-                                  <div className="font-semibold text-[#2b308f]">{job.reference}</div>
-                                  <Badge variant="secondary">{COURSE_STATUS_LABEL[job.status]}</Badge>
-                                </div>
-                                <div className="mt-1 text-sm">{job.clientName}</div>
-                                <div className="mt-2 text-xs text-muted-foreground">
-                                  <CourseItinerary course={job} compact />
-                                </div>
-                                <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
-                                {job.bnNumber ? (
-                                  <div className="mt-1 text-xs text-muted-foreground">BN {job.bnNumber}</div>
-                                ) : null}
-                                {formatKm(job.distanceMeters) ? (
-                                  <div className="mt-1 text-xs text-muted-foreground">{formatKm(job.distanceMeters)}</div>
-                                ) : null}
-                                {courseElapsedLabel(job, now) ? (
-                                  <div className="mt-1 text-xs font-medium">{courseElapsedLabel(job, now)}</div>
-                                ) : null}
-                                {formatWhen(job.finishedAt ?? job.updatedAt) ? (
-                                  <div className="mt-1 text-[11px] text-muted-foreground">
-                                    {formatWhen(job.finishedAt ?? job.updatedAt)}
+                              <li key={job.id} className="rounded-2xl border border-[#e4e8f4] bg-white px-3 py-2.5">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="font-semibold text-[#2b308f]">{job.reference}</div>
+                                    <div className="truncate text-sm">{job.clientName}</div>
+                                    <div className="mt-0.5 truncate text-xs text-[#5b6294]">
+                                      <CourseItinerary course={job} compact />
+                                    </div>
                                   </div>
-                                ) : null}
+                                  <Badge variant="secondary" className="shrink-0">
+                                    {COURSE_STATUS_LABEL[job.status]}
+                                  </Badge>
+                                </div>
+                                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] leading-4 text-[#5b6294]">
+                                  <span>{vehicleLine(job)}</span>
+                                  {job.bnNumber ? <span>BN {job.bnNumber}</span> : null}
+                                  {formatKm(job.distanceMeters) ? <span>{formatKm(job.distanceMeters)}</span> : null}
+                                  {courseElapsedLabel(job, now) ? (
+                                    <span className="font-medium text-[#2b308f]">{courseElapsedLabel(job, now)}</span>
+                                  ) : null}
+                                  {formatWhen(job.finishedAt ?? job.updatedAt) ? (
+                                    <span>{formatWhen(job.finishedAt ?? job.updatedAt)}</span>
+                                  ) : null}
+                                </div>
                               </li>
                             ))}
                           </ul>
