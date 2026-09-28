@@ -135,6 +135,8 @@ export type CoursePatch = {
 
 export const NOTIFICATION_KINDS = ["course_assigned", "course_done"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+/** Shared inbox so every dispatch desk sees a finished job, not only the browser that created it. */
+export const DISPATCH_INBOX = "dispatch";
 
 export type AppNotification = {
   id: string;

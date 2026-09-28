@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import type { AppNotification, NotificationKind } from "./types";
-import { NOTIFICATION_KINDS } from "./types";
+import { DISPATCH_INBOX, NOTIFICATION_KINDS } from "./types";
 
 const FILE = path.join(process.cwd(), ".data", "notifications.json");
 const MAX = 120;
@@ -17,8 +17,11 @@ function load() {
     const parsed = JSON.parse(raw) as Partial<AppNotification>[];
     items.length = 0;
     if (!Array.isArray(parsed)) return;
+    let remapped = false;
     for (const row of parsed) {
       if (!row?.id || !isKind(row.kind) || !row.targetId || !row.courseId) continue;
+      const targetId = row.kind === "course_done" ? DISPATCH_INBOX : row.targetId;
+      if (row.kind === "course_done" && row.targetId !== DISPATCH_INBOX) remapped = true;
       items.push({
         id: row.id,
         kind: row.kind,
@@ -27,11 +30,12 @@ function load() {
         title: row.title ?? "",
         body: row.body ?? "",
         targetRole: row.targetRole === "driver" ? "driver" : "dispatcher",
-        targetId: row.targetId,
+        targetId,
         createdAt: row.createdAt ?? Date.now(),
         readAt: row.readAt ?? null,
       });
     }
+    if (remapped) save();
   } catch {
     /* first run */
   }

@@ -60,13 +60,11 @@ export function useAdminFleet() {
   }, []);
 
   const dismissAlerts = useCallback(
-    async (input: { ids?: string[]; courseId?: string } = {}, targetId = dispatcherId) => {
-      if (!targetId) return;
+    async (input: { ids?: string[]; courseId?: string } = {}) => {
       const ids = input.ids ?? [];
       if (!ids.length && !input.courseId) return;
       setNotifications((prev) =>
         prev.filter((item) => {
-          if (item.targetId !== targetId) return true;
           if (ids.length && ids.includes(item.id)) return false;
           if (input.courseId && item.courseId === input.courseId && item.kind === "course_done") return false;
           return true;
@@ -77,10 +75,9 @@ export function useAdminFleet() {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            targetId,
             ids: ids.length ? ids : undefined,
             courseId: input.courseId,
-            kind: input.courseId ? "course_done" : undefined,
+            kind: "course_done",
           }),
         });
         if (res.ok) applySnapshot((await res.json()) as FleetSnapshot);
@@ -88,22 +85,19 @@ export function useAdminFleet() {
         /* keep optimistic */
       }
     },
-    [applySnapshot, dispatcherId],
+    [applySnapshot],
   );
 
   const markAlertsRead = useCallback(
-    async (ids: string[], targetId = dispatcherId) => {
-      await dismissAlerts({ ids }, targetId);
+    async (ids: string[]) => {
+      await dismissAlerts({ ids });
     },
-    [dismissAlerts, dispatcherId],
+    [dismissAlerts],
   );
 
   const alerts = useMemo(
-    () =>
-      notifications.filter(
-        (item) => item.kind === "course_done" && item.targetId === dispatcherId && !item.readAt,
-      ),
-    [notifications, dispatcherId],
+    () => notifications.filter((item) => item.kind === "course_done" && !item.readAt),
+    [notifications],
   );
 
   const liveJobs = useMemo(() => activeCourses(courses), [courses]);

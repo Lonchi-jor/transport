@@ -13,21 +13,29 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
   }
   const targetId = typeof body.targetId === "string" ? body.targetId.trim() : "";
-  if (!targetId) {
-    return NextResponse.json({ error: "Destinataire manquant." }, { status: 400 });
-  }
   const ids = Array.isArray(body.ids)
     ? body.ids.filter((id): id is string => typeof id === "string")
     : undefined;
   const courseId = typeof body.courseId === "string" ? body.courseId.trim() : "";
   const kind =
     body.kind === "course_assigned" || body.kind === "course_done" ? body.kind : undefined;
+  const driver = targetId ? getDriver(targetId) : null;
+  if (driver) {
+    dismissNotifications({
+      targetId,
+      ids,
+      courseId: courseId || undefined,
+      kind: kind === "course_assigned" ? kind : undefined,
+    });
+    return NextResponse.json(driverSnapshot(targetId));
+  }
+  if (!ids?.length && !courseId) {
+    return NextResponse.json({ error: "Alerte manquante." }, { status: 400 });
+  }
   dismissNotifications({
-    targetId,
     ids,
     courseId: courseId || undefined,
-    kind,
+    kind: kind ?? "course_done",
   });
-  const snapshot = getDriver(targetId) ? driverSnapshot(targetId) : radioSnapshot();
-  return NextResponse.json(snapshot);
+  return NextResponse.json(radioSnapshot());
 }

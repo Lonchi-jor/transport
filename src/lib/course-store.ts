@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import type { Course, CourseDraft, CoursePatch, CourseStatus, CourseStop, VehicleType } from "./types";
-import { COURSE_STATUSES, MAX_TOUR_STOPS } from "./types";
+import { COURSE_STATUSES, DISPATCH_INBOX, MAX_TOUR_STOPS } from "./types";
 import { getDevice } from "./fleet-store";
 import { getDriver, isVehicleType, normalizePlate, normalizeTrailerPlates } from "./driver-store";
 import { addNotification, dismissNotifications } from "./notification-store";
@@ -251,7 +251,6 @@ function notifyAssigned(course: Course) {
 }
 
 function notifyDone(course: Course) {
-  if (!course.createdByAdminId) return;
   const driver = course.assignedDriverName
     ? `${course.assignedCallSign ?? ""} — ${course.assignedDriverName}`.replace(/^ — /, "")
     : "Le chauffeur";
@@ -262,8 +261,8 @@ function notifyDone(course: Course) {
     title: `Course terminée ${course.reference}`,
     body: `${driver} a terminé ${course.clientName}.`,
     targetRole: "dispatcher",
-    targetId: course.createdByAdminId,
-    unique: "always",
+    targetId: DISPATCH_INBOX,
+    unique: "unread",
   });
 }
 

@@ -66,8 +66,8 @@ export default function AdminChrome({
           <NotificationBell
             items={alerts}
             label="Courses terminées"
-            empty="Aucune course terminée pour ce poste."
-            hint="Seules les courses créées depuis cet ordinateur vous alertent."
+            empty="Aucune course terminée pour le moment."
+            hint="La cloche sonne dès qu’un chauffeur termine une course."
             onMarkRead={(ids) => onMarkAlertsRead?.(ids)}
             onOpenItem={onOpenAlert}
           />

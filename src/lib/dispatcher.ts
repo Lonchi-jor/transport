@@ -14,6 +14,7 @@ export function subscribeDispatcher(onStoreChange: () => void) {
   listeners.add(onStoreChange);
   if (typeof window !== "undefined" && !readStoredId()) {
     window.localStorage.setItem(KEY, crypto.randomUUID());
+    queueMicrotask(emit);
   }
   return () => {
     listeners.delete(onStoreChange);
