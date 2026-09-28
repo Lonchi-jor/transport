@@ -24,7 +24,7 @@ Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. U
 
 ## Téléphone chauffeur
 
-Ouvrez [http://localhost:43147/](http://localhost:43147/) (ou le lien HTTPS `npm run phone`). Entrez **uniquement** l’indicatif et le PIN créés au bureau. Pas d’inscription sur le portable.
+Ouvrez [http://localhost:43147/](http://localhost:43147/) (ou le lien HTTPS `npm run phone`). Entrez **uniquement** l’indicatif et le PIN créés au bureau. Pas d’inscription sur le portable. Après la première connexion, **ce téléphone les mémorise** et se reconnecte tout seul à l’ouverture.
 
 Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route**. Avant le départ, sa carte montre **uniquement sa position**. Dès qu’il a démarré, l’itinéraire part de **sa position actuelle** jusqu’aux destinations du tour — jamais les autres véhicules. Le bouton **Courses** n’affiche que **ses** courses **attribuées maintenant** ; l’**historique** s’ouvre à part. La barre du bas (chauffeur + course) se **baisse** et se **remonte** avec la flèche. Pour **terminer**, il **prend une photo** du **bon de livraison** et l’envoie : le bureau reçoit un **PDF couleur**. Le bureau **télécharge** le BL depuis `/admin`.
 

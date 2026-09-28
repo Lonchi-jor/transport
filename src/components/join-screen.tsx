@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Monitor } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
@@ -8,6 +8,7 @@ import PhoneAccess from "@/components/phone-access";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import type { VehicleType } from "@/lib/types";
+import { loadCredentials, saveCredentials, shouldAutoLogin } from "@/lib/driver-session";
 
 export type JoinPayload = {
   id: string;
@@ -25,28 +26,22 @@ type Props = {
 const fieldClass =
   "h-11 w-full min-w-0 rounded-xl border border-input bg-transparent px-2.5 text-base outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-function readField(form: HTMLFormElement, name: string) {
-  const raw = new FormData(form).get(name);
-  if (typeof raw === "string" && raw.trim()) return raw;
-  const el = form.elements.namedItem(name);
-  if (el instanceof HTMLInputElement) return el.value;
-  return "";
-}
-
 export default function JoinScreen({ onJoin }: Props) {
+  const [callSign, setCallSign] = useState("");
+  const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const onJoinRef = useRef(onJoin);
+  onJoinRef.current = onJoin;
 
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const sign = readField(form, "callSign").trim();
-    const code = readField(form, "pin").replace(/\D/g, "");
-    if (!sign) {
+  async function login(sign: string, code: string) {
+    const nextSign = sign.trim();
+    const nextPin = code.replace(/\D/g, "");
+    if (!nextSign) {
       setError("Entrez l’indicatif donné par le bureau (ex. ME-01).");
       return;
     }
-    if (code.length < 4) {
+    if (nextPin.length < 4) {
       setError("Entrez le code PIN donné par le bureau.");
       return;
     }
@@ -56,7 +51,7 @@ export default function JoinScreen({ onJoin }: Props) {
       const res = await fetch("/api/drivers/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ callSign: sign, pin: code }),
+        body: JSON.stringify({ callSign: nextSign, pin: nextPin }),
       });
       const data = (await res.json()) as {
         driver?: JoinPayload;
@@ -66,7 +61,8 @@ export default function JoinScreen({ onJoin }: Props) {
         setError(data.error || "Connexion impossible.");
         return;
       }
-      onJoin({
+      saveCredentials(nextSign, nextPin);
+      onJoinRef.current({
         id: data.driver.id,
         callSign: data.driver.callSign,
         driverName: data.driver.driverName,
@@ -79,6 +75,24 @@ export default function JoinScreen({ onJoin }: Props) {
     } finally {
       setBusy(false);
     }
+  }
+
+  useEffect(() => {
+    const creds = loadCredentials();
+    if (creds) {
+      setCallSign(creds.callSign);
+      setPin(creds.pin);
+    }
+    if (creds && shouldAutoLogin()) {
+      void login(creds.callSign, creds.pin);
+    }
+    // Reconnect once from the PIN saved on this phone.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await login(callSign, pin);
   }
 
   return (
@@ -95,7 +109,7 @@ export default function JoinScreen({ onJoin }: Props) {
             Entrez vos identifiants CCMM
           </h1>
           <p className="mt-2 max-w-sm text-sm leading-6 text-[#5b6294]">
-            Le bureau crée votre fiche. Sur le téléphone, connectez-vous seulement avec l’indicatif et le code PIN.
+            Une fois connecté, ce téléphone garde l’indicatif et le PIN. À la prochaine ouverture, la connexion se fait toute seule.
           </p>
           <Link
             href="/admin"
@@ -107,6 +121,9 @@ export default function JoinScreen({ onJoin }: Props) {
         </div>
 
         <form
+          method="post"
+          action="/api/drivers/login"
+          autoComplete="on"
           onSubmit={(event) => void submit(event)}
           className="flex flex-col gap-5 rounded-3xl border border-[#d5dcf0] bg-white p-5 shadow-[0_12px_40px_rgba(43,48,143,0.08)]"
         >
@@ -114,11 +131,16 @@ export default function JoinScreen({ onJoin }: Props) {
             <Label htmlFor="callSign">Indicatif</Label>
             <input
               id="callSign"
-              name="callSign"
-              defaultValue=""
-              onInput={() => setError("")}
+              name="username"
+              value={callSign}
+              onChange={(event) => {
+                setCallSign(event.target.value);
+                setError("");
+              }}
               placeholder="ME-01"
               autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
               autoComplete="username"
               className={fieldClass}
             />
@@ -128,11 +150,11 @@ export default function JoinScreen({ onJoin }: Props) {
             <Label htmlFor="pin">Code PIN</Label>
             <input
               id="pin"
-              name="pin"
-              defaultValue=""
-              onInput={(event) => {
-                const el = event.currentTarget;
-                el.value = el.value.replace(/\D/g, "").slice(0, 6);
+              name="password"
+              type="password"
+              value={pin}
+              onChange={(event) => {
+                setPin(event.target.value.replace(/\D/g, "").slice(0, 6));
                 setError("");
               }}
               placeholder="••••"

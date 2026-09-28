@@ -28,30 +28,19 @@ import {
 import { CourseItinerary } from "@/components/course-itinerary";
 import { Input } from "@/components/ui/input";
 import { inProgressJobForDriver, liveJobsForDriver, startBlockedMessage } from "@/lib/assignment";
+import {
+  clearSession,
+  loadSession,
+  saveSession,
+  skipNextAutoLogin,
+  type DriverSession,
+} from "@/lib/driver-session";
 
-const SESSION_KEY = "transitlive-session";
-
-type Session = JoinPayload;
+type Session = DriverSession;
 
 type Props = {
   googleMapsApiKey: string;
 };
-
-function loadSession(): Session | null {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Session;
-    if (!parsed?.id) return null;
-    return {
-      ...parsed,
-      vehiclePlate: parsed.vehiclePlate ?? "",
-    };
-  } catch {
-    return null;
-  }
-}
 
 function driverApi(path: string, driverId: string) {
   const join = path.includes("?") ? "&" : "?";
@@ -64,6 +53,7 @@ function roundCoord(value: number) {
 
 export default function FleetApp({ googleMapsApiKey }: Props) {
   const [session, setSession] = useState<Session | null>(null);
+  const [sessionReady, setSessionReady] = useState(false);
   const [devices, setDevices] = useState<FleetDevice[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -96,10 +86,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const sessionRef = useRef<Session | null>(null);
 
   useEffect(() => {
-    const saved = loadSession();
-    if (!saved) return;
-    const id = window.setTimeout(() => setSession(saved), 0);
-    return () => window.clearTimeout(id);
+    setSession(loadSession());
+    setSessionReady(true);
   }, []);
 
   useEffect(() => {
@@ -150,7 +138,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           vehicleType: account.vehicleType,
           vehiclePlate,
         };
-        sessionStorage.setItem(SESSION_KEY, JSON.stringify(next));
+        saveSession(next);
         return next;
       });
     }
@@ -199,7 +187,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         body: JSON.stringify(body),
       });
       if (res.status === 401) {
-        sessionStorage.removeItem(SESSION_KEY);
+        clearSession();
+        skipNextAutoLogin();
         lastFix.current = null;
         setHasFix(false);
         setMyPos(null);
@@ -358,7 +347,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
 
   function join(payload: JoinPayload) {
     const next: Session = { ...payload };
-    sessionStorage.setItem(SESSION_KEY, JSON.stringify(next));
+    saveSession(next);
     requestGps(next);
     setSession(next);
   }
@@ -368,7 +357,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     await fetch(driverApi(`/api/fleet?id=${encodeURIComponent(session.id)}`, session.id), {
       method: "DELETE",
     });
-    sessionStorage.removeItem(SESSION_KEY);
+    skipNextAutoLogin();
+    clearSession();
     lastFix.current = null;
     setHasFix(false);
     setMyPos(null);
@@ -583,6 +573,14 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       },
     ];
   }, [devices, session, myPos, now]);
+
+  if (!sessionReady) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#f4f7fc] text-sm text-[#5b6294]">
+        Connexion…
+      </div>
+    );
+  }
 
   if (!session) {
     return <JoinScreen onJoin={join} />;
