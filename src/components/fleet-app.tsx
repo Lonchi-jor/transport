@@ -455,9 +455,10 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         .sort((a, b) => (b.finishedAt ?? b.updatedAt) - (a.finishedAt ?? a.updatedAt)),
     [courses, sessionId],
   );
-  const currentJob = myJobs.find((c) => c.status === "en_route") ?? myJobs[0] ?? null;
+  const runningJob = myJobs.find((job) => job.status === "en_route") ?? null;
+  const currentJob = runningJob ?? myJobs[0] ?? null;
   const queuedJob = myJobs.find((job) => job.id !== currentJob?.id) ?? null;
-  const blockingStart = currentJob?.status === "en_route" ? currentJob : null;
+  const blockingStart = runningJob;
   const myAlerts = useMemo(
     () =>
       notifications.filter(
@@ -477,30 +478,37 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const onUserPan = useCallback(() => setStickToMe(false), []);
   const mapProvider = googleMapsApiKey ? "Google Maps" : "OpenStreetMap";
 
-  const fromKey = myPos
-    ? `${roundCoord(myPos.lat)},${roundCoord(myPos.lng)}`
-    : currentJob?.pickupLat != null && currentJob.pickupLng != null
-      ? `p:${roundCoord(currentJob.pickupLat)},${roundCoord(currentJob.pickupLng)}`
-      : "";
-  const destKey = currentJob
-    ? `${currentJob.id}:${courseStops(currentJob)
+  const fromKey =
+    runningJob && myPos
+      ? `${roundCoord(myPos.lat)},${roundCoord(myPos.lng)}`
+      : runningJob?.pickupLat != null && runningJob.pickupLng != null
+        ? `p:${roundCoord(runningJob.pickupLat)},${roundCoord(runningJob.pickupLng)}`
+        : "";
+  const destKey = runningJob
+    ? `${runningJob.id}:${courseStops(runningJob)
         .map((stop) => `${stop.lat},${stop.lng}`)
         .join("|")}`
     : "";
 
   useEffect(() => {
-    if (!currentJob) return;
-    const stops = courseStops(currentJob).filter(
+    if (!runningJob) {
+      setLiveRoute(null);
+      return;
+    }
+    const stops = courseStops(runningJob).filter(
       (stop) => stop.lat != null && stop.lng != null,
     );
-    if (!stops.length) return;
-    const fromLat = myPos?.lat ?? currentJob.pickupLat;
-    const fromLng = myPos?.lng ?? currentJob.pickupLng;
+    if (!stops.length) {
+      setLiveRoute(null);
+      return;
+    }
+    const fromLat = myPos?.lat ?? runningJob.pickupLat;
+    const fromLng = myPos?.lng ?? runningJob.pickupLng;
     if (fromLat == null || fromLng == null) return;
     const last = stops[stops.length - 1];
     const points = [{ lat: fromLat, lng: fromLng }, ...stops.map((stop) => ({ lat: stop.lat as number, lng: stop.lng as number }))];
     const dropLabel = last.address;
-    const fromLabel = myPos ? "Votre position" : currentJob.pickupAddress;
+    const fromLabel = myPos ? "Votre position" : runningJob.pickupAddress;
     const mappedStops = stops.map((stop) => ({
       lat: stop.lat as number,
       lng: stop.lng as number,
@@ -543,10 +551,10 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destKey, fromKey]);
 
-  const mapRoute = currentJob
-    ? liveRoute && liveRoute.dropoff.label === currentJob.dropoffAddress
+  const mapRoute = runningJob
+    ? liveRoute && liveRoute.dropoff.label === runningJob.dropoffAddress
       ? liveRoute
-      : courseToMapRoute(currentJob)
+      : courseToMapRoute(runningJob)
     : null;
 
   const mapDevices = useMemo(() => {
@@ -692,7 +700,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
           onUserPan={onUserPan}
           selfId={session.id}
           route={mapRoute}
-          frameSelfAndRoute
+          frameSelfAndRoute={Boolean(mapRoute)}
         />
       </div>
 

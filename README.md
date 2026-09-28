@@ -26,7 +26,7 @@ Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. U
 
 Ouvrez [http://localhost:43147/](http://localhost:43147/) (ou le lien HTTPS `npm run phone`). Entrez **uniquement** l’indicatif et le PIN créés au bureau. Pas d’inscription sur le portable.
 
-Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route**. Sur sa carte il voit **uniquement** sa position et **l’itinéraire du tour de ville** — jamais les autres véhicules. Le bouton **Courses** n’affiche que **ses** courses **attribuées maintenant** ; l’**historique** s’ouvre à part. La barre du bas (chauffeur + course) se **baisse** et se **remonte** avec la flèche. Pour **terminer**, il scanne le **bon de livraison** : la caméra **détecte le papier**, le recadre (perspective + couleur, type CamScanner) et le joint à la course. Le bureau **télécharge** le BL depuis `/admin`.
+Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route**. Avant le départ, sa carte montre **uniquement sa position**. Dès qu’il a démarré, l’itinéraire part de **sa position actuelle** jusqu’aux destinations du tour — jamais les autres véhicules. Le bouton **Courses** n’affiche que **ses** courses **attribuées maintenant** ; l’**historique** s’ouvre à part. La barre du bas (chauffeur + course) se **baisse** et se **remonte** avec la flèche. Pour **terminer**, il scanne le **bon de livraison** : la caméra **détecte le papier**, le recadre (perspective + couleur, type CamScanner) et le joint à la course. Le bureau **télécharge** le BL depuis `/admin`.
 
 ## Test on your phone while you develop
 
@@ -59,7 +59,7 @@ npm run phone
 - OpenStreetMap fallback so the app still runs without a key
 - Real GPS by default
 - Address suggestions on voyage / tour destinations (Google Places if keyed, Photon otherwise)
-- Driving itinerary on the phone from the current position through the tour
+- Driving itinerary on the phone **only after the job is started**, from the current GPS through the tour
 - Color CamScanner-style delivery-note scan before a job can be marked done; dispatch can download the JPEG
 
 Chauffeur accounts persist in `.data/drivers.json`. Courses (and the vehicle used on each trip) persist in `.data/courses.json`. Last GPS and last-seen time persist in `.data/presence.json`, so the desk still sees a chauffeur after the phone goes offline.
