@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, ClipboardList, Crosshair, History, LogOut, Smartphone } from "lucide-react";
+import { ChevronDown, ChevronUp, ClipboardList, Crosshair, History, LogOut, Smartphone, X } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import "leaflet/dist/leaflet.css";
 import { Badge } from "@/components/ui/badge";
@@ -818,17 +818,30 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                     </Button>
                     <SheetContent
                       side="bottom"
-                      className="flex h-[min(82dvh,42rem)] flex-col gap-0 rounded-t-3xl p-0"
+                      showCloseButton={false}
+                      className="flex h-[min(78dvh,40rem)] flex-col gap-0 rounded-t-3xl p-0"
                     >
-                      <SheetHeader className="shrink-0 border-b border-border">
-                        <SheetTitle>
-                          {jobsView === "history" ? "Historique" : "Courses attribuées"}
-                        </SheetTitle>
-                        <p className="text-xs leading-5 text-muted-foreground">
-                          {jobsView === "history"
-                            ? "Vos courses terminées ou annulées — pas celles des autres chauffeurs."
-                            : "Uniquement la course (ou les deux) que le bureau vous a donnée maintenant."}
-                        </p>
+                      <SheetHeader className="shrink-0 border-b border-border p-3">
+                        <div className="flex items-start gap-3">
+                          <button
+                            type="button"
+                            aria-label="Fermer et revenir à la carte"
+                            className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-[#d5dcf0] bg-white text-[#2b308f] shadow-sm"
+                            onClick={() => setJobsOpen(false)}
+                          >
+                            <X className="size-5" />
+                          </button>
+                          <div className="min-w-0 flex-1 pt-1">
+                            <SheetTitle>
+                              {jobsView === "history" ? "Historique" : "Courses attribuées"}
+                            </SheetTitle>
+                            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                              {jobsView === "history"
+                                ? "Vos courses terminées ou annulées — pas celles des autres chauffeurs."
+                                : "Uniquement la course (ou les deux) que le bureau vous a donnée maintenant."}
+                            </p>
+                          </div>
+                        </div>
                       </SheetHeader>
                       <div className="grid shrink-0 grid-cols-2 gap-2 px-4 py-3">
                         <button
