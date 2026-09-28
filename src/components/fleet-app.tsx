@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, ClipboardList, Crosshair, LogOut, Smartphone } from "lucide-react";
+import { ChevronDown, ChevronUp, ClipboardList, Crosshair, History, LogOut, Smartphone } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import "leaflet/dist/leaflet.css";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +20,12 @@ import {
   courseStops,
   courseToMapRoute,
   formatKm,
+  formatWhen,
   tourLine,
   vehicleLine,
   type MapRoute,
 } from "@/lib/format";
+import { CourseItinerary } from "@/components/course-itinerary";
 import { Input } from "@/components/ui/input";
 import { inProgressJobForDriver, liveJobsForDriver, startBlockedMessage } from "@/lib/assignment";
 
@@ -71,6 +73,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const [gpsHint, setGpsHint] = useState("");
   const [online, setOnline] = useState(true);
   const [jobsOpen, setJobsOpen] = useState(false);
+  const [jobsView, setJobsView] = useState<"now" | "history">("now");
   const [bnOpen, setBnOpen] = useState(false);
   const [bnValue, setBnValue] = useState("");
   const [bnError, setBnError] = useState("");
@@ -108,7 +111,14 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
       ? (snapshot.devices ?? []).filter((device) => device.id === me.id && device.role === "driver")
       : [];
     const myCourses = me
-      ? (snapshot.courses ?? []).filter((course) => course.assignedDeviceId === me.id)
+      ? (snapshot.courses ?? []).filter(
+          (course) =>
+            course.assignedDeviceId === me.id &&
+            (course.status === "assigned" ||
+              course.status === "en_route" ||
+              course.status === "done" ||
+              course.status === "cancelled"),
+        )
       : [];
     const myNotes = me
       ? (snapshot.notifications ?? []).filter((item) => item.targetId === me.id)
@@ -441,11 +451,13 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   }, [courses, sessionId]);
   const myHistory = useMemo(
     () =>
-      courses.filter(
-        (course) =>
-          course.assignedDeviceId === sessionId &&
-          (course.status === "done" || course.status === "cancelled"),
-      ),
+      courses
+        .filter(
+          (course) =>
+            course.assignedDeviceId === sessionId &&
+            (course.status === "done" || course.status === "cancelled"),
+        )
+        .sort((a, b) => (b.finishedAt ?? b.updatedAt) - (a.finishedAt ?? a.updatedAt)),
     [courses, sessionId],
   );
   const currentJob = myJobs.find((c) => c.status === "en_route") ?? myJobs[0] ?? null;
@@ -591,7 +603,10 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
             empty="Pas de nouvelle course pour le moment."
             hint="Une alerte apparaît ici quand le bureau vous donne une course."
             onMarkRead={(ids) => void markAlertsRead(ids)}
-            onOpenItem={() => setJobsOpen(true)}
+            onOpenItem={() => {
+              setJobsView("now");
+              setJobsOpen(true);
+            }}
           />
           <Button
             variant="secondary"
@@ -781,110 +796,162 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                       </div>
                     </SheetContent>
                   </Sheet>
-                  <Sheet open={jobsOpen} onOpenChange={setJobsOpen}>
+                  <Sheet
+                    open={jobsOpen}
+                    onOpenChange={(open) => {
+                      setJobsOpen(open);
+                      if (open) setJobsView("now");
+                    }}
+                  >
                     <Button
                       size="sm"
                       variant="secondary"
                       className="rounded-xl"
-                      onClick={() => setJobsOpen(true)}
+                      onClick={() => {
+                        setJobsView("now");
+                        setJobsOpen(true);
+                      }}
                     >
                       <ClipboardList />
                       Courses
                       {myJobs.length > 0 ? ` (${myJobs.length})` : ""}
                     </Button>
-                    <SheetContent side="bottom" className="h-[70dvh] rounded-t-3xl">
-                      <SheetHeader>
-                        <SheetTitle>Vos courses</SheetTitle>
+                    <SheetContent
+                      side="bottom"
+                      className="flex h-[min(82dvh,42rem)] flex-col gap-0 rounded-t-3xl p-0"
+                    >
+                      <SheetHeader className="shrink-0 border-b border-border">
+                        <SheetTitle>
+                          {jobsView === "history" ? "Historique" : "Courses attribuées"}
+                        </SheetTitle>
+                        <p className="text-xs leading-5 text-muted-foreground">
+                          {jobsView === "history"
+                            ? "Vos courses terminées ou annulées — pas celles des autres chauffeurs."
+                            : "Uniquement la course (ou les deux) que le bureau vous a donnée maintenant."}
+                        </p>
                       </SheetHeader>
-                      <div className="overflow-y-auto px-4 pb-6">
-                        {myJobs.length === 0 && myHistory.length === 0 ? (
+                      <div className="grid shrink-0 grid-cols-2 gap-2 px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setJobsView("now")}
+                          className={`rounded-xl px-3 py-2.5 text-left text-xs font-semibold ${
+                            jobsView === "now"
+                              ? "bg-[#2b308f] text-white"
+                              : "bg-[#eef3fb] text-[#5b6294]"
+                          }`}
+                        >
+                          Maintenant
+                          <div className="mt-0.5 font-normal opacity-90">
+                            {myJobs.length === 0
+                              ? "Aucune attribuée"
+                              : `${myJobs.length} attribuée${myJobs.length > 1 ? "s" : ""}`}
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setJobsView("history")}
+                          className={`rounded-xl px-3 py-2.5 text-left text-xs font-semibold ${
+                            jobsView === "history"
+                              ? "bg-[#2b308f] text-white"
+                              : "bg-[#eef3fb] text-[#5b6294]"
+                          }`}
+                        >
+                          <span className="inline-flex items-center gap-1">
+                            <History className="size-3.5" />
+                            Historique
+                          </span>
+                          <div className="mt-0.5 font-normal opacity-90">
+                            {myHistory.length === 0
+                              ? "Pas encore"
+                              : `${myHistory.length} terminée${myHistory.length > 1 ? "s" : ""}`}
+                          </div>
+                        </button>
+                      </div>
+                      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+                        {jobsView === "now" ? (
+                          myJobs.length === 0 ? (
+                            <p className="py-8 text-sm text-muted-foreground">
+                              Aucune course ne vous est attribuée pour le moment. Le bureau vous en enverra une.
+                            </p>
+                          ) : (
+                            <ul className="space-y-2">
+                              {myJobs.map((job) => (
+                                <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <div className="font-semibold text-[#2b308f]">{job.reference}</div>
+                                    <Badge>{COURSE_STATUS_LABEL[job.status]}</Badge>
+                                  </div>
+                                  <div className="mt-1 text-sm">{job.clientName}</div>
+                                  {job.clientPhone ? (
+                                    <div className="mt-0.5 text-xs text-muted-foreground">{job.clientPhone}</div>
+                                  ) : null}
+                                  <div className="mt-2">
+                                    <CourseItinerary course={job} />
+                                  </div>
+                                  <div className="mt-2 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
+                                  {formatKm(job.distanceMeters) ? (
+                                    <div className="mt-1 text-xs text-muted-foreground">{formatKm(job.distanceMeters)}</div>
+                                  ) : null}
+                                  {job.notes ? (
+                                    <div className="mt-2">
+                                      <DispatchNote notes={job.notes} />
+                                    </div>
+                                  ) : null}
+                                  <div className="mt-3 flex flex-col gap-2">
+                                    {job.status === "assigned" && blockingStart ? (
+                                      <p className="text-xs leading-5 text-amber-800">
+                                        {startBlockedMessage(blockingStart, job.reference)}
+                                      </p>
+                                    ) : null}
+                                    {job.status === "assigned" && !blockingStart ? (
+                                      <Button size="sm" className="h-10" onClick={() => askBn(job.id)}>
+                                        Démarrer
+                                      </Button>
+                                    ) : null}
+                                    {job.status === "en_route" ? (
+                                      <Button size="sm" className="h-10" onClick={() => askDelivery(job.id)}>
+                                        Terminer — scanner le BL
+                                      </Button>
+                                    ) : null}
+                                  </div>
+                                </li>
+                              ))}
+                            </ul>
+                          )
+                        ) : myHistory.length === 0 ? (
                           <p className="py-8 text-sm text-muted-foreground">
-                            Aucune course enregistrée pour ce chauffeur.
+                            Pas encore de course terminée pour vous. L’historique n’affiche que vos propres courses.
                           </p>
                         ) : (
-                          <div className="space-y-5">
-                            <section>
-                              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                En cours
-                              </h3>
-                              {myJobs.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">Pas de course active.</p>
-                              ) : (
-                                <ul className="space-y-2">
-                                  {myJobs.map((job) => (
-                                    <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="font-semibold">{job.reference}</div>
-                                        <Badge>{COURSE_STATUS_LABEL[job.status]}</Badge>
-                                      </div>
-                                      <div className="mt-1 text-sm">{job.clientName}</div>
-                                      <div className="mt-1 text-xs text-muted-foreground">
-                                        {tourLine(job)}
-                                      </div>
-                                      <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
-                                      {job.notes ? <div className="mt-2"><DispatchNote notes={job.notes} /></div> : null}
-                                      {job.clientPhone ? (
-                                        <div className="mt-1 text-xs text-muted-foreground">{job.clientPhone}</div>
-                                      ) : null}
-                                      {formatKm(job.distanceMeters) ? (
-                                        <div className="mt-1 text-xs text-muted-foreground">{formatKm(job.distanceMeters)}</div>
-                                      ) : null}
-                                      <div className="mt-3 flex flex-col gap-2">
-                                        {job.status === "assigned" && blockingStart ? (
-                                          <p className="text-xs leading-5 text-amber-800">
-                                            {startBlockedMessage(blockingStart, job.reference)}
-                                          </p>
-                                        ) : null}
-                                        {job.status === "assigned" && !blockingStart ? (
-                                          <Button size="sm" onClick={() => askBn(job.id)}>
-                                            Démarrer
-                                          </Button>
-                                        ) : null}
-                                        {job.status === "en_route" ? (
-                                          <Button size="sm" onClick={() => askDelivery(job.id)}>
-                                            Terminer — scanner le BL
-                                          </Button>
-                                        ) : null}
-                                      </div>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </section>
-                            <section>
-                              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                Historique
-                              </h3>
-                              {myHistory.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">Pas encore de course terminée.</p>
-                              ) : (
-                                <ul className="space-y-2">
-                                  {myHistory.map((job) => (
-                                    <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <div className="font-semibold">{job.reference}</div>
-                                        <Badge variant="secondary">{COURSE_STATUS_LABEL[job.status]}</Badge>
-                                      </div>
-                                      <div className="mt-1 text-sm">{job.clientName}</div>
-                                      <div className="mt-1 text-xs text-muted-foreground">
-                                        {tourLine(job)}
-                                      </div>
-                                      <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
-                                      {job.bnNumber ? (
-                                        <div className="mt-1 text-xs text-muted-foreground">BN {job.bnNumber}</div>
-                                      ) : null}
-                                      {formatKm(job.distanceMeters) ? (
-                                        <div className="mt-1 text-xs text-muted-foreground">{formatKm(job.distanceMeters)}</div>
-                                      ) : null}
-                                      {courseElapsedLabel(job, now) ? (
-                                        <div className="mt-1 text-xs font-medium">{courseElapsedLabel(job, now)}</div>
-                                      ) : null}
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </section>
-                          </div>
+                          <ul className="space-y-2">
+                            {myHistory.map((job) => (
+                              <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="font-semibold text-[#2b308f]">{job.reference}</div>
+                                  <Badge variant="secondary">{COURSE_STATUS_LABEL[job.status]}</Badge>
+                                </div>
+                                <div className="mt-1 text-sm">{job.clientName}</div>
+                                <div className="mt-2 text-xs text-muted-foreground">
+                                  <CourseItinerary course={job} compact />
+                                </div>
+                                <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
+                                {job.bnNumber ? (
+                                  <div className="mt-1 text-xs text-muted-foreground">BN {job.bnNumber}</div>
+                                ) : null}
+                                {formatKm(job.distanceMeters) ? (
+                                  <div className="mt-1 text-xs text-muted-foreground">{formatKm(job.distanceMeters)}</div>
+                                ) : null}
+                                {courseElapsedLabel(job, now) ? (
+                                  <div className="mt-1 text-xs font-medium">{courseElapsedLabel(job, now)}</div>
+                                ) : null}
+                                {formatWhen(job.finishedAt ?? job.updatedAt) ? (
+                                  <div className="mt-1 text-[11px] text-muted-foreground">
+                                    {formatWhen(job.finishedAt ?? job.updatedAt)}
+                                  </div>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
                         )}
                       </div>
                     </SheetContent>
