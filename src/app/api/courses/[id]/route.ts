@@ -45,7 +45,7 @@ export async function PATCH(
   }
   if (body.status === "done" && !current?.hasDeliveryScan) {
     return NextResponse.json(
-      { error: "Scannez le bon de livraison avant de terminer la course." },
+      { error: "Joignez la photo du bon de livraison avant de terminer la course." },
       { status: 400 },
     );
   }

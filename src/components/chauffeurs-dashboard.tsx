@@ -519,7 +519,7 @@ export default function ChauffeursDashboard() {
                       {jobView === "live"
                         ? "Reçues ou déjà démarrées, pas encore livrées."
                         : jobView === "done"
-                          ? "Courses livrées, avec le BL scanné."
+                          ? "Courses livrées, avec la photo du BL en PDF."
                           : "Client, trajet, véhicule utilisé, BN, BL — tout reste enregistré."}
                     </p>
                   </div>
@@ -580,7 +580,7 @@ export default function ChauffeursDashboard() {
                             {course.hasDeliveryScan ? (
                               <a
                                 href={`/api/courses/${course.id}/delivery`}
-                                download={`${course.reference}-bon-livraison.jpg`}
+                                download={`${course.reference}-bon-livraison.pdf`}
                                 className="font-medium text-[#00a4e8] hover:underline"
                               >
                                 Télécharger le BL

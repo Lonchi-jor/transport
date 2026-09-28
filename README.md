@@ -2,7 +2,7 @@
 
 Live vehicle map for **CCMM** — Construction Carrosserie Menuiserie Métallique.
 
-The desk creates each chauffeur (indicatif + PIN). The phone only logs in with those credentials. GPS, courses, BN and BL scan then run on the handset.
+The desk creates each chauffeur (indicatif + PIN). The phone only logs in with those credentials. GPS, courses, BN and the delivery-note photo then run on the handset.
 
 The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#00A4E8`.
 
@@ -18,7 +18,7 @@ Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC. L
 2. Donnez l’indicatif et le PIN au chauffeur. Vous pouvez **modifier** la fiche à tout moment.
 3. Sur le **tableau de bord**, le bouton **Nouvelle course** ouvre la **carte en plein écran**. Placez le **voyage** (point de départ) : la carte s’y rend et pose un pin ; glissez-le si besoin. Passez au **tour de ville** : posez la première destination, puis le **+** pour en ajouter d’autres (jusqu’à 8). L’itinéraire relie le voyage à toutes les destinations. **Recherchez le chauffeur** (indicatif ou nom) : ceux **sans course en cours** sont listés en premier. Son véhicule se remplit tout seul. **Un chauffeur peut avoir jusqu’à deux courses** (attribuées ou en cours) : la seconde apparaît sur le téléphone, mais il doit **terminer la première** avant de la démarrer. Une troisième attribution est refusée. Le pin du chauffeur **ne se déplace pas à la main** : seule la géolocalisation du téléphone le fait bouger. La **note au chauffeur** s’affiche en grand sur le portable ; il doit la lire avant de démarrer. Une **cloche** sur le téléphone lui signale la nouvelle course : un clic, ou le démarrage de la course, fait disparaître l’alerte.
 4. Ouvrez **Courses** pour l’historique complet. Le bureau ne voit pas le texte de la note dans le tableau : une pastille **Note envoyée** le signale, et le texte apparaît au survol (sans cliquer).
-5. Quand le chauffeur **termine** (scan du BL), la **cloche du dispatch** n’alerte que le poste qui a créé cette course. Un clic sur l’alerte, ou l’ouverture de cette course, la fait disparaître. Un autre ordinateur du bureau ne reçoit pas cette alerte.
+5. Quand le chauffeur **termine** (photo du BL, enregistrée en PDF couleur), la **cloche du dispatch** n’alerte que le poste qui a créé cette course. Un clic sur l’alerte, ou l’ouverture de cette course, la fait disparaître. Un autre ordinateur du bureau ne reçoit pas cette alerte.
 
 Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur ouvre sa fiche : **Attribuer une course** envoie vers la création, **chauffeur et véhicule déjà remplis** — il reste le voyage et les destinations. S’il a déjà deux courses, le bouton est désactivé. Un chauffeur qui a **démarré** (BN validé) voit aussi l’itinéraire de **sa position actuelle** jusqu’aux destinations du tour.
 
@@ -26,7 +26,7 @@ Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. U
 
 Ouvrez [http://localhost:43147/](http://localhost:43147/) (ou le lien HTTPS `npm run phone`). Entrez **uniquement** l’indicatif et le PIN créés au bureau. Pas d’inscription sur le portable.
 
-Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route**. Avant le départ, sa carte montre **uniquement sa position**. Dès qu’il a démarré, l’itinéraire part de **sa position actuelle** jusqu’aux destinations du tour — jamais les autres véhicules. Le bouton **Courses** n’affiche que **ses** courses **attribuées maintenant** ; l’**historique** s’ouvre à part. La barre du bas (chauffeur + course) se **baisse** et se **remonte** avec la flèche. Pour **terminer**, il **prend une photo** du **bon de livraison** : le scan traite ensuite l’image (recadrage, lumière, contraste) pour un BL propre, type CamScanner, puis le joint à la course. Le bureau **télécharge** le BL depuis `/admin`.
+Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route**. Avant le départ, sa carte montre **uniquement sa position**. Dès qu’il a démarré, l’itinéraire part de **sa position actuelle** jusqu’aux destinations du tour — jamais les autres véhicules. Le bouton **Courses** n’affiche que **ses** courses **attribuées maintenant** ; l’**historique** s’ouvre à part. La barre du bas (chauffeur + course) se **baisse** et se **remonte** avec la flèche. Pour **terminer**, il **prend une photo** du **bon de livraison** et l’envoie : le bureau reçoit un **PDF couleur**. Le bureau **télécharge** le BL depuis `/admin`.
 
 ## Test on your phone while you develop
 
@@ -60,7 +60,7 @@ npm run phone
 - Real GPS by default
 - Address suggestions on voyage / tour destinations (Google Places if keyed, Photon otherwise)
 - Driving itinerary on the phone **only after the job is started**, from the current GPS through the tour
-- Color CamScanner-style delivery-note scan before a job can be marked done; dispatch can download the JPEG
+- Photo of the delivery note to mark a job done; stored as a color PDF that dispatch can download
 
 Chauffeur accounts persist in `.data/drivers.json`. Courses (and the vehicle used on each trip) persist in `.data/courses.json`. Last GPS and last-seen time persist in `.data/presence.json`, so the desk still sees a chauffeur after the phone goes offline.
 

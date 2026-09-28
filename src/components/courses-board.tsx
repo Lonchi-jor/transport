@@ -281,7 +281,7 @@ export default function CoursesBoard() {
                 className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
               >
                 <option value="all">Tous</option>
-                <option value="yes">BL scanné</option>
+                <option value="yes">BL joint</option>
                 <option value="no">BL manquant</option>
               </select>
             </label>
@@ -361,7 +361,7 @@ export default function CoursesBoard() {
                             ) : null}
                             {course.hasDeliveryScan ? (
                               <span className="rounded-full bg-[#e7f6fd] px-2 py-0.5 text-[11px] font-medium text-[#00a4e8]">
-                                BL scanné
+                                BL joint
                               </span>
                             ) : null}
                           </div>
@@ -423,7 +423,7 @@ export default function CoursesBoard() {
                             {course.hasDeliveryScan ? (
                               <a
                                 href={`/api/courses/${course.id}/delivery`}
-                                download={`${course.reference}-bon-livraison.jpg`}
+                                download={`${course.reference}-bon-livraison.pdf`}
                                 className={cn(buttonVariants({ size: "sm" }), "h-8 rounded-lg")}
                                 onClick={(event) => event.stopPropagation()}
                               >

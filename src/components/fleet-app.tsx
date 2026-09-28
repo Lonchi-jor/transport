@@ -10,7 +10,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import FleetMap from "@/components/fleet-map";
 import JoinScreen, { type JoinPayload } from "@/components/join-screen";
 import PhoneAccess from "@/components/phone-access";
-import DeliveryScanner from "@/components/delivery-scanner";
+import DeliveryPhoto from "@/components/delivery-photo";
 import DispatchNote from "@/components/dispatch-note";
 import NotificationBell from "@/components/notification-bell";
 import type { AppNotification, Course, FleetDevice, FleetSnapshot } from "@/lib/types";
@@ -680,8 +680,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         </SheetContent>
       </Sheet>
 
-      <DeliveryScanner
-        key={scanOpen ? scanJobId ?? "scan" : "closed"}
+      <DeliveryPhoto
+        key={scanOpen ? scanJobId ?? "photo" : "closed"}
         open={scanOpen}
         onClose={() => setScanOpen(false)}
         onConfirm={submitDeliveryScan}
@@ -935,7 +935,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                     ) : null}
                                     {job.status === "en_route" ? (
                                       <Button size="sm" className="h-10" onClick={() => askDelivery(job.id)}>
-                                        Terminer — scanner le BL
+                                        Terminer — photo du BL
                                       </Button>
                                     ) : null}
                                   </div>
@@ -1018,7 +1018,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                         className="h-8 rounded-lg"
                         onClick={() => askDelivery(currentJob.id)}
                       >
-                        Terminer — scanner le BL
+                        Terminer — photo du BL
                       </Button>
                     )}
                   </div>

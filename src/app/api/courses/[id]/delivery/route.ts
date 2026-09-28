@@ -1,11 +1,17 @@
 import { NextResponse } from "next/server";
 import { attachDeliveryScan, getCourse, updateCourse } from "@/lib/course-store";
-import { getDeliveryScan, isJpeg, saveDeliveryScan } from "@/lib/delivery-store";
+import { getDeliveryPdf, isJpeg, saveDeliveryPdf } from "@/lib/delivery-store";
+import { JpegError } from "@/lib/jpeg-to-pdf";
 import { snapshotFromRequest } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 
 const MAX_BYTES = 8 * 1024 * 1024;
+
+function pdfName(reference: string, storedName?: string | null) {
+  const base = (storedName || `${reference}-bon-livraison`).replace(/\.(jpe?g|png|pdf)$/i, "");
+  return `${base}.pdf`;
+}
 
 export async function GET(
   _request: Request,
@@ -14,16 +20,21 @@ export async function GET(
   const { id } = await params;
   const course = getCourse(id);
   if (!course?.hasDeliveryScan) {
-    return NextResponse.json({ error: "Aucun bon de livraison scanné." }, { status: 404 });
+    return NextResponse.json({ error: "Aucun bon de livraison joint." }, { status: 404 });
   }
-  const file = await getDeliveryScan(id);
+  let file;
+  try {
+    file = await getDeliveryPdf(id);
+  } catch {
+    file = null;
+  }
   if (!file) {
     return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
   }
-  const downloadName = file.fileName || `${course.reference}-bon-livraison.jpg`;
+  const downloadName = pdfName(course.reference, course.deliveryFileName);
   return new NextResponse(new Uint8Array(file.bytes), {
     headers: {
-      "Content-Type": file.mime,
+      "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${downloadName}"`,
       "Cache-Control": "private, no-store",
     },
@@ -54,10 +65,15 @@ export async function POST(
     return NextResponse.json({ error: "Image trop lourde (8 Mo max)." }, { status: 400 });
   }
   if (!isJpeg(bytes)) {
-    return NextResponse.json({ error: "Le scan doit être une image JPEG." }, { status: 400 });
+    return NextResponse.json({ error: "Envoyez une photo JPEG." }, { status: 400 });
   }
-  const fileName = `${course.reference}-bon-livraison.jpg`;
-  await saveDeliveryScan(id, bytes, fileName);
+  const fileName = `${course.reference}-bon-livraison.pdf`;
+  try {
+    await saveDeliveryPdf(id, bytes, fileName);
+  } catch (error) {
+    const message = error instanceof JpegError ? error.message : "Impossible de créer le PDF.";
+    return NextResponse.json({ error: message }, { status: 400 });
+  }
   attachDeliveryScan(id, fileName);
   const complete = String(form.get("complete") ?? "") === "true";
   if (complete) {
