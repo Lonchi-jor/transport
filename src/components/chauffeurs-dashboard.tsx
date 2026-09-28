@@ -13,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
 import type { RosterDriver } from "@/lib/roster";
 import type { FleetSnapshot, VehicleType } from "@/lib/types";
-import { VEHICLE_META, VEHICLE_TYPES } from "@/lib/types";
 import {
   COURSE_STATUS_LABEL,
   courseElapsedLabel,
@@ -281,25 +280,11 @@ export default function ChauffeursDashboard() {
                   autoCapitalize="characters"
                 />
               </Field>
-              <Field label="Type" htmlFor="driver-vehicleType">
-                <select
-                  id="driver-vehicleType"
-                  value={driverForm.vehicleType}
-                  onChange={(e) =>
-                    setDriverForm({ ...driverForm, vehicleType: e.target.value as VehicleType })
-                  }
-                  className="h-9 w-full rounded-lg border border-input bg-white px-2.5 text-sm outline-none"
-                >
-                  {VEHICLE_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {VEHICLE_META[type].label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
               <TrailerFields
                 idPrefix="driver"
+                vehicleType={driverForm.vehicleType}
                 plates={driverForm.trailerPlates}
+                onTypeChange={(vehicleType) => setDriverForm({ ...driverForm, vehicleType })}
                 onChange={(trailerPlates) => setDriverForm({ ...driverForm, trailerPlates })}
               />
               <Field

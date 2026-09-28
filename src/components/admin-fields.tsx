@@ -214,11 +214,15 @@ export function DriverAssignSelect({
 
 export function TrailerFields({
   idPrefix,
+  vehicleType,
   plates,
+  onTypeChange,
   onChange,
 }: {
   idPrefix: string;
+  vehicleType: VehicleType;
   plates: string[];
+  onTypeChange: (type: VehicleType) => void;
   onChange: (plates: string[]) => void;
 }) {
   const list = plates.length > 0 ? plates : [""];
@@ -240,6 +244,20 @@ export function TrailerFields({
   return (
     <div className="grid gap-3 rounded-xl border border-[#e4e9f6] bg-[#f8faff] p-3">
       <div className="text-[11px] font-semibold uppercase tracking-wide text-[#5b6294]">Remorque</div>
+      <Field label="Type" htmlFor={`${idPrefix}-trailer-type`}>
+        <select
+          id={`${idPrefix}-trailer-type`}
+          value={vehicleType}
+          onChange={(event) => onTypeChange(event.target.value as VehicleType)}
+          className="h-9 w-full rounded-lg border border-input bg-white px-2.5 text-sm outline-none"
+        >
+          {VEHICLE_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {VEHICLE_META[type].label}
+            </option>
+          ))}
+        </select>
+      </Field>
       {list.map((plate, index) => (
         <div key={`${idPrefix}-trailer-${index}`} className="flex items-start gap-2">
           <div className="min-w-0 flex-1">
