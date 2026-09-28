@@ -62,15 +62,8 @@ function Camera({
   });
 
   useEffect(() => {
-    const t1 = window.setTimeout(() => map.invalidateSize(), 80);
-    const t2 = window.setTimeout(() => map.invalidateSize(), 400);
-    const onResize = () => map.invalidateSize();
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.clearTimeout(t1);
-      window.clearTimeout(t2);
-      window.removeEventListener("resize", onResize);
-    };
+    const t = window.setTimeout(() => map.invalidateSize(), 120);
+    return () => window.clearTimeout(t);
   }, [map]);
 
   useEffect(() => {
