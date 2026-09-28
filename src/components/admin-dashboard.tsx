@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import type { FleetSnapshot, VehicleType } from "@/lib/types";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
 import { COURSE_STATUS_LABEL, tourLine, vehicleLine } from "@/lib/format";
+import { isDriverAtCapacity } from "@/lib/assignment";
 
 type Props = {
   googleMapsApiKey: string;
@@ -29,6 +30,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
   const [prefillDriverId, setPrefillDriverId] = useState<string | null>(null);
 
   function openComposer(driverId?: string | null) {
+    if (driverId && isDriverAtCapacity(courses, driverId)) return;
     setPrefillDriverId(driverId ?? null);
     setMapOpen(false);
     setComposerOpen(true);

@@ -226,6 +226,12 @@ export default function DispatchMap({
               selfId={null}
               route={route}
               onAssignCourse={onAssignCourse}
+              assignBlockedMessage={(driverId) => {
+                const held = liveJobsForDriver(courses, driverId);
+                if (held.length < MAX_LIVE_JOBS) return null;
+                const driver = drivers.find((item) => item.id === driverId);
+                return assignmentBlockedMessage(held, driver?.callSign);
+              }}
             />
             {selectedDevice ? (
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 p-4 md:inset-x-auto md:left-4 md:w-[380px]">

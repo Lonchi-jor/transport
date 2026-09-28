@@ -118,6 +118,7 @@ type Props = {
   route: MapRoute | null;
   frameSelfAndRoute?: boolean;
   onAssignCourse?: (driverId: string) => void;
+  assignBlockedMessage?: (driverId: string) => string | null;
 };
 
 export default function LeafletFleetMap({
@@ -133,6 +134,7 @@ export default function LeafletFleetMap({
   route,
   frameSelfAndRoute = false,
   onAssignCourse,
+  assignBlockedMessage,
 }: Props) {
   const positioned = useMemo(() => devicesWithPosition(devices), [devices]);
 
@@ -188,7 +190,9 @@ export default function LeafletFleetMap({
           ))}
         </>
       ) : null}
-      {positioned.map((device) => (
+      {positioned.map((device) => {
+        const blocked = onAssignCourse ? (assignBlockedMessage?.(device.id) ?? null) : null;
+        return (
         <Marker
           key={device.id}
           position={[device.lat as number, device.lng as number]}
@@ -225,22 +229,28 @@ export default function LeafletFleetMap({
                 <div>Horodatage : {formatWhen(device.lastSeen)}</div>
               ) : null}
               {onAssignCourse ? (
-                <button
-                  type="button"
-                  className="mt-2 w-full rounded-lg bg-[#2b308f] px-2 py-1.5 text-xs font-semibold text-white"
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onAssignCourse(device.id);
-                  }}
-                >
-                  Attribuer une course
-                </button>
+                <>
+                  {blocked ? <div className="mt-2 text-xs text-red-600">{blocked}</div> : null}
+                  <button
+                    type="button"
+                    disabled={Boolean(blocked)}
+                    className="mt-2 w-full rounded-lg bg-[#2b308f] px-2 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (blocked) return;
+                      onAssignCourse(device.id);
+                    }}
+                  >
+                    Attribuer une course
+                  </button>
+                </>
               ) : null}
             </div>
           </Popup>
         </Marker>
-      ))}
+        );
+      })}
     </MapContainer>
   );
 }

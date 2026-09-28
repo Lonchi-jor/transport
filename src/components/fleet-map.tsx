@@ -38,6 +38,7 @@ type Props = {
   route?: MapRoute | null;
   frameSelfAndRoute?: boolean;
   onAssignCourse?: (driverId: string) => void;
+  assignBlockedMessage?: (driverId: string) => string | null;
 };
 
 export default function FleetMap({
@@ -54,6 +55,7 @@ export default function FleetMap({
   route = null,
   frameSelfAndRoute = false,
   onAssignCourse,
+  assignBlockedMessage,
 }: Props) {
   const key = googleMapsApiKey.trim();
   if (key) {
@@ -89,6 +91,7 @@ export default function FleetMap({
       route={route}
       frameSelfAndRoute={frameSelfAndRoute}
       onAssignCourse={onAssignCourse}
+      assignBlockedMessage={assignBlockedMessage}
     />
   );
 }
