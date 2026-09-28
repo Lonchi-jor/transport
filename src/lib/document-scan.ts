@@ -1,7 +1,7 @@
 export type Point = { x: number; y: number };
 
 const MAX_DETECT = 480;
-const MAX_OUTPUT = 1800;
+const MAX_OUTPUT = 2000;
 
 export function defaultQuad(width: number, height: number): Point[] {
   const insetX = width * 0.06;
@@ -242,15 +242,26 @@ function insetQuad(q: Point[], ratio: number): Point[] {
 }
 
 function enhanceColorScan(image: ImageData) {
+  flattenIllumination(image);
   const { data, width, height } = image;
   const n = data.length / 4;
-  const lum: number[] = new Array(n);
+  const lum = new Float32Array(n);
   for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     lum[p] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
   }
-  const sorted = lum.slice().sort((a, b) => a - b);
-  const whiteL = sorted[Math.floor(n * 0.97)] || 255;
-  const blackL = sorted[Math.floor(n * 0.03)] || 0;
+  const hist = new Uint32Array(256);
+  for (let p = 0; p < n; p++) hist[Math.max(0, Math.min(255, Math.round(lum[p])))] += 1;
+  const pick = (q: number) => {
+    const target = n * q;
+    let acc = 0;
+    for (let i = 0; i < 256; i++) {
+      acc += hist[i];
+      if (acc >= target) return i;
+    }
+    return 255;
+  };
+  const blackL = pick(0.015);
+  const whiteL = Math.max(blackL + 28, pick(0.97));
   let wr = 0;
   let wg = 0;
   let wb = 0;
@@ -263,31 +274,80 @@ function enhanceColorScan(image: ImageData) {
       wc += 1;
     }
   }
-  const whiteR = wc ? wr / wc : 255;
-  const whiteG = wc ? wg / wc : 255;
-  const whiteB = wc ? wb / wc : 255;
-  const range = Math.max(22, whiteL - blackL);
-  for (let i = 0; i < data.length; i += 4) {
+  const whiteR = Math.max(32, wc ? wr / wc : 255);
+  const whiteG = Math.max(32, wc ? wg / wc : 255);
+  const whiteB = Math.max(32, wc ? wb / wc : 255);
+  const range = Math.max(32, whiteL - blackL);
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
     let r = (data[i] / whiteR) * 255;
     let g = (data[i + 1] / whiteG) * 255;
     let b = (data[i + 2] / whiteB) * 255;
-    r = ((r - blackL) / range) * 255;
-    g = ((g - blackL) / range) * 255;
-    b = ((b - blackL) / range) * 255;
-    r = (r - 128) * 1.18 + 128;
-    g = (g - 128) * 1.18 + 128;
-    b = (b - 128) * 1.18 + 128;
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const gray = (max + min) / 2;
-    r = gray + (r - gray) * 1.12;
-    g = gray + (g - gray) * 1.12;
-    b = gray + (b - gray) * 1.12;
+    const y = 0.299 * r + 0.587 * g + 0.114 * b;
+    let t = (y - blackL) / range;
+    t = clamp(t, 0, 1.08);
+    if (t > 0.58) t = 0.58 + (t - 0.58) * 1.85;
+    if (t < 0.38) t *= 0.82;
+    t = clamp(t, 0, 1);
+    t = 1 / (1 + Math.exp(-(t - 0.46) * 8.4));
+    const nextY = t * 255;
+    const scale = nextY / Math.max(8, y);
+    r *= scale;
+    g *= scale;
+    b *= scale;
+    const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+    r = gray + (r - gray) * 1.06;
+    g = gray + (g - gray) * 1.06;
+    b = gray + (b - gray) * 1.06;
+    if (nextY > 232) {
+      const bleach = (nextY - 232) / 23;
+      r += (255 - r) * bleach;
+      g += (255 - g) * bleach;
+      b += (255 - b) * bleach;
+    }
     data[i] = clamp(r, 0, 255);
     data[i + 1] = clamp(g, 0, 255);
     data[i + 2] = clamp(b, 0, 255);
   }
-  unsharp(data, width, height, 0.32);
+  unsharp(data, width, height, 0.58);
+}
+
+function flattenIllumination(image: ImageData) {
+  const { data, width, height } = image;
+  const tw = 72;
+  const th = Math.max(12, Math.round((height / Math.max(1, width)) * tw));
+  const small = new Float32Array(tw * th);
+  for (let y = 0; y < th; y++) {
+    for (let x = 0; x < tw; x++) {
+      const sx = Math.min(width - 1, Math.floor(((x + 0.5) * width) / tw));
+      const sy = Math.min(height - 1, Math.floor(((y + 0.5) * height) / th));
+      const i = (sy * width + sx) * 4;
+      small[y * tw + x] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+    }
+  }
+  blurInPlace(small, tw, th);
+  blurInPlace(small, tw, th);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const u = width <= 1 ? 0 : (x / (width - 1)) * (tw - 1);
+      const v = height <= 1 ? 0 : (y / (height - 1)) * (th - 1);
+      const x0 = Math.floor(u);
+      const y0 = Math.floor(v);
+      const x1 = Math.min(tw - 1, x0 + 1);
+      const y1 = Math.min(th - 1, y0 + 1);
+      const fx = u - x0;
+      const fy = v - y0;
+      const illum =
+        small[y0 * tw + x0] * (1 - fx) * (1 - fy) +
+        small[y0 * tw + x1] * fx * (1 - fy) +
+        small[y1 * tw + x0] * (1 - fx) * fy +
+        small[y1 * tw + x1] * fx * fy;
+      const scale = 252 / Math.max(28, illum);
+      const i = (y * width + x) * 4;
+      data[i] = clamp(data[i] * scale, 0, 255);
+      data[i + 1] = clamp(data[i + 1] * scale, 0, 255);
+      data[i + 2] = clamp(data[i + 2] * scale, 0, 255);
+    }
+  }
 }
 
 function unsharp(data: Uint8ClampedArray, w: number, h: number, amount: number) {

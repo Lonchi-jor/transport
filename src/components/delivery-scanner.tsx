@@ -21,6 +21,24 @@ type Props = {
   onConfirm: (blob: Blob) => Promise<void>;
 };
 
+function waitForPaint() {
+  return new Promise<void>((resolve) => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => resolve());
+    });
+  });
+}
+
+function canvasToJpegBlob(canvas: HTMLCanvasElement, quality = 0.92) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error("Encodage JPEG impossible"))),
+      "image/jpeg",
+      quality,
+    );
+  });
+}
+
 export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -30,7 +48,6 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
   const dragIndex = useRef<number | null>(null);
   const previewUrlRef = useRef("");
   const scanUrlRef = useRef("");
-  const liveTimer = useRef<number | null>(null);
   const aliveRef = useRef(true);
 
   const [step, setStep] = useState<Step>("capture");
@@ -41,49 +58,11 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [camReady, setCamReady] = useState(false);
-  const [liveQuad, setLiveQuad] = useState<Point[] | null>(null);
   const [detected, setDetected] = useState(false);
 
   const stopTracks = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
     streamRef.current = null;
-    if (liveTimer.current) {
-      window.clearInterval(liveTimer.current);
-      liveTimer.current = null;
-    }
-  }, []);
-
-  const startLiveDetect = useCallback(() => {
-    if (liveTimer.current) window.clearInterval(liveTimer.current);
-    const canvas = document.createElement("canvas");
-    liveTimer.current = window.setInterval(() => {
-      const video = videoRef.current;
-      if (!video || !video.videoWidth) return;
-      const scale = 360 / Math.max(video.videoWidth, video.videoHeight);
-      canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
-      canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) return;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const quad = detectDocumentQuad(ctx.getImageData(0, 0, canvas.width, canvas.height));
-      if (!quad) {
-        setLiveQuad(null);
-        return;
-      }
-      const displayW = video.clientWidth || 1;
-      const displayH = video.clientHeight || 1;
-      const cover = Math.max(displayW / video.videoWidth, displayH / video.videoHeight);
-      const dw = video.videoWidth * cover;
-      const dh = video.videoHeight * cover;
-      const ox = (displayW - dw) / 2;
-      const oy = (displayH - dh) / 2;
-      setLiveQuad(
-        quad.map((p) => ({
-          x: ox + (p.x / canvas.width) * video.videoWidth * cover,
-          y: oy + (p.y / canvas.height) * video.videoHeight * cover,
-        })),
-      );
-    }, 220);
   }, []);
 
   const startCamera = useCallback(async () => {
@@ -98,19 +77,27 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
         return;
       }
       streamRef.current = stream;
-      const video = videoRef.current;
-      if (video) {
-        video.srcObject = stream;
-        await video.play();
+      await waitForPaint();
+      if (!aliveRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        return;
       }
+      const video = videoRef.current;
+      if (!video) {
+        stream.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+        return;
+      }
+      video.srcObject = stream;
+      await video.play();
       setCamReady(true);
       setError("");
-      startLiveDetect();
     } catch {
       setCamReady(false);
       setError("Caméra indisponible. Importez une photo du bon de livraison.");
     }
-  }, [startLiveDetect, stopTracks]);
+  }, [stopTracks]);
 
   useEffect(() => {
     if (!open) return;
@@ -127,7 +114,14 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
     };
   }, [open, startCamera, stopTracks]);
 
-  async function processCanvas(canvas: HTMLCanvasElement, auto: boolean) {
+  function setPhotoUrl(blob: Blob) {
+    if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    const url = URL.createObjectURL(blob);
+    previewUrlRef.current = url;
+    setPreviewUrl(url);
+  }
+
+  async function processCanvas(canvas: HTMLCanvasElement) {
     sourceRef.current = canvas;
     setNatural({ w: canvas.width, h: canvas.height });
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -137,17 +131,11 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
     const quad = found ?? defaultQuad(canvas.width, canvas.height);
     setCorners(quad);
     setDetected(Boolean(found));
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
-      const url = URL.createObjectURL(blob);
-      previewUrlRef.current = url;
-      setPreviewUrl(url);
-    }, "image/jpeg", 0.92);
-    if (auto && found) {
-      setBusy("Recadrage automatique du papier…");
+    if (found) {
+      setBusy("Nettoyage du scan…");
+      await waitForPaint();
       const scanned = warpDocumentColor(data, found);
-      const jpeg = await imageDataToJpegBlob(scanned, 0.92);
+      const jpeg = await imageDataToJpegBlob(scanned, 0.94);
       if (scanUrlRef.current) URL.revokeObjectURL(scanUrlRef.current);
       const url = URL.createObjectURL(jpeg);
       scanUrlRef.current = url;
@@ -158,19 +146,22 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
     }
     setStep("crop");
     setBusy("");
-    if (!found) setError("Papier non détecté. Ajustez les 4 coins, puis recadrez.");
+    setError("Papier non détecté. Ajustez les 4 coins, puis lancez le scan.");
   }
 
   async function ingestFile(file: File) {
-    setBusy("Détection du document…");
+    setBusy("Lecture de la photo…");
     setError("");
     try {
       const image = await loadImageElement(file);
       const canvas = imageToCanvas(image);
       stopTracks();
       setCamReady(false);
-      setLiveQuad(null);
-      await processCanvas(canvas, true);
+      const still = await canvasToJpegBlob(canvas);
+      setPhotoUrl(still);
+      setBusy("Traitement du scan…");
+      await waitForPaint();
+      await processCanvas(canvas);
     } catch {
       setBusy("");
       setError("Impossible de lire cette image.");
@@ -180,7 +171,6 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
   async function captureFrame() {
     const video = videoRef.current;
     if (!video || !camReady) return;
-    setBusy("Scan intelligent du papier…");
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth || 1280;
     canvas.height = video.videoHeight || 720;
@@ -189,9 +179,13 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
     ctx.drawImage(video, 0, 0);
     stopTracks();
     setCamReady(false);
-    setLiveQuad(null);
+    setError("");
     try {
-      await processCanvas(canvas, true);
+      const still = await canvasToJpegBlob(canvas, 0.92);
+      setPhotoUrl(still);
+      setBusy("Traitement du scan…");
+      await waitForPaint();
+      await processCanvas(canvas);
     } catch {
       setBusy("");
       setError("Le scan a échoué. Réessayez.");
@@ -201,14 +195,15 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
   async function applyScan() {
     const canvas = sourceRef.current;
     if (!canvas || corners.length !== 4) return;
-    setBusy("Recadrage couleur, comme un scan…");
+    setBusy("Nettoyage du scan…");
     setError("");
+    await waitForPaint();
     try {
       const ctx = canvas.getContext("2d", { willReadFrequently: true });
       if (!ctx) throw new Error("Canvas indisponible");
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const scanned = warpDocumentColor(data, corners);
-      const blob = await imageDataToJpegBlob(scanned, 0.92);
+      const blob = await imageDataToJpegBlob(scanned, 0.94);
       if (scanUrlRef.current) URL.revokeObjectURL(scanUrlRef.current);
       const url = URL.createObjectURL(blob);
       scanUrlRef.current = url;
@@ -287,6 +282,7 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
   if (!open) return null;
 
   const handleRadius = Math.max(natural.w, natural.h) * 0.018;
+  const showStill = Boolean(previewUrl) && step === "capture" && Boolean(busy);
 
   return (
     <div className="fixed inset-0 z-[80] flex flex-col bg-[#0c1028] text-white">
@@ -298,14 +294,14 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
           </div>
           <p className="mt-0.5 text-[11px] text-blue-200">
             {step === "capture"
-              ? liveQuad
-                ? "Papier détecté — prenez la photo, le recadrage se fait tout seul."
-                : "Placez le bon de livraison dans le cadre."
+              ? busy
+                ? "Photo prise. Nettoyage du papier en cours…"
+                : "Cadrez le bon de livraison, puis prenez la photo. Le scan se fait ensuite."
               : step === "crop"
                 ? detected
-                  ? "Vérifiez les coins détectés, puis validez."
-                  : "Glissez les coins sur le papier, puis recadrez."
-                : "Document recadré en couleur, comme CamScanner."}
+                  ? "Vérifiez les coins détectés, puis lancez le scan."
+                  : "Glissez les coins sur le papier, puis lancez le scan."
+                : "Scan nettoyé — vérifiez le document avant de joindre."}
           </p>
         </div>
         <Button variant="secondary" size="sm" className="rounded-xl" onClick={onClose}>
@@ -316,16 +312,16 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
       <div className="relative min-h-0 flex-1">
         {step === "capture" ? (
           <div className="relative h-full bg-black">
-            <video ref={videoRef} playsInline muted autoPlay className="h-full w-full object-cover" />
-            {liveQuad ? (
-              <svg className="pointer-events-none absolute inset-0 h-full w-full">
-                <polygon
-                  points={liveQuad.map((p) => `${p.x},${p.y}`).join(" ")}
-                  fill="rgba(0,164,232,0.18)"
-                  stroke="#00a4e8"
-                  strokeWidth="4"
-                />
-              </svg>
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              autoPlay
+              className={showStill ? "hidden h-full w-full object-cover" : "h-full w-full object-cover"}
+            />
+            {showStill ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt="Photo du BL" className="absolute inset-0 h-full w-full object-contain" />
             ) : (
               <div className="pointer-events-none absolute inset-10 rounded-2xl border-2 border-dashed border-white/40" />
             )}
@@ -384,8 +380,10 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
         ) : null}
 
         {busy ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-sm font-medium">
-            {busy}
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black/55 px-6 text-center">
+            <ScanLine className="size-8 animate-pulse text-[#7dd8f7]" />
+            <p className="text-sm font-medium">{busy}</p>
+            <p className="text-[11px] text-blue-200">Recadrage, lumière et contraste du papier.</p>
           </div>
         ) : null}
       </div>
@@ -417,9 +415,9 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
               disabled={Boolean(busy)}
             >
               <Camera />
-              {camReady ? "Scanner le papier" : "Ouvrir la caméra"}
+              {camReady ? "Prendre la photo" : "Ouvrir la caméra"}
             </Button>
-            <Button variant="secondary" className="h-12 rounded-xl" onClick={() => fileRef.current?.click()}>
+            <Button variant="secondary" className="h-12 rounded-xl" disabled={Boolean(busy)} onClick={() => fileRef.current?.click()}>
               <ImagePlus />
               Importer
             </Button>
@@ -433,13 +431,18 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
               onClick={() => {
                 setStep("capture");
                 setError("");
+                setPreviewUrl("");
+                if (previewUrlRef.current) {
+                  URL.revokeObjectURL(previewUrlRef.current);
+                  previewUrlRef.current = "";
+                }
                 void startCamera();
               }}
             >
               Reprendre
             </Button>
             <Button className="h-12 rounded-xl" onClick={() => void applyScan()} disabled={Boolean(busy)}>
-              Recadrer le papier
+              Lancer le scan
             </Button>
           </div>
         ) : null}
@@ -457,4 +460,3 @@ export default function DeliveryScanner({ open, onClose, onConfirm }: Props) {
     </div>
   );
 }
-
