@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ClipboardList, Pencil, Radio, Trash2, UserPlus, X } from "lucide-react";
 import AdminChrome from "@/components/admin-chrome";
-import { Field, PhoneLink, Stat, VehicleFields } from "@/components/admin-fields";
+import { Field, PhoneLink, Stat, TrailerFields } from "@/components/admin-fields";
 import { PresenceBadge, PresenceLegend } from "@/components/presence-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
 import type { RosterDriver } from "@/lib/roster";
 import type { FleetSnapshot, VehicleType } from "@/lib/types";
+import { VEHICLE_META, VEHICLE_TYPES } from "@/lib/types";
 import {
   COURSE_STATUS_LABEL,
   courseElapsedLabel,
@@ -35,6 +36,7 @@ const emptyDriver = {
   phone: "",
   vehicleType: "van" as VehicleType,
   vehiclePlate: "",
+  trailerPlates: [""],
   pin: "",
 };
 
@@ -66,7 +68,7 @@ export default function ChauffeursDashboard() {
     const needle = query.trim().toLowerCase();
     if (!needle) return roster;
     return roster.filter((driver) =>
-      [driver.callSign, driver.driverName, driver.phone, driver.vehiclePlate]
+      [driver.callSign, driver.driverName, driver.phone, driver.vehiclePlate, ...(driver.trailerPlates ?? [])]
         .join(" ")
         .toLowerCase()
         .includes(needle),
@@ -105,6 +107,7 @@ export default function ChauffeursDashboard() {
       phone: driver.phone ?? "",
       vehicleType: driver.vehicleType,
       vehiclePlate: driver.vehiclePlate ?? "",
+      trailerPlates: driver.trailerPlates?.length ? [...driver.trailerPlates] : [""],
       pin: "",
     });
     openDriver(driver.id);
@@ -268,12 +271,36 @@ export default function ChauffeursDashboard() {
                   placeholder="+237 6…"
                 />
               </Field>
-              <VehicleFields
+              <Field label="Immatriculation Tracteur" htmlFor="tractorPlate">
+                <Input
+                  id="tractorPlate"
+                  required
+                  value={driverForm.vehiclePlate}
+                  onChange={(e) => setDriverForm({ ...driverForm, vehiclePlate: e.target.value.toUpperCase() })}
+                  placeholder="LT 1234 CE"
+                  autoCapitalize="characters"
+                />
+              </Field>
+              <Field label="Type" htmlFor="driver-vehicleType">
+                <select
+                  id="driver-vehicleType"
+                  value={driverForm.vehicleType}
+                  onChange={(e) =>
+                    setDriverForm({ ...driverForm, vehicleType: e.target.value as VehicleType })
+                  }
+                  className="h-9 w-full rounded-lg border border-input bg-white px-2.5 text-sm outline-none"
+                >
+                  {VEHICLE_TYPES.map((type) => (
+                    <option key={type} value={type}>
+                      {VEHICLE_META[type].label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <TrailerFields
                 idPrefix="driver"
-                vehicleType={driverForm.vehicleType}
-                vehiclePlate={driverForm.vehiclePlate}
-                plateRequired
-                onChange={(patch) => setDriverForm({ ...driverForm, ...patch })}
+                plates={driverForm.trailerPlates}
+                onChange={(trailerPlates) => setDriverForm({ ...driverForm, trailerPlates })}
               />
               <Field
                 label={editingDriverId ? "Nouveau PIN (optionnel)" : "Code PIN (4 à 6 chiffres)"}
@@ -382,7 +409,7 @@ export default function ChauffeursDashboard() {
             <div className="rounded-2xl border border-dashed border-[#d5dcf0] bg-white px-6 py-16 text-center shadow-sm">
               <h2 className="text-lg font-semibold text-[#2b308f]">Fiche chauffeur</h2>
               <p className="mx-auto mt-2 max-w-md text-sm text-[#5b6294]">
-                Choisissez un chauffeur à gauche pour voir son téléphone, son véhicule, son PIN, son statut GPS et toutes ses courses.
+                Choisissez un chauffeur à gauche pour voir son téléphone, son tracteur, ses remorques, son PIN, son statut GPS et toutes ses courses.
               </p>
             </div>
           ) : (

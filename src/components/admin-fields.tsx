@@ -2,13 +2,14 @@
 
 import { useMemo, type MouseEvent, type ReactNode } from "react";
 import { Combobox } from "@base-ui/react/combobox";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Plus, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { telHref } from "@/lib/format";
 import { isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
 import type { Course } from "@/lib/types";
-import { VEHICLE_META, VEHICLE_TYPES, type VehicleType } from "@/lib/types";
+import { MAX_TRAILERS, VEHICLE_META, VEHICLE_TYPES, type VehicleType } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
 
 const LATER_ID = "__later__";
@@ -19,6 +20,7 @@ type DriverOption = {
   driverName: string;
   phone: string;
   vehiclePlate: string;
+  trailerPlates: string;
   label: string;
   suffix: string;
   full: boolean;
@@ -78,6 +80,7 @@ export function DriverAssignSelect({
       driverName: "",
       phone: "",
       vehiclePlate: "",
+      trailerPlates: "",
       label: emptyLabel,
       suffix: "",
       full: false,
@@ -107,6 +110,7 @@ export function DriverAssignSelect({
         driverName: driver.driverName,
         phone: driver.phone ?? "",
         vehiclePlate: driver.vehiclePlate ?? "",
+        trailerPlates: (driver.trailerPlates ?? []).join(" "),
         label: optionLabel(driver),
         suffix: atCapacity
           ? `complet · ${live.map((job) => job.reference).join(" · ")}`
@@ -149,7 +153,7 @@ export function DriverAssignSelect({
         const needle = query.trim().toLowerCase();
         if (!needle) return true;
         if (item.id === LATER_ID) return false;
-        return [item.callSign, item.driverName, item.phone, item.vehiclePlate, item.label]
+        return [item.callSign, item.driverName, item.phone, item.vehiclePlate, item.trailerPlates, item.label]
           .join(" ")
           .toLowerCase()
           .includes(needle);
@@ -205,6 +209,78 @@ export function DriverAssignSelect({
         </Combobox.Positioner>
       </Combobox.Portal>
     </Combobox.Root>
+  );
+}
+
+export function TrailerFields({
+  idPrefix,
+  plates,
+  onChange,
+}: {
+  idPrefix: string;
+  plates: string[];
+  onChange: (plates: string[]) => void;
+}) {
+  const list = plates.length > 0 ? plates : [""];
+
+  function patchAt(index: number, value: string) {
+    const next = [...list];
+    next[index] = value;
+    onChange(next);
+  }
+
+  function removeAt(index: number) {
+    if (list.length <= 1) {
+      onChange([""]);
+      return;
+    }
+    onChange(list.filter((_, itemIndex) => itemIndex !== index));
+  }
+
+  return (
+    <div className="grid gap-3 rounded-xl border border-[#e4e9f6] bg-[#f8faff] p-3">
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-[#5b6294]">Remorque</div>
+      {list.map((plate, index) => (
+        <div key={`${idPrefix}-trailer-${index}`} className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <Field
+              label={list.length > 1 ? `Immatriculation ${index + 1}` : "Immatriculation"}
+              htmlFor={`${idPrefix}-trailer-${index}`}
+            >
+              <Input
+                id={`${idPrefix}-trailer-${index}`}
+                value={plate}
+                onChange={(event) => patchAt(index, event.target.value.toUpperCase())}
+                placeholder="CE 5678 XX"
+                autoCapitalize="characters"
+              />
+            </Field>
+          </div>
+          {list.length > 1 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="mt-6 size-8 shrink-0 text-[#5b6294]"
+              onClick={() => removeAt(index)}
+              aria-label={`Retirer la remorque ${index + 1}`}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          ) : null}
+        </div>
+      ))}
+      <Button
+        type="button"
+        variant="secondary"
+        className="h-9 rounded-xl"
+        disabled={list.length >= MAX_TRAILERS}
+        onClick={() => onChange([...list, ""])}
+      >
+        <Plus className="size-4" />
+        Ajouter une remorque
+      </Button>
+    </div>
   );
 }
 

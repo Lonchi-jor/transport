@@ -136,10 +136,13 @@ export function formatElapsed(ms: number | null) {
 export function vehicleLine(input: {
   vehicleType?: VehicleType | null;
   vehiclePlate?: string | null;
+  trailerPlates?: string[] | null;
 }) {
-  const plate = input.vehiclePlate?.trim() || null;
+  const tractor = input.vehiclePlate?.trim() || null;
+  const trailers = (input.trailerPlates ?? []).map((plate) => plate.trim()).filter(Boolean);
+  const plates = [tractor, ...trailers].filter(Boolean).join(" + ");
   const type = input.vehicleType ? VEHICLE_META[input.vehicleType].label : null;
-  return [plate, type].filter(Boolean).join(" · ") || "Véhicule non renseigné";
+  return [plates, type].filter(Boolean).join(" · ") || "Véhicule non renseigné";
 }
 
 export function telHref(phone: string) {

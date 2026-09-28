@@ -58,6 +58,7 @@ export type CourseStop = {
 };
 
 export const MAX_TOUR_STOPS = 8;
+export const MAX_TRAILERS = 4;
 
 export type Course = {
   id: string;
@@ -86,6 +87,7 @@ export type Course = {
   assignedDriverPhone: string | null;
   vehicleType: VehicleType | null;
   vehiclePlate: string | null;
+  trailerPlates: string[];
   status: CourseStatus;
   startedAt: number | null;
   finishedAt: number | null;
@@ -112,6 +114,7 @@ export type CourseDraft = {
   assignedDeviceId?: string | null;
   vehicleType?: VehicleType | null;
   vehiclePlate?: string | null;
+  trailerPlates?: string[];
   createdByAdminId?: string | null;
 };
 
@@ -122,6 +125,7 @@ export type CoursePatch = {
   notes?: string;
   vehicleType?: VehicleType | null;
   vehiclePlate?: string | null;
+  trailerPlates?: string[];
 };
 
 export const NOTIFICATION_KINDS = ["course_assigned", "course_done"] as const;
@@ -151,6 +155,7 @@ export type FleetSnapshot = {
     phone?: string;
     vehicleType: VehicleType;
     vehiclePlate?: string;
+    trailerPlates?: string[];
     pin?: string;
     lastLat?: number | null;
     lastLng?: number | null;

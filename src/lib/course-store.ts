@@ -3,7 +3,7 @@ import path from "path";
 import type { Course, CourseDraft, CoursePatch, CourseStatus, CourseStop, VehicleType } from "./types";
 import { COURSE_STATUSES, MAX_TOUR_STOPS } from "./types";
 import { getDevice } from "./fleet-store";
-import { getDriver, isVehicleType, normalizePlate } from "./driver-store";
+import { getDriver, isVehicleType, normalizePlate, normalizeTrailerPlates } from "./driver-store";
 import { addNotification } from "./notification-store";
 import { tourLine } from "./format";
 import {
@@ -88,6 +88,7 @@ function normalizeCourse(item: Partial<Course>): Course | null {
     assignedDriverPhone: item.assignedDriverPhone?.trim() || null,
     vehicleType,
     vehiclePlate: item.vehiclePlate ? normalizePlate(item.vehiclePlate) : null,
+    trailerPlates: normalizeTrailerPlates(item.trailerPlates),
     status,
     startedAt: item.startedAt ?? null,
     finishedAt: item.finishedAt ?? null,
@@ -164,6 +165,7 @@ function emptyVehicle(course: Course): Course {
     ...course,
     vehicleType: null,
     vehiclePlate: null,
+    trailerPlates: [],
     assignedDriverPhone: null,
   };
 }
@@ -174,6 +176,7 @@ function vehicleFromDriver(
   overlay?: {
     vehicleType?: VehicleType | null;
     vehiclePlate?: string | null;
+    trailerPlates?: string[] | null;
   },
 ): Course {
   const device = getDevice(deviceId);
@@ -188,6 +191,10 @@ function vehicleFromDriver(
         ? normalizePlate(overlay.vehiclePlate)
         : null
       : (account?.vehiclePlate || device?.vehiclePlate || course.vehiclePlate);
+  const trailerPlates =
+    overlay?.trailerPlates !== undefined
+      ? normalizeTrailerPlates(overlay.trailerPlates)
+      : (account?.trailerPlates ?? course.trailerPlates ?? []);
   return {
     ...course,
     assignedDeviceId: deviceId,
@@ -196,6 +203,7 @@ function vehicleFromDriver(
     assignedDriverPhone: account?.phone || course.assignedDriverPhone,
     vehicleType,
     vehiclePlate,
+    trailerPlates,
   };
 }
 
@@ -205,6 +213,7 @@ function applyAssignment(
   overlay?: {
     vehicleType?: VehicleType | null;
     vehiclePlate?: string | null;
+    trailerPlates?: string[] | null;
   },
 ): Course {
   if (!deviceId) {
@@ -297,6 +306,7 @@ export function createCourse(draft: CourseDraft): Course {
     assignedDriverPhone: null,
     vehicleType: null,
     vehiclePlate: null,
+    trailerPlates: [],
     status: "open",
     startedAt: null,
     finishedAt: null,
@@ -309,6 +319,7 @@ export function createCourse(draft: CourseDraft): Course {
     course = applyAssignment(course, draft.assignedDeviceId, {
       vehicleType: draft.vehicleType,
       vehiclePlate: draft.vehiclePlate,
+      trailerPlates: draft.trailerPlates,
     });
   }
   courses.set(course.id, course);
@@ -330,11 +341,15 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
     next = applyAssignment(next, patch.assignedDeviceId, {
       vehicleType: patch.vehicleType,
       vehiclePlate: patch.vehiclePlate,
+      trailerPlates: patch.trailerPlates,
     });
   } else {
     if (patch.vehicleType !== undefined) next.vehicleType = patch.vehicleType;
     if (patch.vehiclePlate !== undefined) {
       next.vehiclePlate = patch.vehiclePlate ? normalizePlate(patch.vehiclePlate) : null;
+    }
+    if (patch.trailerPlates !== undefined) {
+      next.trailerPlates = normalizeTrailerPlates(patch.trailerPlates);
     }
   }
   if (patch.notes !== undefined) {

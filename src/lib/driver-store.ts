@@ -1,7 +1,7 @@
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
 import type { VehicleType } from "./types";
-import { VEHICLE_TYPES } from "./types";
+import { MAX_TRAILERS, VEHICLE_TYPES } from "./types";
 
 export type DriverAccount = {
   id: string;
@@ -10,6 +10,7 @@ export type DriverAccount = {
   phone: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
+  trailerPlates: string[];
   pin: string;
   createdAt: number;
   updatedAt: number;
@@ -39,6 +40,7 @@ function load() {
         phone: normalizePhone(item.phone ?? ""),
         vehicleType: isVehicleType(item.vehicleType) ? item.vehicleType : "van",
         vehiclePlate: normalizePlate(item.vehiclePlate ?? ""),
+        trailerPlates: normalizeTrailerPlates(item.trailerPlates),
         pin: String(item.pin ?? ""),
         createdAt: item.createdAt ?? Date.now(),
         updatedAt: item.updatedAt ?? item.createdAt ?? Date.now(),
@@ -62,6 +64,25 @@ export function normalizeCallSign(value: string) {
 
 export function normalizePlate(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, " ");
+}
+
+export function normalizeTrailerPlates(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const plates: string[] = [];
+  for (const item of value) {
+    if (typeof item !== "string") continue;
+    const plate = normalizePlate(item);
+    if (plate.length < 3 || seen.has(plate)) continue;
+    seen.add(plate);
+    plates.push(plate);
+    if (plates.length >= MAX_TRAILERS) break;
+  }
+  return plates;
+}
+
+export function driverPlates(driver: Pick<DriverAccount, "vehiclePlate" | "trailerPlates">) {
+  return [driver.vehiclePlate, ...driver.trailerPlates].map(normalizePlate).filter(Boolean);
 }
 
 export function normalizePhone(value: string) {
@@ -88,6 +109,7 @@ function toPublic(account: DriverAccount): DriverPublic {
     phone: account.phone,
     vehicleType: account.vehicleType,
     vehiclePlate: account.vehiclePlate,
+    trailerPlates: account.trailerPlates,
     createdAt: account.createdAt,
     updatedAt: account.updatedAt,
   };
@@ -118,7 +140,7 @@ export function findDriverByCallSign(callSign: string) {
 export function findDriverByPlate(plate: string) {
   const key = normalizePlate(plate);
   if (!key) return null;
-  return listDrivers().find((d) => d.vehiclePlate === key) ?? null;
+  return listDrivers().find((driver) => driverPlates(driver).includes(key)) ?? null;
 }
 
 export function findDriverByPhone(phone: string) {
@@ -133,6 +155,7 @@ type DriverInput = {
   phone: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
+  trailerPlates?: string[];
   pin?: string;
 };
 
@@ -142,6 +165,7 @@ function validateDriver(input: DriverInput, ignoreId?: string): { error: string 
   phone: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
+  trailerPlates: string[];
   pin?: string;
 } {
   const callSign = normalizeCallSign(input.callSign);
@@ -149,23 +173,29 @@ function validateDriver(input: DriverInput, ignoreId?: string): { error: string 
   const phone = normalizePhone(input.phone);
   const digits = phoneKey(phone);
   const vehiclePlate = normalizePlate(input.vehiclePlate);
+  const trailerPlates = normalizeTrailerPlates(input.trailerPlates);
   if (callSign.length < 2) return { error: "Indiquez un indicatif (ex. ME-01)." };
   if (driverName.length < 2) return { error: "Indiquez le nom du chauffeur." };
   if (digits.length < 8 || digits.length > 15) {
     return { error: "Indiquez le numéro de téléphone du chauffeur." };
   }
-  if (vehiclePlate.length < 3) return { error: "Indiquez l’immatriculation du véhicule." };
+  if (vehiclePlate.length < 3) return { error: "Indiquez l’immatriculation du tracteur." };
+  if (trailerPlates.includes(vehiclePlate)) {
+    return { error: "Une remorque ne peut pas avoir la même plaque que le tracteur." };
+  }
   const sameCall = findDriverByCallSign(callSign);
   if (sameCall && sameCall.id !== ignoreId) return { error: "Cet indicatif existe déjà." };
   const samePhone = findDriverByPhone(phone);
   if (samePhone && samePhone.id !== ignoreId) {
     return { error: "Ce numéro est déjà attribué à un autre chauffeur." };
   }
-  const samePlate = findDriverByPlate(vehiclePlate);
-  if (samePlate && samePlate.id !== ignoreId) {
-    return { error: "Ce véhicule est déjà attribué à un autre chauffeur." };
+  for (const plate of [vehiclePlate, ...trailerPlates]) {
+    const samePlate = findDriverByPlate(plate);
+    if (samePlate && samePlate.id !== ignoreId) {
+      return { error: `La plaque ${plate} est déjà attribuée à ${samePlate.callSign}.` };
+    }
   }
-  return { callSign, driverName, phone, vehicleType: input.vehicleType, vehiclePlate };
+  return { callSign, driverName, phone, vehicleType: input.vehicleType, vehiclePlate, trailerPlates };
 }
 
 export function createDriver(input: DriverInput): DriverAccount | { error: string } {
@@ -181,6 +211,7 @@ export function createDriver(input: DriverInput): DriverAccount | { error: strin
     phone: parsed.phone,
     vehicleType: parsed.vehicleType,
     vehiclePlate: parsed.vehiclePlate,
+    trailerPlates: parsed.trailerPlates,
     pin,
     createdAt: now,
     updatedAt: now,
@@ -208,6 +239,7 @@ export function updateDriver(id: string, input: DriverInput): DriverAccount | { 
     phone: parsed.phone,
     vehicleType: parsed.vehicleType,
     vehiclePlate: parsed.vehiclePlate,
+    trailerPlates: parsed.trailerPlates,
     pin,
     updatedAt: Date.now(),
   };

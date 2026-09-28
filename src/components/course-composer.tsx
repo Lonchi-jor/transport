@@ -39,6 +39,7 @@ export type CourseDraftForm = {
   assignedDeviceId: string;
   vehicleType: VehicleType;
   vehiclePlate: string;
+  trailerPlates: string[];
 };
 
 type PinFocus = "voyage" | string;
@@ -67,6 +68,7 @@ export const emptyCourseDraft: CourseDraftForm = {
   assignedDeviceId: "",
   vehicleType: "van",
   vehiclePlate: "",
+  trailerPlates: [],
 };
 
 type Props = {
@@ -127,6 +129,7 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
         assignedDeviceId: "",
         vehicleType: "van",
         vehiclePlate: "",
+        trailerPlates: [],
       }));
       return;
     }
@@ -138,6 +141,7 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
         assignedDeviceId: "",
         vehicleType: "van",
         vehiclePlate: "",
+        trailerPlates: [],
       }));
       return;
     }
@@ -147,6 +151,7 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
       assignedDeviceId: driver.id,
       vehicleType: driver.vehicleType,
       vehiclePlate: driver.vehiclePlate ?? "",
+      trailerPlates: driver.trailerPlates ?? [],
     }));
   }
 
@@ -296,6 +301,7 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
           assignedDeviceId: form.assignedDeviceId || null,
           vehicleType: form.assignedDeviceId ? form.vehicleType : null,
           vehiclePlate: form.assignedDeviceId ? form.vehiclePlate : null,
+          trailerPlates: form.assignedDeviceId ? form.trailerPlates : [],
           createdByAdminId: ensureDispatcherId(),
         }),
       });

@@ -106,6 +106,7 @@ export default function CoursesBoard() {
         course.assignedDriverName,
         course.assignedDriverPhone,
         course.vehiclePlate,
+        ...(course.trailerPlates ?? []),
         course.notes,
       ]
         .filter(Boolean)

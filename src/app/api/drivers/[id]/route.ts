@@ -20,6 +20,7 @@ export async function PATCH(
     phone?: string;
     vehicleType?: string;
     vehiclePlate?: string;
+    trailerPlates?: string[];
     pin?: string;
   };
   try {
@@ -36,6 +37,7 @@ export async function PATCH(
     phone: body.phone ?? "",
     vehicleType: body.vehicleType,
     vehiclePlate: body.vehiclePlate ?? "",
+    trailerPlates: body.trailerPlates,
     pin: body.pin,
   });
   if ("error" in result) {

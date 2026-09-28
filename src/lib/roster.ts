@@ -7,6 +7,7 @@ export type RosterDriver = {
   phone?: string;
   vehicleType: VehicleType;
   vehiclePlate?: string;
+  trailerPlates?: string[];
   pin?: string;
   lastLat?: number | null;
   lastLng?: number | null;

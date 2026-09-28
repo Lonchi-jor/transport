@@ -15,6 +15,7 @@ export async function POST(request: Request) {
     phone?: string;
     vehicleType?: string;
     vehiclePlate?: string;
+    trailerPlates?: string[];
     pin?: string;
   };
   try {
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
     phone: body.phone ?? "",
     vehicleType: body.vehicleType,
     vehiclePlate: body.vehiclePlate ?? "",
+    trailerPlates: body.trailerPlates,
     pin: body.pin,
   });
   if ("error" in result) {
