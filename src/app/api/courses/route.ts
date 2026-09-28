@@ -3,6 +3,7 @@ import { createCourse } from "@/lib/course-store";
 import { getDriver, isVehicleType } from "@/lib/driver-store";
 import { drivingRoute, resolvePlace } from "@/lib/geo";
 import { radioSnapshot } from "@/lib/snapshot";
+import { isCourseAssignError } from "@/lib/assignment";
 import type { CourseDraft, VehicleType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -48,20 +49,27 @@ export async function POST(request: Request) {
 
   const vehicleType: VehicleType | null = isVehicleType(body.vehicleType) ? body.vehicleType : null;
 
-  const course = createCourse({
-    ...body,
-    pickupAddress: pickup.label || body.pickupAddress,
-    dropoffAddress: dropoff.label || body.dropoffAddress,
-    pickupLat: hasCoords ? pickup.lat : null,
-    pickupLng: hasCoords ? pickup.lng : null,
-    dropoffLat: hasCoords ? dropoff.lat : null,
-    dropoffLng: hasCoords ? dropoff.lng : null,
-    routePath: route?.path ?? [],
-    distanceMeters: route?.distanceMeters ?? null,
-    durationSeconds: route?.durationSeconds ?? null,
-    vehicleType: vehicleType ?? undefined,
-    vehiclePlate: body.vehiclePlate,
-    createdByAdminId: createdByAdminId || null,
-  });
-  return NextResponse.json({ course, ...radioSnapshot() });
+  try {
+    const course = createCourse({
+      ...body,
+      pickupAddress: pickup.label || body.pickupAddress,
+      dropoffAddress: dropoff.label || body.dropoffAddress,
+      pickupLat: hasCoords ? pickup.lat : null,
+      pickupLng: hasCoords ? pickup.lng : null,
+      dropoffLat: hasCoords ? dropoff.lat : null,
+      dropoffLng: hasCoords ? dropoff.lng : null,
+      routePath: route?.path ?? [],
+      distanceMeters: route?.distanceMeters ?? null,
+      durationSeconds: route?.durationSeconds ?? null,
+      vehicleType: vehicleType ?? undefined,
+      vehiclePlate: body.vehiclePlate,
+      createdByAdminId: createdByAdminId || null,
+    });
+    return NextResponse.json({ course, ...radioSnapshot() });
+  } catch (error) {
+    if (isCourseAssignError(error)) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  }
 }

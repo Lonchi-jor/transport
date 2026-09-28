@@ -43,7 +43,10 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    applySnapshot((await res.json()) as Parameters<typeof applySnapshot>[0]);
+    const data = (await res.json()) as FleetSnapshot & { error?: string };
+    if (!res.ok) return data.error || "Impossible d’enregistrer.";
+    applySnapshot(data);
+    return null;
   }
 
   return (
@@ -127,6 +130,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
               key={`${selectedCourse.id}-${selectedCourse.updatedAt}`}
               course={selectedCourse}
               roster={roster}
+              courses={courses}
               onSave={(id, body) => patchCourse(id, body)}
             />
           ) : null}
@@ -191,6 +195,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
           open
           onClose={() => setComposerOpen(false)}
           roster={roster}
+          courses={courses}
           liveById={liveById}
           onCreated={(data: FleetSnapshot) => {
             applySnapshot(data);

@@ -6,6 +6,12 @@ import { getDevice } from "./fleet-store";
 import { getDriver, isVehicleType, normalizePlate } from "./driver-store";
 import { addNotification } from "./notification-store";
 import { shortPlace } from "./format";
+import {
+  assignmentBlockedMessage,
+  CourseAssignError,
+  heldCourseForDriver,
+  isHandsFullStatus,
+} from "./assignment";
 
 const FILE = path.join(process.cwd(), ".data", "courses.json");
 const courses = new Map<string, Course>();
@@ -91,7 +97,22 @@ export function listCourses(): Course[] {
 }
 
 export function listCoursesForDriver(driverId: string): Course[] {
-  return listCourses().filter((course) => course.assignedDeviceId === driverId);
+  const mine = listCourses().filter((course) => course.assignedDeviceId === driverId);
+  const live = mine
+    .filter((course) => isHandsFullStatus(course.status))
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status === "en_route" ? -1 : 1;
+      return b.updatedAt - a.updatedAt;
+    });
+  const history = mine.filter((course) => course.status === "done" || course.status === "cancelled");
+  return [...(live[0] ? [live[0]] : []), ...history];
+}
+
+function assertCanAssign(driverId: string, exceptCourseId?: string) {
+  const held = heldCourseForDriver(listCourses(), driverId, exceptCourseId);
+  if (!held) return;
+  const account = getDriver(driverId);
+  throw new CourseAssignError(assignmentBlockedMessage(held, account?.callSign));
 }
 
 export function getCourse(id: string) {
@@ -236,6 +257,7 @@ export function createCourse(draft: CourseDraft): Course {
     updatedAt: now,
   };
   if (draft.assignedDeviceId) {
+    assertCanAssign(draft.assignedDeviceId);
     course = applyAssignment(course, draft.assignedDeviceId, {
       vehicleType: draft.vehicleType,
       vehiclePlate: draft.vehiclePlate,
@@ -254,6 +276,9 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
   const previousStatus = existing.status;
   let next = { ...existing, updatedAt: Date.now() };
   if (patch.assignedDeviceId !== undefined) {
+    if (patch.assignedDeviceId && patch.assignedDeviceId !== existing.assignedDeviceId) {
+      assertCanAssign(patch.assignedDeviceId, id);
+    }
     next = applyAssignment(next, patch.assignedDeviceId, {
       vehicleType: patch.vehicleType,
       vehiclePlate: patch.vehiclePlate,

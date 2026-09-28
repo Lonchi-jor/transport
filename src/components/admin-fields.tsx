@@ -4,7 +4,10 @@ import type { MouseEvent, ReactNode } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { telHref } from "@/lib/format";
+import { heldCourseForDriver } from "@/lib/assignment";
+import type { Course } from "@/lib/types";
 import { VEHICLE_META, VEHICLE_TYPES, type VehicleType } from "@/lib/types";
+import type { RosterDriver } from "@/lib/roster";
 
 export function Field({
   label,
@@ -20,6 +23,51 @@ export function Field({
       <Label htmlFor={htmlFor}>{label}</Label>
       {children}
     </div>
+  );
+}
+
+export function DriverAssignSelect({
+  id,
+  value,
+  roster,
+  courses,
+  exceptCourseId,
+  liveById,
+  emptyLabel,
+  onChange,
+}: {
+  id: string;
+  value: string;
+  roster: RosterDriver[];
+  courses: Course[];
+  exceptCourseId?: string | null;
+  liveById?: Map<string, unknown>;
+  emptyLabel: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <select
+      id={id}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none"
+    >
+      <option value="">{emptyLabel}</option>
+      {roster.map((driver) => {
+        const held = heldCourseForDriver(courses, driver.id, exceptCourseId);
+        const suffix = held
+          ? ` (occupé · ${held.reference})`
+          : liveById?.has(driver.id)
+            ? " (en ligne)"
+            : "";
+        return (
+          <option key={driver.id} value={driver.id} disabled={Boolean(held)}>
+            {driver.callSign} — {driver.driverName}
+            {suffix}
+          </option>
+        );
+      })}
+    </select>
   );
 }
 

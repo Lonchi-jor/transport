@@ -461,15 +461,18 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     setScanJobId(null);
   }
 
-  const myJobs = useMemo(
-    () =>
-      courses.filter(
-        (course) =>
-          course.assignedDeviceId === session?.id &&
-          (course.status === "assigned" || course.status === "en_route"),
-      ),
-    [courses, session?.id],
-  );
+  const myJobs = useMemo(() => {
+    const live = courses.filter(
+      (course) =>
+        course.assignedDeviceId === session?.id &&
+        (course.status === "assigned" || course.status === "en_route"),
+    );
+    const current =
+      live.find((course) => course.status === "en_route") ??
+      [...live].sort((a, b) => b.updatedAt - a.updatedAt)[0] ??
+      null;
+    return current ? [current] : [];
+  }, [courses, session?.id]);
   const myHistory = useMemo(
     () =>
       courses.filter(

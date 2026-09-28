@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCourse, isCourseStatus, updateCourse } from "@/lib/course-store";
 import { getDriver, isVehicleType } from "@/lib/driver-store";
 import { snapshotFromRequest } from "@/lib/snapshot";
+import { isCourseAssignError } from "@/lib/assignment";
 
 export const dynamic = "force-dynamic";
 
@@ -48,14 +49,22 @@ export async function PATCH(
       { status: 400 },
     );
   }
-  const course = updateCourse(id, {
-    assignedDeviceId: body.assignedDeviceId,
-    status: isCourseStatus(body.status) ? body.status : undefined,
-    bnNumber: body.bnNumber,
-    notes: body.notes,
-    vehicleType: isVehicleType(body.vehicleType) ? body.vehicleType : body.vehicleType === null ? null : undefined,
-    vehiclePlate: body.vehiclePlate,
-  });
+  let course;
+  try {
+    course = updateCourse(id, {
+      assignedDeviceId: body.assignedDeviceId,
+      status: isCourseStatus(body.status) ? body.status : undefined,
+      bnNumber: body.bnNumber,
+      notes: body.notes,
+      vehicleType: isVehicleType(body.vehicleType) ? body.vehicleType : body.vehicleType === null ? null : undefined,
+      vehiclePlate: body.vehiclePlate,
+    });
+  } catch (error) {
+    if (isCourseAssignError(error)) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
+    throw error;
+  }
   if (!course) {
     return NextResponse.json({ error: "Course introuvable ou BN manquant" }, { status: 404 });
   }

@@ -118,7 +118,10 @@ export default function CoursesBoard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    applySnapshot((await res.json()) as FleetSnapshot);
+    const data = (await res.json()) as FleetSnapshot & { error?: string };
+    if (!res.ok) return data.error || "Impossible d’enregistrer.";
+    applySnapshot(data);
+    return null;
   }
 
   return (
@@ -251,6 +254,7 @@ export default function CoursesBoard() {
             key={`${selected.id}-${selected.updatedAt}`}
             course={selected}
             roster={roster}
+            courses={courses}
             onSave={(id, body) => patchCourse(id, body)}
           />
         ) : null}

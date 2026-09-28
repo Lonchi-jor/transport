@@ -7,12 +7,13 @@ import { MapPinned, Plus, X } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Field, PhoneLink, VehicleFields } from "@/components/admin-fields";
+import { Field, PhoneLink, VehicleFields, DriverAssignSelect } from "@/components/admin-fields";
 import PlaceSuggest from "@/components/place-suggest";
-import type { FleetSnapshot, VehicleType } from "@/lib/types";
+import type { Course, FleetSnapshot, VehicleType } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
 import type { PlaceHit } from "@/lib/geo";
 import { ensureDispatcherId } from "@/lib/dispatcher";
+import { assignmentBlockedMessage, heldCourseForDriver } from "@/lib/assignment";
 
 const CourseComposerMap = dynamic(() => import("@/components/course-composer-map"), {
   ssr: false,
@@ -59,6 +60,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   roster: RosterDriver[];
+  courses: Course[];
   liveById: Map<string, unknown>;
   onCreated: (snapshot: FleetSnapshot) => void;
 };
@@ -74,7 +76,7 @@ async function lookupAddress(lat: number, lng: number): Promise<PlaceHit> {
   return { label: `${lat.toFixed(5)}, ${lng.toFixed(5)}`, lat, lng };
 }
 
-export default function CourseComposer({ open, onClose, roster, liveById, onCreated }: Props) {
+export default function CourseComposer({ open, onClose, roster, courses, liveById, onCreated }: Props) {
   const [form, setForm] = useState<CourseDraftForm>(emptyCourseDraft);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -95,6 +97,7 @@ export default function CourseComposer({ open, onClose, roster, liveById, onCrea
   function fillVehicleFromDriver(driverId: string) {
     const driver = roster.find((item) => item.id === driverId);
     if (!driver) {
+      setError("");
       setForm((current) => ({
         ...current,
         assignedDeviceId: "",
@@ -103,6 +106,18 @@ export default function CourseComposer({ open, onClose, roster, liveById, onCrea
       }));
       return;
     }
+    const held = heldCourseForDriver(courses, driver.id);
+    if (held) {
+      setError(assignmentBlockedMessage(held, driver.callSign));
+      setForm((current) => ({
+        ...current,
+        assignedDeviceId: "",
+        vehicleType: "van",
+        vehiclePlate: "",
+      }));
+      return;
+    }
+    setError("");
     setForm((current) => ({
       ...current,
       assignedDeviceId: driver.id,
@@ -214,6 +229,13 @@ export default function CourseComposer({ open, onClose, roster, liveById, onCrea
       setError("Placez le point de livraison sur la carte (recherche ou clic).");
       setPinFocus("dropoff");
       return;
+    }
+    if (form.assignedDeviceId) {
+      const held = heldCourseForDriver(courses, form.assignedDeviceId);
+      if (held) {
+        setError(assignmentBlockedMessage(held, assignedDriver?.callSign));
+        return;
+      }
     }
     setSaving(true);
     setError("");
@@ -376,20 +398,15 @@ export default function CourseComposer({ open, onClose, roster, liveById, onCrea
               />
             </Field>
             <Field label="Chauffeur" htmlFor="composer-driver">
-              <select
+              <DriverAssignSelect
                 id="composer-driver"
                 value={form.assignedDeviceId}
-                onChange={(e) => fillVehicleFromDriver(e.target.value)}
-                className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none"
-              >
-                <option value="">Attribuer plus tard</option>
-                {roster.map((driver) => (
-                  <option key={driver.id} value={driver.id}>
-                    {driver.callSign} — {driver.driverName}
-                    {liveById.has(driver.id) ? " (en ligne)" : ""}
-                  </option>
-                ))}
-              </select>
+                roster={roster}
+                courses={courses}
+                liveById={liveById}
+                emptyLabel="Attribuer plus tard"
+                onChange={fillVehicleFromDriver}
+              />
             </Field>
             {form.assignedDeviceId ? (
               <div className="space-y-2">
@@ -422,7 +439,8 @@ export default function CourseComposer({ open, onClose, roster, liveById, onCrea
               </div>
             ) : (
               <p className="text-xs text-[#5b6294]">
-                Choisissez le chauffeur : son véhicule se remplit tout seul.{" "}
+                Choisissez le chauffeur : son véhicule se remplit tout seul. Un chauffeur déjà en course (attribuée ou
+                en cours) n’est pas disponible.{" "}
                 <Link href="/admin/chauffeurs" className="text-[#00a4e8] hover:underline">
                   Gérer les chauffeurs
                 </Link>

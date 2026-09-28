@@ -2,17 +2,20 @@
 
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { Field, VehicleFields } from "@/components/admin-fields";
+import { DriverAssignSelect, Field, VehicleFields } from "@/components/admin-fields";
 import type { Course, VehicleType } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
+import { assignmentBlockedMessage, heldCourseForDriver } from "@/lib/assignment";
 
 export default function CourseEditor({
   course,
   roster,
+  courses,
   onSave,
 }: {
   course: Course;
   roster: RosterDriver[];
+  courses: Course[];
   onSave: (
     id: string,
     body: {
@@ -20,14 +23,23 @@ export default function CourseEditor({
       vehicleType?: VehicleType | null;
       vehiclePlate?: string | null;
     },
-  ) => Promise<void>;
+  ) => Promise<string | null>;
 }) {
   const [assignedDeviceId, setAssignedDeviceId] = useState(course.assignedDeviceId ?? "");
   const [vehicleType, setVehicleType] = useState<VehicleType>(course.vehicleType ?? "van");
   const [vehiclePlate, setVehiclePlate] = useState(course.vehiclePlate ?? "");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   function pickDriver(id: string) {
+    if (id) {
+      const held = heldCourseForDriver(courses, id, course.id);
+      if (held) {
+        setError(assignmentBlockedMessage(held, roster.find((item) => item.id === id)?.callSign));
+        return;
+      }
+    }
+    setError("");
     const driver = roster.find((item) => item.id === id);
     setAssignedDeviceId(id);
     if (!driver) {
@@ -40,12 +52,21 @@ export default function CourseEditor({
 
   async function submit(event: FormEvent) {
     event.preventDefault();
+    if (assignedDeviceId) {
+      const held = heldCourseForDriver(courses, assignedDeviceId, course.id);
+      if (held) {
+        setError(assignmentBlockedMessage(held, roster.find((item) => item.id === assignedDeviceId)?.callSign));
+        return;
+      }
+    }
     setSaving(true);
-    await onSave(course.id, {
+    setError("");
+    const message = await onSave(course.id, {
       assignedDeviceId: assignedDeviceId || null,
       vehicleType: assignedDeviceId ? vehicleType : null,
       vehiclePlate: assignedDeviceId ? vehiclePlate : null,
     });
+    if (message) setError(message);
     setSaving(false);
   }
 
@@ -53,23 +74,19 @@ export default function CourseEditor({
     <form onSubmit={(event) => void submit(event)} className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
       <h3 className="text-base font-semibold text-[#2b308f]">Modifier {course.reference}</h3>
       <p className="mb-3 text-xs text-[#5b6294]">
-        Changez le chauffeur : son véhicule se remet tout seul. Vous pouvez encore corriger l’immatriculation pour cette course.
+        Un chauffeur ne peut avoir qu’une course à la fois. Changez le chauffeur : son véhicule se remet tout seul.
       </p>
       <div className="grid gap-3">
         <Field label="Chauffeur" htmlFor={`edit-driver-${course.id}`}>
-          <select
+          <DriverAssignSelect
             id={`edit-driver-${course.id}`}
             value={assignedDeviceId}
-            onChange={(e) => pickDriver(e.target.value)}
-            className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none"
-          >
-            <option value="">Non attribué</option>
-            {roster.map((driver) => (
-              <option key={driver.id} value={driver.id}>
-                {driver.callSign} — {driver.driverName}
-              </option>
-            ))}
-          </select>
+            roster={roster}
+            courses={courses}
+            exceptCourseId={course.id}
+            emptyLabel="Non attribué"
+            onChange={pickDriver}
+          />
         </Field>
         {assignedDeviceId ? (
           <VehicleFields
@@ -84,6 +101,7 @@ export default function CourseEditor({
         ) : (
           <p className="text-xs text-[#5b6294]">Attribuez un chauffeur pour coller son véhicule.</p>
         )}
+        {error ? <p className="text-sm text-red-600">{error}</p> : null}
       </div>
       <Button type="submit" className="mt-3 h-9" disabled={saving}>
         {saving ? "Enregistrement…" : "Enregistrer la course"}
