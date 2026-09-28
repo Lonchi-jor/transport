@@ -20,7 +20,7 @@ type Props = {
 };
 
 export default function AdminDashboard({ googleMapsApiKey }: Props) {
-  const { devices, courses, roster, now, online, liveById, liveJobs, alerts, applySnapshot, markAlertsRead } =
+  const { devices, courses, roster, now, online, liveById, alerts, applySnapshot, markAlertsRead } =
     useAdminFleet();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -28,6 +28,9 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
   const [composerOpen, setComposerOpen] = useState(false);
 
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
+  const runningJobs = courses
+    .filter((course) => course.status === "en_route")
+    .sort((a, b) => (b.startedAt ?? b.updatedAt) - (a.startedAt ?? a.updatedAt));
 
   async function patchCourse(
     id: string,
@@ -139,19 +142,19 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
             <div className="flex items-start justify-between gap-3 border-b border-[#d5dcf0] px-4 py-3">
               <div>
                 <h2 className="text-base font-semibold text-[#2b308f]">Courses en cours</h2>
-                <p className="text-xs text-[#5b6294]">L’historique complet est dans Courses.</p>
+                <p className="text-xs text-[#5b6294]">Uniquement les courses actuellement en exécution.</p>
               </div>
               <Link href="/admin/courses" className="text-xs font-medium text-[#00a4e8] hover:underline">
                 Toutes les courses
               </Link>
             </div>
-            {liveJobs.length === 0 ? (
+            {runningJobs.length === 0 ? (
               <p className="px-4 py-8 text-sm text-[#5b6294]">
-                Aucune course active. Appuyez sur Nouvelle course pour tracer le voyage, puis le tour de ville.
+                Aucune course en cours. Les courses en attente de BN et l’historique sont dans Courses.
               </p>
             ) : (
               <ul className="divide-y divide-[#d5dcf0]">
-                {liveJobs.map((course) => (
+                {runningJobs.map((course) => (
                   <li key={course.id}>
                     <button
                       type="button"

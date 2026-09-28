@@ -142,7 +142,7 @@ export default function DispatchMap({
           onSelect(null);
           onOpenChange(true);
         }}
-        className="group relative block h-[220px] w-full overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white text-left shadow-sm"
+        className="group relative block h-[420px] w-full overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white text-left shadow-sm"
       >
         <div className="pointer-events-none h-full">
           <FleetMap
