@@ -439,8 +439,8 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
               </div>
             ) : (
               <p className="text-xs text-[#5b6294]">
-                Choisissez le chauffeur : son véhicule se remplit tout seul. Jusqu’à deux courses : la seconde
-                s’affiche sur le téléphone, mais il doit terminer la première avant de la démarrer.{" "}
+                Recherchez un indicatif ou un nom. Les chauffeurs sans course en cours sont en haut, puis ceux qui
+                ont déjà une course. Le véhicule se remplit tout seul.{" "}
                 <Link href="/admin/chauffeurs" className="text-[#00a4e8] hover:underline">
                   Gérer les chauffeurs
                 </Link>

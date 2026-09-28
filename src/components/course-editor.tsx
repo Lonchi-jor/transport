@@ -74,8 +74,9 @@ export default function CourseEditor({
     <form onSubmit={(event) => void submit(event)} className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
       <h3 className="text-base font-semibold text-[#2b308f]">Modifier {course.reference}</h3>
       <p className="mb-3 text-xs text-[#5b6294]">
-        Un chauffeur peut avoir jusqu’à deux courses. La seconde est visible sur le téléphone, mais il doit
-        terminer la première avant de la démarrer. Changez le chauffeur : son véhicule se remet tout seul.
+        Recherchez un chauffeur : ceux sans course en cours apparaissent en premier. Un chauffeur peut avoir
+        jusqu’à deux courses ; la seconde est visible sur le téléphone, mais il doit terminer la première avant
+        de la démarrer.
       </p>
       <div className="grid gap-3">
         <Field label="Chauffeur" htmlFor={`edit-driver-${course.id}`}>

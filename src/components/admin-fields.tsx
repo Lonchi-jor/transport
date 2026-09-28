@@ -1,6 +1,8 @@
 "use client";
 
-import type { MouseEvent, ReactNode } from "react";
+import { useMemo, type MouseEvent, type ReactNode } from "react";
+import { Combobox } from "@base-ui/react/combobox";
+import { ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { telHref } from "@/lib/format";
@@ -8,6 +10,30 @@ import { isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
 import type { Course } from "@/lib/types";
 import { VEHICLE_META, VEHICLE_TYPES, type VehicleType } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
+
+const LATER_ID = "__later__";
+
+type DriverOption = {
+  id: string;
+  callSign: string;
+  driverName: string;
+  phone: string;
+  vehiclePlate: string;
+  label: string;
+  suffix: string;
+  full: boolean;
+  load: number;
+};
+
+type DriverGroup = {
+  value: string;
+  label: string;
+  items: DriverOption[];
+};
+
+function optionLabel(driver: RosterDriver) {
+  return `${driver.callSign} — ${driver.driverName}`;
+}
 
 export function Field({
   label,
@@ -45,32 +71,140 @@ export function DriverAssignSelect({
   emptyLabel: string;
   onChange: (id: string) => void;
 }) {
-  return (
-    <select
-      id={id}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className="h-9 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none"
-    >
-      <option value="">{emptyLabel}</option>
-      {roster.map((driver) => {
-        const live = liveJobsForDriver(courses, driver.id, exceptCourseId);
-        const full = isDriverAtCapacity(courses, driver.id, exceptCourseId);
-        const suffix = full
-          ? ` (complet · ${live.map((job) => job.reference).join(" · ")})`
+  const later: DriverOption = useMemo(
+    () => ({
+      id: LATER_ID,
+      callSign: "",
+      driverName: "",
+      phone: "",
+      vehiclePlate: "",
+      label: emptyLabel,
+      suffix: "",
+      full: false,
+      load: -1,
+    }),
+    [emptyLabel],
+  );
+
+  const groups = useMemo((): DriverGroup[] => {
+    const free: DriverOption[] = [];
+    const one: DriverOption[] = [];
+    const full: DriverOption[] = [];
+
+    const ranked = [...roster].sort((a, b) => {
+      const aOn = liveById?.has(a.id) ? 0 : 1;
+      const bOn = liveById?.has(b.id) ? 0 : 1;
+      if (aOn !== bOn) return aOn - bOn;
+      return a.callSign.localeCompare(b.callSign, "fr");
+    });
+
+    for (const driver of ranked) {
+      const live = liveJobsForDriver(courses, driver.id, exceptCourseId);
+      const atCapacity = isDriverAtCapacity(courses, driver.id, exceptCourseId);
+      const option: DriverOption = {
+        id: driver.id,
+        callSign: driver.callSign,
+        driverName: driver.driverName,
+        phone: driver.phone ?? "",
+        vehiclePlate: driver.vehiclePlate ?? "",
+        label: optionLabel(driver),
+        suffix: atCapacity
+          ? `complet · ${live.map((job) => job.reference).join(" · ")}`
           : live.length === 1
-            ? ` (1 course · ${live[0].reference})`
+            ? `1 course · ${live[0].reference}`
             : liveById?.has(driver.id)
-              ? " (en ligne)"
-              : "";
-        return (
-          <option key={driver.id} value={driver.id} disabled={full}>
-            {driver.callSign} — {driver.driverName}
-            {suffix}
-          </option>
-        );
-      })}
-    </select>
+              ? "en ligne"
+              : "",
+        full: atCapacity,
+        load: live.length,
+      };
+      if (option.load === 0) free.push(option);
+      else if (option.full) full.push(option);
+      else one.push(option);
+    }
+
+    return [
+      { value: "later", label: "", items: [later] },
+      { value: "free", label: "Sans course en cours", items: free },
+      { value: "one", label: "Une course", items: one },
+      { value: "full", label: "Complet", items: full },
+    ].filter((group) => group.items.length > 0);
+  }, [roster, courses, exceptCourseId, liveById, later]);
+
+  const selected =
+    groups.flatMap((group) => group.items).find((item) => item.id === (value || LATER_ID)) ?? later;
+
+  return (
+    <Combobox.Root
+      items={groups}
+      value={selected}
+      onValueChange={(item) => {
+        if (!item || item.id === LATER_ID) onChange("");
+        else onChange(item.id);
+      }}
+      itemToStringLabel={(item) => item.label}
+      isItemEqualToValue={(a, b) => a.id === b.id}
+      autoHighlight
+      filter={(item, query) => {
+        const needle = query.trim().toLowerCase();
+        if (!needle) return true;
+        if (item.id === LATER_ID) return false;
+        return [item.callSign, item.driverName, item.phone, item.vehiclePlate, item.label]
+          .join(" ")
+          .toLowerCase()
+          .includes(needle);
+      }}
+    >
+      <Combobox.InputGroup className="relative flex h-9 w-full items-center rounded-lg border border-input bg-white focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+        <Combobox.Input
+          id={id}
+          placeholder="Rechercher un indicatif, un nom…"
+          autoComplete="off"
+          className="h-full w-full min-w-0 rounded-lg bg-transparent px-2.5 pr-8 text-sm outline-none"
+        />
+        <Combobox.Trigger
+          className="absolute right-0.5 flex size-8 items-center justify-center text-[#5b6294]"
+          aria-label="Ouvrir la liste des chauffeurs"
+        >
+          <ChevronDown className="size-4" />
+        </Combobox.Trigger>
+      </Combobox.InputGroup>
+      <Combobox.Portal>
+        <Combobox.Positioner className="isolate z-[120]" sideOffset={4} align="start">
+          <Combobox.Popup className="max-h-64 w-(--anchor-width) min-w-56 overflow-y-auto rounded-lg bg-white text-[#1c2268] shadow-lg ring-1 ring-foreground/10">
+            <Combobox.Empty className="px-3 py-2.5 text-sm text-[#5b6294]">
+              Aucun chauffeur pour cette recherche.
+            </Combobox.Empty>
+            <Combobox.List>
+              {(group: DriverGroup) => (
+                <Combobox.Group key={group.value} items={group.items} className="py-1">
+                  {group.label ? (
+                    <Combobox.GroupLabel className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#5b6294]">
+                      {group.label}
+                    </Combobox.GroupLabel>
+                  ) : null}
+                  <Combobox.Collection>
+                    {(item: DriverOption) => (
+                      <Combobox.Item
+                        key={item.id}
+                        value={item}
+                        disabled={item.full}
+                        className="flex cursor-default flex-col gap-0.5 px-2.5 py-1.5 text-sm outline-none data-highlighted:bg-[#e7f6fd] data-disabled:cursor-not-allowed data-disabled:opacity-50"
+                      >
+                        <span className="font-medium">{item.label}</span>
+                        {item.suffix ? (
+                          <span className="text-[11px] text-[#5b6294]">{item.suffix}</span>
+                        ) : null}
+                      </Combobox.Item>
+                    )}
+                  </Combobox.Collection>
+                </Combobox.Group>
+              )}
+            </Combobox.List>
+          </Combobox.Popup>
+        </Combobox.Positioner>
+      </Combobox.Portal>
+    </Combobox.Root>
   );
 }
 
