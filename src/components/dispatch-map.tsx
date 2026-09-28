@@ -142,7 +142,7 @@ export default function DispatchMap({
           onSelect(null);
           onOpenChange(true);
         }}
-        className="group relative block h-[220px] w-full overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white text-left shadow-sm"
+        className="group relative block h-[min(58vh,620px)] min-h-[280px] w-full overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white text-left shadow-sm sm:min-h-[420px]"
       >
         <div className="pointer-events-none h-full">
           <FleetMap
@@ -159,7 +159,7 @@ export default function DispatchMap({
             route={null}
           />
         </div>
-        <div className="absolute inset-0 z-20 flex items-end bg-gradient-to-t from-[#151a45]/85 via-transparent to-transparent p-4">
+        <div className="absolute inset-x-0 bottom-0 z-20 flex items-end bg-gradient-to-t from-[#151a45]/90 via-[#151a45]/35 to-transparent p-4 pt-16">
           <div className="flex w-full items-center justify-between gap-3 text-white">
             <div>
               <div className="flex items-center gap-2 text-sm font-semibold">

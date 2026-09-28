@@ -20,7 +20,7 @@ type Props = {
 };
 
 export default function AdminDashboard({ googleMapsApiKey }: Props) {
-  const { devices, courses, roster, now, online, liveById, liveJobs, alerts, applySnapshot, markAlertsRead } =
+  const { devices, courses, roster, now, online, liveById, alerts, applySnapshot, markAlertsRead } =
     useAdminFleet();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -28,6 +28,9 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
   const [composerOpen, setComposerOpen] = useState(false);
 
   const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
+  const runningJobs = courses
+    .filter((course) => course.status === "en_route")
+    .sort((a, b) => (b.startedAt ?? b.updatedAt) - (a.startedAt ?? a.updatedAt));
 
   async function patchCourse(
     id: string,
@@ -74,8 +77,30 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
         }
       />
 
-      <main className="mx-auto grid max-w-[1400px] gap-5 px-4 py-5 sm:px-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <section className="space-y-5">
+      <main className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6">
+        <DispatchMap
+          googleMapsApiKey={googleMapsApiKey}
+          devices={devices}
+          courses={courses}
+          now={now}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          open={mapOpen}
+          onOpenChange={setMapOpen}
+        />
+
+        {selectedCourse ? (
+          <CourseEditor
+            key={`${selectedCourse.id}-${selectedCourse.updatedAt}`}
+            course={selectedCourse}
+            roster={roster}
+            courses={courses}
+            onSave={(id, body) => patchCourse(id, body)}
+          />
+        ) : null}
+
+        <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
+          <section className="space-y-5">
           <NewCourseButton onClick={() => setComposerOpen(true)} />
           <Link
             href="/admin/courses"
@@ -111,47 +136,26 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
             </div>
             <span className="text-xs font-medium text-[#00a4e8]">Ouvrir →</span>
           </Link>
-        </section>
+          </section>
 
-        <section className="space-y-5">
-          <DispatchMap
-            googleMapsApiKey={googleMapsApiKey}
-            devices={devices}
-            courses={courses}
-            now={now}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            open={mapOpen}
-            onOpenChange={setMapOpen}
-          />
-
-          {selectedCourse ? (
-            <CourseEditor
-              key={`${selectedCourse.id}-${selectedCourse.updatedAt}`}
-              course={selectedCourse}
-              roster={roster}
-              courses={courses}
-              onSave={(id, body) => patchCourse(id, body)}
-            />
-          ) : null}
-
+          <section className="space-y-5">
           <div className="overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white shadow-sm">
             <div className="flex items-start justify-between gap-3 border-b border-[#d5dcf0] px-4 py-3">
               <div>
-                <h2 className="text-base font-semibold text-[#2b308f]">Courses en cours</h2>
-                <p className="text-xs text-[#5b6294]">L’historique complet est dans Courses.</p>
+                <h2 className="text-base font-semibold text-[#2b308f]">En exécution</h2>
+                <p className="text-xs text-[#5b6294]">Uniquement les courses démarrées (BN validé).</p>
               </div>
               <Link href="/admin/courses" className="text-xs font-medium text-[#00a4e8] hover:underline">
                 Toutes les courses
               </Link>
             </div>
-            {liveJobs.length === 0 ? (
+            {runningJobs.length === 0 ? (
               <p className="px-4 py-8 text-sm text-[#5b6294]">
-                Aucune course active. Appuyez sur Nouvelle course pour tracer le voyage, puis le tour de ville.
+                Aucune course en exécution. Les courses attribuées, en attente de BN, sont dans Courses.
               </p>
             ) : (
               <ul className="divide-y divide-[#d5dcf0]">
-                {liveJobs.map((course) => (
+                {runningJobs.map((course) => (
                   <li key={course.id}>
                     <button
                       type="button"
@@ -187,7 +191,8 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
               </ul>
             )}
           </div>
-        </section>
+          </section>
+        </div>
       </main>
 
       {composerOpen ? (

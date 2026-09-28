@@ -10,7 +10,7 @@ The interface uses the CCMM mark and the logo blues: navy `#2B308F` and cyan `#0
 
 Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC. Le bloc **Tableau de bord dispatch** (à côté du logo, avec le sous-titre *Courses, carte et attribution*) est un bouton : il ramène toujours au dispatch.
 
-- **Tableau de bord** : carte, nouvelle course, courses en cours.
+- **Tableau de bord** : grande carte, nouvelle course, **uniquement les courses en exécution** (BN validé).
 - **Courses** : [http://localhost:43147/admin/courses](http://localhost:43147/admin/courses) — toutes les courses de tous les chauffeurs, avec filtres (chauffeur, sans chauffeur, statut, dates, type de véhicule, BL, recherche).
 - **Chauffeurs** : [http://localhost:43147/admin/chauffeurs](http://localhost:43147/admin/chauffeurs) — fiches, téléphone, véhicules, PIN, **statut de connexion** (vert / jaune / rouge) et historique. Sur la fiche, les compteurs **Courses / En cours / Terminées** sont des boutons : ils filtrent la liste de ce chauffeur.
 
