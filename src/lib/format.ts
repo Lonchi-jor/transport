@@ -45,6 +45,22 @@ export function activeCourses(courses: Course[]) {
   return courses.filter((c) => c.status === "open" || c.status === "assigned" || c.status === "en_route");
 }
 
+export type CourseViewFilter = "all" | "live" | "done";
+
+export function parseCourseViewFilter(value: string | null | undefined): CourseViewFilter {
+  return value === "live" || value === "done" ? value : "all";
+}
+
+export function isLiveAssignedCourse(course: Course) {
+  return course.status === "assigned" || course.status === "en_route";
+}
+
+export function matchesCourseView(course: Course, view: CourseViewFilter) {
+  if (view === "live") return isLiveAssignedCourse(course);
+  if (view === "done") return course.status === "done";
+  return true;
+}
+
 export type MapRoute = {
   path: [number, number][];
   pickup: { lat: number; lng: number; label: string };

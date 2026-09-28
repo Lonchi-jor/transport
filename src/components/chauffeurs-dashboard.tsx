@@ -19,8 +19,12 @@ import {
   formatCoords,
   formatKm,
   formatWhen,
+  isLiveAssignedCourse,
   kph,
+  matchesCourseView,
+  parseCourseViewFilter,
   vehicleLine,
+  type CourseViewFilter,
 } from "@/lib/format";
 import { presenceKind } from "@/lib/presence";
 
@@ -40,7 +44,6 @@ export default function ChauffeursDashboard() {
     setRoster,
     now,
     online,
-    liveJobs,
     liveById,
     onlineCount,
     applySnapshot,
@@ -50,6 +53,7 @@ export default function ChauffeursDashboard() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const selectedId = searchParams.get("id");
+  const jobView = parseCourseViewFilter(searchParams.get("jobs"));
   const [query, setQuery] = useState("");
   const [editingDriverId, setEditingDriverId] = useState<string | null>(null);
   const [driverForm, setDriverForm] = useState(emptyDriver);
@@ -70,8 +74,24 @@ export default function ChauffeursDashboard() {
 
   const selected = roster.find((driver) => driver.id === selectedId) ?? null;
 
+  function chauffeurUrl(id: string | null, jobs: CourseViewFilter = "all") {
+    const params = new URLSearchParams();
+    if (id) params.set("id", id);
+    if (jobs !== "all") params.set("jobs", jobs);
+    const qs = params.toString();
+    return qs ? `/admin/chauffeurs?${qs}` : "/admin/chauffeurs";
+  }
+
   function openDriver(id: string) {
-    router.replace(`/admin/chauffeurs?id=${encodeURIComponent(id)}`);
+    router.replace(chauffeurUrl(id));
+  }
+
+  function setJobView(view: CourseViewFilter) {
+    if (!selectedId) return;
+    router.replace(chauffeurUrl(selectedId, view));
+    window.requestAnimationFrame(() => {
+      document.getElementById("chauffeur-courses")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function startEditDriver(driver: RosterDriver) {
@@ -143,13 +163,27 @@ export default function ChauffeursDashboard() {
     if (selectedId === id) router.replace("/admin/chauffeurs");
   }
 
-  const selectedJobs = selected
-    ? courses.filter((course) => course.assignedDeviceId === selected.id)
-    : [];
+  const selectedJobs = useMemo(
+    () => (selected ? courses.filter((course) => course.assignedDeviceId === selected.id) : []),
+    [courses, selected],
+  );
+  const selectedLiveJobs = useMemo(
+    () => selectedJobs.filter(isLiveAssignedCourse),
+    [selectedJobs],
+  );
+  const selectedDoneJobs = useMemo(
+    () => selectedJobs.filter((course) => course.status === "done"),
+    [selectedJobs],
+  );
+  const visibleJobs = useMemo(() => {
+    const next = selectedJobs.filter((course) => matchesCourseView(course, jobView));
+    if (jobView !== "live") return next;
+    return [...next].sort((a, b) => {
+      if (a.status !== b.status) return a.status === "en_route" ? -1 : 1;
+      return b.createdAt - a.createdAt;
+    });
+  }, [selectedJobs, jobView]);
   const selectedLive = selected ? liveById.get(selected.id) : undefined;
-  const selectedActive = selected
-    ? liveJobs.filter((course) => course.assignedDeviceId === selected.id)
-    : [];
   const selectedLastSeen = selectedLive?.lastSeen ?? selected?.lastSeenAt ?? null;
   const selectedCoords = formatCoords(
     selectedLive?.lat ?? selected?.lastLat,
@@ -299,7 +333,7 @@ export default function ChauffeursDashboard() {
                 {filtered.map((driver) => {
                   const live = liveById.get(driver.id);
                   const jobs = courses.filter((c) => c.assignedDeviceId === driver.id);
-                  const active = liveJobs.filter((c) => c.assignedDeviceId === driver.id);
+                  const active = jobs.filter(isLiveAssignedCourse);
                   const lastSeen = live?.lastSeen ?? driver.lastSeenAt ?? null;
                   const coords = formatCoords(live?.lat ?? driver.lastLat, live?.lng ?? driver.lastLng);
                   const focused = selected?.id === driver.id;
@@ -411,30 +445,55 @@ export default function ChauffeursDashboard() {
                     </Button>
                   </div>
                 </div>
-                <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-                  <div className="rounded-xl bg-[#f4f7fc] px-3 py-2">
-                    <div className="text-lg font-semibold text-[#2b308f]">{selectedJobs.length}</div>
-                    <div className="text-[11px] text-[#5b6294]">Courses</div>
-                  </div>
-                  <div className="rounded-xl bg-[#f4f7fc] px-3 py-2">
-                    <div className="text-lg font-semibold text-[#2b308f]">{selectedActive.length}</div>
-                    <div className="text-[11px] text-[#5b6294]">En cours</div>
-                  </div>
-                  <div className="rounded-xl bg-[#f4f7fc] px-3 py-2">
-                    <div className="text-lg font-semibold text-[#2b308f]">
-                      {selectedJobs.filter((job) => job.status === "done").length}
-                    </div>
-                    <div className="text-[11px] text-[#5b6294]">Terminées</div>
-                  </div>
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {(
+                    [
+                      { id: "all" as const, label: "Courses", value: selectedJobs.length },
+                      { id: "live" as const, label: "En cours", value: selectedLiveJobs.length },
+                      { id: "done" as const, label: "Terminées", value: selectedDoneJobs.length },
+                    ] as const
+                  ).map((item) => {
+                    const active = jobView === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        aria-pressed={active}
+                        aria-controls="chauffeur-courses"
+                        onClick={() => setJobView(item.id)}
+                        className={`rounded-xl px-3 py-2 text-center transition ${
+                          active
+                            ? "bg-[#e7f6fd] ring-2 ring-[#00a4e8]"
+                            : "bg-[#f4f7fc] hover:bg-[#eef3fb]"
+                        }`}
+                      >
+                        <div className="text-lg font-semibold text-[#2b308f]">{item.value}</div>
+                        <div className="text-[11px] text-[#5b6294]">{item.label}</div>
+                      </button>
+                    );
+                  })}
                 </div>
+                <p className="mt-2 text-[11px] text-[#5b6294]">
+                  Touchez un compteur pour afficher toutes ses courses, celles en cours, ou celles terminées.
+                </p>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white shadow-sm">
+              <div id="chauffeur-courses" className="overflow-hidden rounded-2xl border border-[#d5dcf0] bg-white shadow-sm">
                 <div className="flex items-start justify-between gap-3 border-b border-[#d5dcf0] px-4 py-3">
                   <div>
-                    <h3 className="text-base font-semibold text-[#2b308f]">Historique des courses</h3>
+                    <h3 className="text-base font-semibold text-[#2b308f]">
+                      {jobView === "live"
+                        ? "Courses en cours"
+                        : jobView === "done"
+                          ? "Courses terminées"
+                          : "Toutes les courses"}
+                    </h3>
                     <p className="text-xs text-[#5b6294]">
-                      Client, trajet, véhicule utilisé, BN, BL — tout reste enregistré.
+                      {jobView === "live"
+                        ? "Reçues ou déjà démarrées, pas encore livrées."
+                        : jobView === "done"
+                          ? "Courses livrées, avec le BL scanné."
+                          : "Client, trajet, véhicule utilisé, BN, BL — tout reste enregistré."}
                     </p>
                   </div>
                   <div className="flex flex-col items-end gap-1">
@@ -442,20 +501,32 @@ export default function ChauffeursDashboard() {
                       Donner une course
                     </Link>
                     <Link
-                      href={`/admin/courses?chauffeur=${encodeURIComponent(selected.id)}`}
+                      href={`/admin/courses?chauffeur=${encodeURIComponent(selected.id)}${
+                        jobView === "all" ? "" : `&filtre=${jobView}`
+                      }`}
                       className="text-xs font-medium text-[#00a4e8] hover:underline"
                     >
-                      Toutes ses courses
+                      {jobView === "live"
+                        ? "Tableau — en cours"
+                        : jobView === "done"
+                          ? "Tableau — terminées"
+                          : "Toutes ses courses"}
                     </Link>
                   </div>
                 </div>
-                {selectedJobs.length === 0 ? (
+                {visibleJobs.length === 0 ? (
                   <p className="px-4 py-10 text-sm text-[#5b6294]">
-                    Aucune course pour ce chauffeur. Attribuez-en une depuis le tableau de bord.
+                    {selectedJobs.length === 0
+                      ? "Aucune course pour ce chauffeur. Attribuez-en une depuis le tableau de bord."
+                      : jobView === "live"
+                        ? "Aucune course en cours pour ce chauffeur."
+                        : jobView === "done"
+                          ? "Aucune course terminée pour ce chauffeur."
+                          : "Aucune course pour ce chauffeur. Attribuez-en une depuis le tableau de bord."}
                   </p>
                 ) : (
                   <ul className="divide-y divide-[#d5dcf0]">
-                    {selectedJobs.map((course) => {
+                    {visibleJobs.map((course) => {
                       const elapsed = courseElapsedLabel(course, now);
                       return (
                         <li key={course.id} className="px-4 py-3">

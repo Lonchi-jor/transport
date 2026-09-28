@@ -12,7 +12,7 @@ Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC. L
 
 - **Tableau de bord** : carte, nouvelle course, courses en cours.
 - **Courses** : [http://localhost:43147/admin/courses](http://localhost:43147/admin/courses) — toutes les courses de tous les chauffeurs, avec filtres (chauffeur, sans chauffeur, statut, dates, type de véhicule, BL, recherche).
-- **Chauffeurs** : [http://localhost:43147/admin/chauffeurs](http://localhost:43147/admin/chauffeurs) — fiches, téléphone, véhicules, PIN, **statut de connexion** (vert / jaune / rouge) et historique.
+- **Chauffeurs** : [http://localhost:43147/admin/chauffeurs](http://localhost:43147/admin/chauffeurs) — fiches, téléphone, véhicules, PIN, **statut de connexion** (vert / jaune / rouge) et historique. Sur la fiche, les compteurs **Courses / En cours / Terminées** sont des boutons : ils filtrent la liste de ce chauffeur.
 
 1. **Enregistrez le chauffeur** dans **Chauffeurs** : indicatif (`ME-01`), nom, **téléphone**, **véhicule** (type + immatriculation), et un code PIN.
 2. Donnez l’indicatif et le PIN au chauffeur. Vous pouvez **modifier** la fiche à tout moment.

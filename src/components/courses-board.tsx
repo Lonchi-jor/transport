@@ -19,7 +19,11 @@ import {
   courseElapsedLabel,
   formatKm,
   formatWhen,
+  isLiveAssignedCourse,
+  matchesCourseView,
+  parseCourseViewFilter,
   vehicleLine,
+  type CourseViewFilter,
 } from "@/lib/format";
 
 const PERIODS = [
@@ -41,13 +45,28 @@ export default function CoursesBoard() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const chauffeurId = searchParams.get("chauffeur") ?? "";
+  const view = parseCourseViewFilter(searchParams.get("filtre"));
 
-  function setChauffeur(id: string) {
+  function replaceParams(mutate: (params: URLSearchParams) => void) {
     const params = new URLSearchParams(searchParams.toString());
-    if (id) params.set("chauffeur", id);
-    else params.delete("chauffeur");
+    mutate(params);
     const qs = params.toString();
     router.replace(qs ? `/admin/courses?${qs}` : "/admin/courses");
+  }
+
+  function setChauffeur(id: string) {
+    replaceParams((params) => {
+      if (id) params.set("chauffeur", id);
+      else params.delete("chauffeur");
+    });
+  }
+
+  function setView(next: CourseViewFilter) {
+    setStatus("all");
+    replaceParams((params) => {
+      if (next === "all") params.delete("filtre");
+      else params.set("filtre", next);
+    });
   }
 
   const filtered = useMemo(() => {
@@ -63,11 +82,15 @@ export default function CoursesBoard() {
     return courses.filter((course) => {
       if (chauffeurId === "__none__" && course.assignedDeviceId) return false;
       if (chauffeurId && chauffeurId !== "__none__" && course.assignedDeviceId !== chauffeurId) return false;
-      if (status !== "all" && course.status !== status) return false;
       if (vehicleType !== "all" && course.vehicleType !== vehicleType) return false;
       if (cutoff && course.createdAt < cutoff) return false;
       if (bl === "yes" && !course.hasDeliveryScan) return false;
       if (bl === "no" && course.hasDeliveryScan) return false;
+      if (view === "live" || view === "done") {
+        if (!matchesCourseView(course, view)) return false;
+      } else if (status !== "all" && course.status !== status) {
+        return false;
+      }
       if (!needle) return true;
       const hay = [
         course.reference,
@@ -87,19 +110,24 @@ export default function CoursesBoard() {
         .toLowerCase();
       return hay.includes(needle);
     });
-  }, [courses, chauffeurId, status, period, bl, query, vehicleType, now]);
+  }, [courses, chauffeurId, status, period, bl, query, vehicleType, now, view]);
 
   const stats = useMemo(() => {
-    const done = filtered.filter((c) => c.status === "done");
-    const live = filtered.filter((c) => c.status === "assigned" || c.status === "en_route");
+    const scoped = courses.filter((course) => {
+      if (chauffeurId === "__none__" && course.assignedDeviceId) return false;
+      if (chauffeurId && chauffeurId !== "__none__" && course.assignedDeviceId !== chauffeurId) return false;
+      return true;
+    });
+    const done = scoped.filter((c) => c.status === "done");
+    const live = scoped.filter(isLiveAssignedCourse);
     const km = filtered.reduce((sum, c) => sum + (c.distanceMeters ?? 0), 0);
     return {
-      total: filtered.length,
+      total: scoped.length,
       live: live.length,
       done: done.length,
       km,
     };
-  }, [filtered]);
+  }, [courses, chauffeurId, filtered]);
 
   const selected = courses.find((course) => course.id === selectedId) ?? null;
   const selectedDriver = roster.find((driver) => driver.id === chauffeurId) ?? null;
@@ -143,9 +171,24 @@ export default function CoursesBoard() {
         </div>
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <StatCard label="Résultats" value={String(stats.total)} />
-          <StatCard label="En cours" value={String(stats.live)} />
-          <StatCard label="Terminées" value={String(stats.done)} />
+          <StatCard
+            label={selectedDriver ? "Ses courses" : "Courses"}
+            value={String(stats.total)}
+            active={view === "all"}
+            onClick={() => setView("all")}
+          />
+          <StatCard
+            label="En cours"
+            value={String(stats.live)}
+            active={view === "live"}
+            onClick={() => setView("live")}
+          />
+          <StatCard
+            label="Terminées"
+            value={String(stats.done)}
+            active={view === "done"}
+            onClick={() => setView("done")}
+          />
           <StatCard label="Distance" value={formatKm(stats.km) ?? "—"} />
         </div>
 
@@ -179,7 +222,10 @@ export default function CoursesBoard() {
               Statut
               <select
                 value={status}
-                onChange={(e) => setStatus(e.target.value as CourseStatus | "all")}
+                onChange={(e) => {
+                  replaceParams((params) => params.delete("filtre"));
+                  setStatus(e.target.value as CourseStatus | "all");
+                }}
                 className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
               >
                 <option value="all">Tous</option>
@@ -241,7 +287,8 @@ export default function CoursesBoard() {
             </p>
           ) : selectedDriver ? (
             <p className="mt-3 text-xs text-[#2b308f]">
-              Filtre chauffeur : {selectedDriver.callSign} · {selectedDriver.driverName} · {vehicleLine(selectedDriver)}{" "}
+              Filtre chauffeur : {selectedDriver.callSign} · {selectedDriver.driverName} · {vehicleLine(selectedDriver)}
+              {view === "live" ? " · en cours" : view === "done" ? " · terminées" : ""}{" "}
               <button type="button" className="text-[#00a4e8] underline" onClick={() => setChauffeur("")}>
                 Retirer
               </button>
@@ -404,11 +451,36 @@ export default function CoursesBoard() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-[#d5dcf0] bg-white p-3 shadow-sm">
+function StatCard({
+  label,
+  value,
+  active,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  active?: boolean;
+  onClick?: () => void;
+}) {
+  const className = `rounded-2xl border p-3 text-left shadow-sm ${
+    onClick
+      ? active
+        ? "border-[#00a4e8] bg-[#e7f6fd]"
+        : "border-[#d5dcf0] bg-white hover:bg-[#f4f7fc]"
+      : "border-[#d5dcf0] bg-white"
+  }`;
+  const inner = (
+    <>
       <div className="text-xl font-semibold text-[#2b308f]">{value}</div>
       <div className="text-[11px] text-[#5b6294]">{label}</div>
-    </div>
+    </>
+  );
+  if (!onClick) {
+    return <div className={className}>{inner}</div>;
+  }
+  return (
+    <button type="button" aria-pressed={Boolean(active)} onClick={onClick} className={className}>
+      {inner}
+    </button>
   );
 }
