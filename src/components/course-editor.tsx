@@ -6,6 +6,7 @@ import { DriverAssignSelect, Field, VehicleFields } from "@/components/admin-fie
 import type { Course, VehicleType } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
 import { assignmentBlockedMessage, isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
+import { CourseItinerary } from "@/components/course-itinerary";
 
 export default function CourseEditor({
   course,
@@ -73,6 +74,9 @@ export default function CourseEditor({
   return (
     <form onSubmit={(event) => void submit(event)} className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
       <h3 className="text-base font-semibold text-[#2b308f]">Modifier {course.reference}</h3>
+      <div className="mt-2 mb-3">
+        <CourseItinerary course={course} />
+      </div>
       <p className="mb-3 text-xs text-[#5b6294]">
         Recherchez un chauffeur : ceux sans course en cours apparaissent en premier. Un chauffeur peut avoir
         jusqu’à deux courses ; la seconde est visible sur le téléphone, mais il doit terminer la première avant

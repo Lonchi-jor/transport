@@ -16,17 +16,17 @@ Ouvrez [http://localhost:43147/admin](http://localhost:43147/admin) sur un PC. L
 
 1. **Enregistrez le chauffeur** dans **Chauffeurs** : indicatif (`ME-01`), nom, **téléphone**, **véhicule** (type + immatriculation), et un code PIN.
 2. Donnez l’indicatif et le PIN au chauffeur. Vous pouvez **modifier** la fiche à tout moment.
-3. Sur le **tableau de bord**, le bouton **Nouvelle course** ouvre la **carte en plein écran**. Choisissez le lieu de départ : la carte s’y rend et pose un pin ; glissez-le si besoin. Pareil pour la livraison. **Recherchez le chauffeur** (indicatif ou nom) : ceux **sans course en cours** sont listés en premier. Son véhicule se remplit tout seul. **Un chauffeur peut avoir jusqu’à deux courses** (attribuées ou en cours) : la seconde apparaît sur le téléphone, mais il doit **terminer la première** avant de la démarrer. Une troisième attribution est refusée. Le pin du chauffeur **ne se déplace pas à la main** : seule la géolocalisation du téléphone le fait bouger. La **note au chauffeur** s’affiche en grand sur le portable ; il doit la lire avant de démarrer. Une **cloche** sur le téléphone lui signale la nouvelle course.
+3. Sur le **tableau de bord**, le bouton **Nouvelle course** ouvre la **carte en plein écran**. Placez le **voyage** (point de départ) : la carte s’y rend et pose un pin ; glissez-le si besoin. Passez au **tour de ville** : posez la première destination, puis le **+** pour en ajouter d’autres (jusqu’à 8). L’itinéraire relie le voyage à toutes les destinations. **Recherchez le chauffeur** (indicatif ou nom) : ceux **sans course en cours** sont listés en premier. Son véhicule se remplit tout seul. **Un chauffeur peut avoir jusqu’à deux courses** (attribuées ou en cours) : la seconde apparaît sur le téléphone, mais il doit **terminer la première** avant de la démarrer. Une troisième attribution est refusée. Le pin du chauffeur **ne se déplace pas à la main** : seule la géolocalisation du téléphone le fait bouger. La **note au chauffeur** s’affiche en grand sur le portable ; il doit la lire avant de démarrer. Une **cloche** sur le téléphone lui signale la nouvelle course.
 4. Ouvrez **Courses** pour l’historique complet. Le bureau ne voit pas le texte de la note dans le tableau : une pastille **Note envoyée** le signale, et le texte apparaît au survol (sans cliquer).
 5. Quand le chauffeur **termine** (scan du BL), la **cloche du dispatch** n’alerte que le poste qui a créé cette course. Un autre ordinateur du bureau ne reçoit pas cette alerte.
 
-Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’à la destination.
+Cliquez la **carte** (ou le bouton Carte) pour l’ouvrir en **plein écran**. Un clic sur un chauffeur qui a **démarré** sa course (BN validé) trace l’itinéraire de **sa position actuelle** jusqu’aux destinations du tour.
 
 ## Téléphone chauffeur
 
 Ouvrez [http://localhost:43147/](http://localhost:43147/) (ou le lien HTTPS `npm run phone`). Entrez **uniquement** l’indicatif et le PIN créés au bureau. Pas d’inscription sur le portable.
 
-Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route**. Sur sa carte il voit **uniquement** sa position et **l’itinéraire jusqu’à la destination** — jamais les autres véhicules. La **cloche** ouvre la liste des **ses** courses. La barre du bas (chauffeur + course) se **baisse** et se **remonte** avec la flèche. Pour **terminer**, il scanne le **bon de livraison** : la caméra **détecte le papier**, le recadre (perspective + couleur, type CamScanner) et le joint à la course. Le bureau **télécharge** le BL depuis `/admin`.
+Le chauffeur appuie sur **Commencer**, saisit le **numéro du BN**, puis la course passe **en route**. Sur sa carte il voit **uniquement** sa position et **l’itinéraire du tour de ville** — jamais les autres véhicules. La **cloche** ouvre la liste des **ses** courses. La barre du bas (chauffeur + course) se **baisse** et se **remonte** avec la flèche. Pour **terminer**, il scanne le **bon de livraison** : la caméra **détecte le papier**, le recadre (perspective + couleur, type CamScanner) et le joint à la course. Le bureau **télécharge** le BL depuis `/admin`.
 
 ## Test on your phone while you develop
 
@@ -53,13 +53,13 @@ npm run phone
 
 - Dispatch creates chauffeurs; the phone logs in with indicatif + PIN only
 - Desk map keeps **the last GPS of every chauffeur**, even after disconnect. Pins are **green** (en ligne), **yellow** (vu il y a moins de 30 min) or **red** (déconnecté depuis plus de 30 min). Hover a pin to see the last-seen timestamp.
-- The phone map shows **only this chauffeur** and the route to the drop-off
+- The phone map shows **only this chauffeur** and the driving tour through every destination
 - Installable phone app (home screen / PWA)
 - **Google Maps** when you add an API key
 - OpenStreetMap fallback so the app still runs without a key
 - Real GPS by default
-- Address suggestions on pickup / dropoff (Google Places if keyed, Photon otherwise)
-- Driving itinerary on the phone from the current position to the destination
+- Address suggestions on voyage / tour destinations (Google Places if keyed, Photon otherwise)
+- Driving itinerary on the phone from the current position through the tour
 - Color CamScanner-style delivery-note scan before a job can be marked done; dispatch can download the JPEG
 
 Chauffeur accounts persist in `.data/drivers.json`. Courses (and the vehicle used on each trip) persist in `.data/courses.json`. Last GPS and last-seen time persist in `.data/presence.json`, so the desk still sees a chauffeur after the phone goes offline.

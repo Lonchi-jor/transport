@@ -1,4 +1,4 @@
-import type { Course, CourseStatus, FleetDevice, VehicleType } from "@/lib/types";
+import type { Course, CourseStatus, CourseStop, FleetDevice, VehicleType } from "@/lib/types";
 import { VEHICLE_META } from "@/lib/types";
 
 export type MapFollow = {
@@ -65,24 +65,50 @@ export type MapRoute = {
   path: [number, number][];
   pickup: { lat: number; lng: number; label: string };
   dropoff: { lat: number; lng: number; label: string };
+  stops?: { lat: number; lng: number; label: string }[];
 };
+
+export function courseStops(
+  course: Pick<Course, "stops" | "dropoffAddress" | "dropoffLat" | "dropoffLng">,
+): CourseStop[] {
+  if (Array.isArray(course.stops) && course.stops.length > 0) return course.stops;
+  if (!course.dropoffAddress && course.dropoffLat == null) return [];
+  return [
+    {
+      id: "dropoff",
+      address: course.dropoffAddress,
+      lat: course.dropoffLat,
+      lng: course.dropoffLng,
+    },
+  ];
+}
+
+export function tourLine(course: Course) {
+  const parts = [course.pickupAddress, ...courseStops(course).map((stop) => stop.address)]
+    .map((value) => shortPlace(value))
+    .filter(Boolean);
+  return parts.join(" → ");
+}
 
 export function courseToMapRoute(course: Course | null | undefined): MapRoute | null {
   if (!course) return null;
-  if (course.pickupLat == null || course.pickupLng == null || course.dropoffLat == null || course.dropoffLng == null) {
+  const stops = courseStops(course).filter(
+    (stop): stop is CourseStop & { lat: number; lng: number } =>
+      stop.lat != null && stop.lng != null && Number.isFinite(stop.lat) && Number.isFinite(stop.lng),
+  );
+  if (course.pickupLat == null || course.pickupLng == null || stops.length === 0) {
     return null;
   }
+  const last = stops[stops.length - 1];
   const path: [number, number][] =
     course.routePath.length >= 2
       ? course.routePath
-      : [
-          [course.pickupLat, course.pickupLng],
-          [course.dropoffLat, course.dropoffLng],
-        ];
+      : [[course.pickupLat, course.pickupLng], ...stops.map((stop) => [stop.lat, stop.lng] as [number, number])];
   return {
     path,
     pickup: { lat: course.pickupLat, lng: course.pickupLng, label: course.pickupAddress },
-    dropoff: { lat: course.dropoffLat, lng: course.dropoffLng, label: course.dropoffAddress },
+    dropoff: { lat: last.lat, lng: last.lng, label: last.address },
+    stops: stops.map((stop) => ({ lat: stop.lat, lng: stop.lng, label: stop.address })),
   };
 }
 

@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { createCourse } from "@/lib/course-store";
 import { getDriver, isVehicleType } from "@/lib/driver-store";
-import { drivingRoute, resolvePlace } from "@/lib/geo";
+import { drivingItinerary, resolvePlace } from "@/lib/geo";
 import { radioSnapshot } from "@/lib/snapshot";
 import { isCourseRuleError } from "@/lib/assignment";
-import type { CourseDraft, VehicleType } from "@/lib/types";
+import type { CourseDraft, CourseStop, VehicleType } from "@/lib/types";
+import { MAX_TOUR_STOPS } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,28 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({ error: "JSON invalide" }, { status: 400 });
   }
-  if (!body?.clientName?.trim() || !body?.pickupAddress?.trim() || !body?.dropoffAddress?.trim()) {
+  if (!body?.clientName?.trim() || !body?.pickupAddress?.trim()) {
     return NextResponse.json(
-      { error: "Client, enlèvement et livraison sont obligatoires." },
+      { error: "Le client et le point de voyage sont obligatoires." },
+      { status: 400 },
+    );
+  }
+
+  const rawStops = Array.isArray(body.stops) && body.stops.length
+    ? body.stops
+    : body.dropoffAddress
+      ? [
+          {
+            id: "dropoff",
+            address: body.dropoffAddress,
+            lat: body.dropoffLat ?? null,
+            lng: body.dropoffLng ?? null,
+          },
+        ]
+      : [];
+  if (!rawStops.some((stop) => stop.address?.trim())) {
+    return NextResponse.json(
+      { error: "Ajoutez au moins une destination pour le tour de ville." },
       { status: 400 },
     );
   }
@@ -34,18 +54,33 @@ export async function POST(request: Request) {
     typeof body.createdByAdminId === "string" ? body.createdByAdminId.trim().slice(0, 80) : "";
 
   const pickup = await resolvePlace(body.pickupAddress, body.pickupLat, body.pickupLng);
-  const dropoff = await resolvePlace(body.dropoffAddress, body.dropoffLat, body.dropoffLng);
-  const hasCoords =
-    Number.isFinite(pickup.lat) &&
-    Number.isFinite(pickup.lng) &&
-    Number.isFinite(dropoff.lat) &&
-    Number.isFinite(dropoff.lng);
-  const route = hasCoords
-    ? await drivingRoute(
-        { lat: pickup.lat, lng: pickup.lng },
-        { lat: dropoff.lat, lng: dropoff.lng },
-      )
-    : null;
+  const stops: CourseStop[] = [];
+  for (const stop of rawStops.slice(0, MAX_TOUR_STOPS)) {
+    if (!stop.address?.trim() && stop.lat == null) continue;
+    const place = await resolvePlace(stop.address || "", stop.lat, stop.lng);
+    stops.push({
+      id: stop.id?.trim() || crypto.randomUUID(),
+      address: place.label || stop.address.trim(),
+      lat: Number.isFinite(place.lat) ? place.lat : null,
+      lng: Number.isFinite(place.lng) ? place.lng : null,
+    });
+  }
+  const last = stops[stops.length - 1];
+  if (!last) {
+    return NextResponse.json(
+      { error: "Ajoutez au moins une destination pour le tour de ville." },
+      { status: 400 },
+    );
+  }
+
+  const waypoints = [
+    { lat: pickup.lat, lng: pickup.lng },
+    ...stops
+      .filter((stop) => stop.lat != null && stop.lng != null)
+      .map((stop) => ({ lat: stop.lat as number, lng: stop.lng as number })),
+  ];
+  const hasCoords = waypoints.length >= 2 && waypoints.every((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+  const route = hasCoords ? await drivingItinerary(waypoints) : null;
 
   const vehicleType: VehicleType | null = isVehicleType(body.vehicleType) ? body.vehicleType : null;
 
@@ -53,11 +88,12 @@ export async function POST(request: Request) {
     const course = createCourse({
       ...body,
       pickupAddress: pickup.label || body.pickupAddress,
-      dropoffAddress: dropoff.label || body.dropoffAddress,
-      pickupLat: hasCoords ? pickup.lat : null,
-      pickupLng: hasCoords ? pickup.lng : null,
-      dropoffLat: hasCoords ? dropoff.lat : null,
-      dropoffLng: hasCoords ? dropoff.lng : null,
+      dropoffAddress: last.address,
+      pickupLat: Number.isFinite(pickup.lat) ? pickup.lat : null,
+      pickupLng: Number.isFinite(pickup.lng) ? pickup.lng : null,
+      dropoffLat: last.lat,
+      dropoffLng: last.lng,
+      stops,
       routePath: route?.path ?? [],
       distanceMeters: route?.distanceMeters ?? null,
       durationSeconds: route?.durationSeconds ?? null,

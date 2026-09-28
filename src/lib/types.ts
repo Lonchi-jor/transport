@@ -50,6 +50,15 @@ export const COURSE_STATUSES = [
 ] as const;
 export type CourseStatus = (typeof COURSE_STATUSES)[number];
 
+export type CourseStop = {
+  id: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+};
+
+export const MAX_TOUR_STOPS = 8;
+
 export type Course = {
   id: string;
   reference: string;
@@ -61,6 +70,7 @@ export type Course = {
   pickupLng: number | null;
   dropoffLat: number | null;
   dropoffLng: number | null;
+  stops: CourseStop[];
   routePath: [number, number][];
   distanceMeters: number | null;
   durationSeconds: number | null;
@@ -93,6 +103,7 @@ export type CourseDraft = {
   pickupLng?: number | null;
   dropoffLat?: number | null;
   dropoffLng?: number | null;
+  stops?: CourseStop[];
   routePath?: [number, number][];
   distanceMeters?: number | null;
   durationSeconds?: number | null;

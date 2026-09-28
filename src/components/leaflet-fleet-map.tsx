@@ -162,15 +162,24 @@ export default function LeafletFleetMap({
             radius={9}
             pathOptions={{ color: "#2b308f", fillColor: "#00a4e8", fillOpacity: 1 }}
           >
-            <Popup>Départ · {route.pickup.label}</Popup>
+            <Popup>Voyage · {route.pickup.label}</Popup>
           </CircleMarker>
-          <CircleMarker
-            center={[route.dropoff.lat, route.dropoff.lng]}
-            radius={9}
-            pathOptions={{ color: "#2b308f", fillColor: "#2b308f", fillOpacity: 1 }}
-          >
-            <Popup>Arrivée · {route.dropoff.label}</Popup>
-          </CircleMarker>
+          {(route.stops?.length ? route.stops : [route.dropoff]).map((stop, index) => (
+            <CircleMarker
+              key={`tour-${index}-${stop.lat}-${stop.lng}`}
+              center={[stop.lat, stop.lng]}
+              radius={8}
+              pathOptions={{
+                color: "#2b308f",
+                fillColor: index === (route.stops?.length ?? 1) - 1 ? "#2b308f" : "#4d7fe8",
+                fillOpacity: 1,
+              }}
+            >
+              <Popup>
+                Destination {index + 1} · {stop.label}
+              </Popup>
+            </CircleMarker>
+          ))}
         </>
       ) : null}
       {positioned.map((device) => (

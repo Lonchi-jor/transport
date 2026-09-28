@@ -6,14 +6,15 @@ import L from "leaflet";
 import { DEFAULT_CENTER } from "@/lib/format";
 
 export type ComposerPin = {
+  id?: string;
   lat: number;
   lng: number;
   label: string;
 };
 
-function pinIcon(kind: "pickup" | "dropoff") {
-  const color = kind === "pickup" ? "#00a4e8" : "#2b308f";
-  const text = kind === "pickup" ? "Départ" : "Arrivée";
+function pinIcon(kind: "voyage" | "stop", index?: number) {
+  const color = kind === "voyage" ? "#00a4e8" : "#2b308f";
+  const text = kind === "voyage" ? "Voyage" : String((index ?? 0) + 1);
   const html = `
     <div style="
       transform: translate(-50%, -100%);
@@ -70,26 +71,32 @@ function MapChrome({
 
 type Props = {
   pickup: ComposerPin | null;
-  dropoff: ComposerPin | null;
+  stops: ComposerPin[];
   routePath: [number, number][] | null;
   flyTo: { lat: number; lng: number } | null;
   flyKey: number;
   onMapClick: (lat: number, lng: number) => void;
   onPickupMove: (lat: number, lng: number) => void;
-  onDropoffMove: (lat: number, lng: number) => void;
+  onStopMove: (id: string, lat: number, lng: number) => void;
 };
 
 export default function CourseComposerMap({
   pickup,
-  dropoff,
+  stops,
   routePath,
   flyTo,
   flyKey,
   onMapClick,
   onPickupMove,
-  onDropoffMove,
+  onStopMove,
 }: Props) {
   const skipClickRef = useRef(false);
+  const path =
+    routePath && routePath.length >= 2
+      ? routePath
+      : pickup && stops.length
+        ? [[pickup.lat, pickup.lng] as [number, number], ...stops.map((stop) => [stop.lat, stop.lng] as [number, number])]
+        : null;
 
   return (
     <MapContainer
@@ -104,22 +111,22 @@ export default function CourseComposerMap({
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       <MapChrome flyTo={flyTo} flyKey={flyKey} skipClickRef={skipClickRef} onClick={onMapClick} />
-      {routePath && routePath.length >= 2 ? (
-        <Polyline positions={routePath} pathOptions={{ color: "#2b308f", weight: 5, opacity: 0.9 }} />
-      ) : pickup && dropoff ? (
+      {path && path.length >= 2 ? (
         <Polyline
-          positions={[
-            [pickup.lat, pickup.lng],
-            [dropoff.lat, dropoff.lng],
-          ]}
-          pathOptions={{ color: "#2b308f", weight: 4, opacity: 0.55, dashArray: "8 8" }}
+          positions={path}
+          pathOptions={{
+            color: "#2b308f",
+            weight: routePath && routePath.length >= 2 ? 5 : 4,
+            opacity: routePath && routePath.length >= 2 ? 0.9 : 0.55,
+            dashArray: routePath && routePath.length >= 2 ? undefined : "8 8",
+          }}
         />
       ) : null}
       {pickup ? (
         <Marker
           position={[pickup.lat, pickup.lng]}
           draggable
-          icon={pinIcon("pickup")}
+          icon={pinIcon("voyage")}
           eventHandlers={{
             dragstart: () => {
               skipClickRef.current = true;
@@ -132,17 +139,18 @@ export default function CourseComposerMap({
           }}
         >
           <Popup>
-            Départ
+            Voyage
             <div className="text-xs">{pickup.label}</div>
             <div className="mt-1 text-[11px] text-[#5b6294]">Glissez le point pour le déplacer.</div>
           </Popup>
         </Marker>
       ) : null}
-      {dropoff ? (
+      {stops.map((stop, index) => (
         <Marker
-          position={[dropoff.lat, dropoff.lng]}
+          key={stop.id ?? `${stop.lat}-${stop.lng}-${index}`}
+          position={[stop.lat, stop.lng]}
           draggable
-          icon={pinIcon("dropoff")}
+          icon={pinIcon("stop", index)}
           eventHandlers={{
             dragstart: () => {
               skipClickRef.current = true;
@@ -150,17 +158,17 @@ export default function CourseComposerMap({
             dragend: (event) => {
               skipClickRef.current = true;
               const ll = event.target.getLatLng();
-              onDropoffMove(ll.lat, ll.lng);
+              if (stop.id) onStopMove(stop.id, ll.lat, ll.lng);
             },
           }}
         >
           <Popup>
-            Arrivée
-            <div className="text-xs">{dropoff.label}</div>
+            Destination {index + 1}
+            <div className="text-xs">{stop.label}</div>
             <div className="mt-1 text-[11px] text-[#5b6294]">Glissez le point pour le déplacer.</div>
           </Popup>
         </Marker>
-      ) : null}
+      ))}
     </MapContainer>
   );
 }

@@ -150,11 +150,13 @@ export async function resolvePlace(
   return { label: address, lat: Number.NaN, lng: Number.NaN };
 }
 
-export async function drivingRoute(
-  from: { lat: number; lng: number },
-  to: { lat: number; lng: number },
+export async function drivingItinerary(
+  points: { lat: number; lng: number }[],
 ): Promise<{ path: [number, number][]; distanceMeters: number; durationSeconds: number } | null> {
-  const url = `https://router.project-osrm.org/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}?overview=full&geometries=geojson`;
+  const valid = points.filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+  if (valid.length < 2) return null;
+  const coords = valid.map((point) => `${point.lng},${point.lat}`).join(";");
+  const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) return null;
   const data = (await res.json()) as {
@@ -165,11 +167,29 @@ export async function drivingRoute(
     }[];
   };
   const route = data.routes?.[0];
-  const coords = route?.geometry?.coordinates;
-  if (!route || !coords?.length) return null;
+  const geometry = route?.geometry?.coordinates;
+  if (!route || !geometry?.length) return null;
   return {
-    path: coords.map((pair) => [pair[1], pair[0]] as [number, number]),
+    path: geometry.map((pair) => [pair[1], pair[0]] as [number, number]),
     distanceMeters: route.distance ?? 0,
     durationSeconds: route.duration ?? 0,
   };
+}
+
+export async function drivingRoute(
+  from: { lat: number; lng: number },
+  to: { lat: number; lng: number },
+) {
+  return drivingItinerary([from, to]);
+}
+
+export function parseRoutePoints(value: string | null): { lat: number; lng: number }[] {
+  if (!value?.trim()) return [];
+  return value
+    .split("|")
+    .map((part) => {
+      const [lat, lng] = part.split(",").map(Number);
+      return { lat, lng };
+    })
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
 }

@@ -34,15 +34,19 @@ function RouteLayer({
     const start = new google.maps.Marker({
       position: { lat: route.pickup.lat, lng: route.pickup.lng },
       map,
-      label: "A",
-      title: route.pickup.label,
+      label: "V",
+      title: `Voyage · ${route.pickup.label}`,
     });
-    const end = new google.maps.Marker({
-      position: { lat: route.dropoff.lat, lng: route.dropoff.lng },
-      map,
-      label: "B",
-      title: route.dropoff.label,
-    });
+    const stopList = route.stops?.length ? route.stops : [route.dropoff];
+    const stopMarkers = stopList.map(
+      (stop, index) =>
+        new google.maps.Marker({
+          position: { lat: stop.lat, lng: stop.lng },
+          map,
+          label: String(index + 1),
+          title: `Destination ${index + 1} · ${stop.label}`,
+        }),
+    );
     const frame = (!follow || frameSelfAndRoute) && stickToMe;
     if (frame) {
       const bounds = new google.maps.LatLngBounds();
@@ -53,7 +57,7 @@ function RouteLayer({
     return () => {
       line.setMap(null);
       start.setMap(null);
-      end.setMap(null);
+      for (const marker of stopMarkers) marker.setMap(null);
     };
   }, [map, route, follow, frameSelfAndRoute, stickToMe]);
   return null;

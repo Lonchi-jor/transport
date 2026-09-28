@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { FleetSnapshot, VehicleType } from "@/lib/types";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
-import { COURSE_STATUS_LABEL, vehicleLine } from "@/lib/format";
+import { COURSE_STATUS_LABEL, tourLine, vehicleLine } from "@/lib/format";
 
 type Props = {
   googleMapsApiKey: string;
@@ -147,7 +147,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
             </div>
             {liveJobs.length === 0 ? (
               <p className="px-4 py-8 text-sm text-[#5b6294]">
-                Aucune course active. Appuyez sur Nouvelle course pour tracer le départ et la livraison.
+                Aucune course active. Appuyez sur Nouvelle course pour tracer le voyage, puis le tour de ville.
               </p>
             ) : (
               <ul className="divide-y divide-[#d5dcf0]">
@@ -162,7 +162,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                         <div className="font-semibold text-[#2b308f]">{course.reference}</div>
                         <div className="text-sm">{course.clientName}</div>
                         <div className="mt-1 text-xs text-[#5b6294]">
-                          {course.pickupAddress} → {course.dropoffAddress}
+                          {tourLine(course)}
                         </div>
                         <div className="mt-1 text-xs text-[#2b308f]">
                           {course.assignedCallSign

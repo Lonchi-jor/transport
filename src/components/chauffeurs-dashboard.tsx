@@ -27,6 +27,7 @@ import {
   type CourseViewFilter,
 } from "@/lib/format";
 import { presenceKind } from "@/lib/presence";
+import { CourseItinerary } from "@/components/course-itinerary";
 
 const emptyDriver = {
   callSign: "",
@@ -542,17 +543,8 @@ export default function ChauffeursDashboard() {
                               {COURSE_STATUS_LABEL[course.status]}
                             </Badge>
                           </div>
-                          <div className="mt-2 text-sm">
-                            <span className="text-[11px] font-medium uppercase tracking-wide text-[#5b6294]">
-                              Départ
-                            </span>{" "}
-                            {course.pickupAddress}
-                          </div>
-                          <div className="text-sm">
-                            <span className="text-[11px] font-medium uppercase tracking-wide text-[#00a4e8]">
-                              Arrivée
-                            </span>{" "}
-                            {course.dropoffAddress}
+                          <div className="mt-2">
+                            <CourseItinerary course={course} />
                           </div>
                           <div className="mt-2 text-xs text-[#2b308f]">{vehicleLine(course)}</div>
                           <div className="mt-1 flex flex-wrap gap-2 text-xs text-[#5b6294]">

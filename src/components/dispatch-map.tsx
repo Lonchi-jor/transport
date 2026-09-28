@@ -5,8 +5,8 @@ import { MapPinned, Maximize2, X } from "lucide-react";
 import FleetMap from "@/components/fleet-map";
 import { PresenceLegend } from "@/components/presence-badge";
 import { Button } from "@/components/ui/button";
-import type { Course, FleetDevice } from "@/lib/types";
-import { COURSE_STATUS_LABEL, formatKm, formatMinutes, type MapRoute } from "@/lib/format";
+import type { Course, CourseStop, FleetDevice } from "@/lib/types";
+import { COURSE_STATUS_LABEL, courseStops, formatKm, formatMinutes, tourLine, type MapRoute } from "@/lib/format";
 
 type Props = {
   googleMapsApiKey: string;
@@ -50,22 +50,29 @@ export default function DispatchMap({
         );
         return;
       }
-      if (job.dropoffLat == null || job.dropoffLng == null) {
+      const stops = courseStops(job).filter(
+        (stop): stop is CourseStop & { lat: number; lng: number } =>
+          stop.lat != null && stop.lng != null && Number.isFinite(stop.lat) && Number.isFinite(stop.lng),
+      );
+      if (!stops.length) {
         setRoute(null);
-        setHint("Cette course n’a pas de coordonnées d’arrivée.");
+        setHint("Cette course n’a pas de destinations.");
         return;
       }
+      const last = stops[stops.length - 1];
       const fromLat = driver?.lat ?? job.pickupLat;
       const fromLng = driver?.lng ?? job.pickupLng;
       if (fromLat == null || fromLng == null) {
         setRoute(null);
-        setHint("Pas de position GPS pour tracer jusqu’à la destination.");
+        setHint("Pas de position GPS pour tracer jusqu’aux destinations.");
         return;
       }
       setHint("Calcul de l’itinéraire depuis la position actuelle…");
+      const points = [{ lat: fromLat, lng: fromLng }, ...stops.map((stop) => ({ lat: stop.lat, lng: stop.lng }))];
+      const mappedStops = stops.map((stop) => ({ lat: stop.lat, lng: stop.lng, label: stop.address }));
       try {
         const res = await fetch(
-          `/api/routes?fromLat=${fromLat}&fromLng=${fromLng}&toLat=${job.dropoffLat}&toLng=${job.dropoffLng}`,
+          `/api/routes?points=${encodeURIComponent(points.map((point) => `${point.lat},${point.lng}`).join("|"))}`,
         );
         const data = (await res.json()) as {
           path?: [number, number][];
@@ -75,11 +82,12 @@ export default function DispatchMap({
         const path =
           data.path && data.path.length >= 2
             ? data.path
-            : ([[fromLat, fromLng], [job.dropoffLat, job.dropoffLng]] as [number, number][]);
+            : (points.map((point) => [point.lat, point.lng] as [number, number]));
         setRoute({
           path,
           pickup: { lat: fromLat, lng: fromLng, label: "Position actuelle" },
-          dropoff: { lat: job.dropoffLat, lng: job.dropoffLng, label: job.dropoffAddress },
+          dropoff: { lat: last.lat, lng: last.lng, label: last.address },
+          stops: mappedStops,
         });
         const dist = formatKm(data.distanceMeters ?? null);
         const dur = formatMinutes(data.durationSeconds ?? null);
@@ -87,16 +95,14 @@ export default function DispatchMap({
           `${driver?.callSign ?? "Chauffeur"} · ${job.reference} · ${COURSE_STATUS_LABEL[job.status]}` +
             (dist ? ` · ${dist}` : "") +
             (dur ? ` · ${dur}` : "") +
-            ` → ${job.dropoffAddress}`,
+            ` · ${tourLine(job)}`,
         );
       } catch {
         setRoute({
-          path: [
-            [fromLat, fromLng],
-            [job.dropoffLat, job.dropoffLng],
-          ],
+          path: points.map((point) => [point.lat, point.lng] as [number, number]),
           pickup: { lat: fromLat, lng: fromLng, label: "Position actuelle" },
-          dropoff: { lat: job.dropoffLat, lng: job.dropoffLng, label: job.dropoffAddress },
+          dropoff: { lat: last.lat, lng: last.lng, label: last.address },
+          stops: mappedStops,
         });
         setHint("Itinéraire approximatif (ligne directe).");
       }

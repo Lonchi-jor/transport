@@ -17,9 +17,10 @@ import type { AppNotification, Course, FleetDevice, FleetSnapshot } from "@/lib/
 import {
   COURSE_STATUS_LABEL,
   courseElapsedLabel,
+  courseStops,
   courseToMapRoute,
   formatKm,
-  shortPlace,
+  tourLine,
   vehicleLine,
   type MapRoute,
 } from "@/lib/format";
@@ -433,18 +434,19 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     setScanJobId(null);
   }
 
+  const sessionId = session?.id ?? null;
   const myJobs = useMemo(() => {
-    if (!session?.id) return [];
-    return liveJobsForDriver(courses, session.id);
-  }, [courses, session?.id]);
+    if (!sessionId) return [];
+    return liveJobsForDriver(courses, sessionId);
+  }, [courses, sessionId]);
   const myHistory = useMemo(
     () =>
       courses.filter(
         (course) =>
-          course.assignedDeviceId === session?.id &&
+          course.assignedDeviceId === sessionId &&
           (course.status === "done" || course.status === "cancelled"),
       ),
-    [courses, session?.id],
+    [courses, sessionId],
   );
   const currentJob = myJobs.find((c) => c.status === "en_route") ?? myJobs[0] ?? null;
   const queuedJob = myJobs.find((job) => job.id !== currentJob?.id) ?? null;
@@ -469,50 +471,55 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     : currentJob?.pickupLat != null && currentJob.pickupLng != null
       ? `p:${roundCoord(currentJob.pickupLat)},${roundCoord(currentJob.pickupLng)}`
       : "";
-  const destKey =
-    currentJob?.dropoffLat != null && currentJob.dropoffLng != null
-      ? `${currentJob.id}:${roundCoord(currentJob.dropoffLat)},${roundCoord(currentJob.dropoffLng)}`
-      : "";
+  const destKey = currentJob
+    ? `${currentJob.id}:${courseStops(currentJob)
+        .map((stop) => `${stop.lat},${stop.lng}`)
+        .join("|")}`
+    : "";
 
   useEffect(() => {
-    if (!destKey || !currentJob || currentJob.dropoffLat == null || currentJob.dropoffLng == null) {
-      return;
-    }
-    const toLat = currentJob.dropoffLat;
-    const toLng = currentJob.dropoffLng;
+    if (!currentJob) return;
+    const stops = courseStops(currentJob).filter(
+      (stop) => stop.lat != null && stop.lng != null,
+    );
+    if (!stops.length) return;
     const fromLat = myPos?.lat ?? currentJob.pickupLat;
     const fromLng = myPos?.lng ?? currentJob.pickupLng;
-    if (fromLat == null || fromLng == null) {
-      return;
-    }
-    const dropLabel = currentJob.dropoffAddress;
+    if (fromLat == null || fromLng == null) return;
+    const last = stops[stops.length - 1];
+    const points = [{ lat: fromLat, lng: fromLng }, ...stops.map((stop) => ({ lat: stop.lat as number, lng: stop.lng as number }))];
+    const dropLabel = last.address;
     const fromLabel = myPos ? "Votre position" : currentJob.pickupAddress;
+    const mappedStops = stops.map((stop) => ({
+      lat: stop.lat as number,
+      lng: stop.lng as number,
+      label: stop.address,
+    }));
     let cancelled = false;
     const run = async () => {
       try {
         const res = await fetch(
-          `/api/routes?fromLat=${fromLat}&fromLng=${fromLng}&toLat=${toLat}&toLng=${toLng}`,
+          `/api/routes?points=${encodeURIComponent(points.map((point) => `${point.lat},${point.lng}`).join("|"))}`,
         );
         const data = (await res.json()) as { path?: [number, number][] };
         if (cancelled) return;
         const path =
           data.path && data.path.length >= 2
             ? data.path
-            : ([[fromLat, fromLng], [toLat, toLng]] as [number, number][]);
+            : points.map((point) => [point.lat, point.lng] as [number, number]);
         setLiveRoute({
           path,
           pickup: { lat: fromLat, lng: fromLng, label: fromLabel },
-          dropoff: { lat: toLat, lng: toLng, label: dropLabel },
+          dropoff: { lat: last.lat as number, lng: last.lng as number, label: dropLabel },
+          stops: mappedStops,
         });
       } catch {
         if (cancelled) return;
         setLiveRoute({
-          path: [
-            [fromLat, fromLng],
-            [toLat, toLng],
-          ],
+          path: points.map((point) => [point.lat, point.lng] as [number, number]),
           pickup: { lat: fromLat, lng: fromLng, label: fromLabel },
-          dropoff: { lat: toLat, lng: toLng, label: dropLabel },
+          dropoff: { lat: last.lat as number, lng: last.lng as number, label: dropLabel },
+          stops: mappedStops,
         });
       }
     };
@@ -556,7 +563,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
         lastSeen: now,
       },
     ];
-  }, [devices, session, myPos, gpsState, now]);
+  }, [devices, session, myPos, now]);
 
   if (!session) {
     return <JoinScreen onJoin={join} />;
@@ -812,7 +819,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                       </div>
                                       <div className="mt-1 text-sm">{job.clientName}</div>
                                       <div className="mt-1 text-xs text-muted-foreground">
-                                        {shortPlace(job.pickupAddress)} → {shortPlace(job.dropoffAddress)}
+                                        {tourLine(job)}
                                       </div>
                                       <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
                                       {job.notes ? <div className="mt-2"><DispatchNote notes={job.notes} /></div> : null}
@@ -860,7 +867,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                       </div>
                                       <div className="mt-1 text-sm">{job.clientName}</div>
                                       <div className="mt-1 text-xs text-muted-foreground">
-                                        {shortPlace(job.pickupAddress)} → {shortPlace(job.dropoffAddress)}
+                                        {tourLine(job)}
                                       </div>
                                       <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(job)}</div>
                                       {job.bnNumber ? (
@@ -894,7 +901,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                   </div>
                   <div className="mt-1 text-blue-100">{currentJob.clientName}</div>
                   <div className="mt-1 text-blue-100">
-                    {shortPlace(currentJob.pickupAddress)} → {shortPlace(currentJob.dropoffAddress)}
+                    {tourLine(currentJob)}
                   </div>
                   {currentJob.bnNumber ? (
                     <div className="mt-1 font-medium text-white">BN {currentJob.bnNumber}</div>
@@ -934,7 +941,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                   <div className="font-medium text-[#7dd8f7]">Prochaine course · {queuedJob.reference}</div>
                   <div className="mt-1 text-blue-100">{queuedJob.clientName}</div>
                   <div className="mt-1 text-blue-100">
-                    {shortPlace(queuedJob.pickupAddress)} → {shortPlace(queuedJob.dropoffAddress)}
+                    {tourLine(queuedJob)}
                   </div>
                   {queuedJob.notes ? (
                     <div className="mt-2">

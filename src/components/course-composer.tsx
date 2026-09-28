@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { MapPinned, Plus, X } from "lucide-react";
+import { MapPinned, Plus, Trash2, X } from "lucide-react";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Field, PhoneLink, VehicleFields, DriverAssignSelect } from "@/components/admin-fields";
 import PlaceSuggest from "@/components/place-suggest";
-import type { Course, FleetSnapshot, VehicleType } from "@/lib/types";
+import type { Course, CourseStop, FleetSnapshot, VehicleType } from "@/lib/types";
+import { MAX_TOUR_STOPS } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
 import type { PlaceHit } from "@/lib/geo";
 import { ensureDispatcherId } from "@/lib/dispatcher";
@@ -24,15 +25,15 @@ const CourseComposerMap = dynamic(() => import("@/components/course-composer-map
   ),
 });
 
+type DraftStop = CourseStop;
+
 export type CourseDraftForm = {
   clientName: string;
   clientPhone: string;
   pickupAddress: string;
-  dropoffAddress: string;
   pickupLat: number | null;
   pickupLng: number | null;
-  dropoffLat: number | null;
-  dropoffLng: number | null;
+  stops: DraftStop[];
   notes: string;
   scheduledAt: string;
   assignedDeviceId: string;
@@ -40,15 +41,27 @@ export type CourseDraftForm = {
   vehiclePlate: string;
 };
 
+type PinFocus = "voyage" | string;
+
+function emptyStop(): DraftStop {
+  return { id: crypto.randomUUID(), address: "", lat: null, lng: null };
+}
+
+function nextTourFocus(stops: DraftStop[]): PinFocus {
+  return (
+    stops.find((stop) => !stop.address.trim() || stop.lat == null)?.id ??
+    stops[stops.length - 1]?.id ??
+    "voyage"
+  );
+}
+
 export const emptyCourseDraft: CourseDraftForm = {
   clientName: "",
   clientPhone: "",
   pickupAddress: "",
-  dropoffAddress: "",
   pickupLat: null,
   pickupLng: null,
-  dropoffLat: null,
-  dropoffLng: null,
+  stops: [],
   notes: "",
   scheduledAt: "",
   assignedDeviceId: "",
@@ -77,17 +90,28 @@ async function lookupAddress(lat: number, lng: number): Promise<PlaceHit> {
 }
 
 export default function CourseComposer({ open, onClose, roster, courses, liveById, onCreated }: Props) {
-  const [form, setForm] = useState<CourseDraftForm>(emptyCourseDraft);
+  const [form, setForm] = useState<CourseDraftForm>({ ...emptyCourseDraft, stops: [emptyStop()] });
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [pinFocus, setPinFocus] = useState<"pickup" | "dropoff">("pickup");
+  const [pinFocus, setPinFocus] = useState<PinFocus>("voyage");
   const [pickupFromPin, setPickupFromPin] = useState(false);
-  const [dropoffFromPin, setDropoffFromPin] = useState(false);
+  const [stopFromPin, setStopFromPin] = useState<Record<string, boolean>>({});
   const [flyTo, setFlyTo] = useState<{ lat: number; lng: number } | null>(null);
   const [flyKey, setFlyKey] = useState(0);
-  const [routePath, setRoutePath] = useState<[number, number][] | null>(null);
+  const [fetchedPath, setFetchedPath] = useState<[number, number][] | null>(null);
+  const [fetchedKey, setFetchedKey] = useState("");
 
   const assignedDriver = roster.find((item) => item.id === form.assignedDeviceId) ?? null;
+  const placedStops = form.stops.filter((stop) => stop.lat != null && stop.lng != null);
+  const requestKey =
+    form.pickupLat != null && form.pickupLng != null && placedStops.length > 0
+      ? `${form.pickupLat},${form.pickupLng}|${placedStops.map((stop) => `${stop.lat},${stop.lng}`).join("|")}`
+      : "";
+  const tourSummary =
+    placedStops.length > 1
+      ? `${placedStops.length} destinations`
+      : placedStops[0]?.address || form.stops[0]?.address || "Recherche ou clic sur la carte";
+  const routePath = fetchedKey === requestKey ? fetchedPath : null;
 
   const goTo = useCallback((lat: number, lng: number) => {
     setFlyTo({ lat, lng });
@@ -126,6 +150,13 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
     }));
   }
 
+  function patchStop(id: string, patch: Partial<DraftStop>) {
+    setForm((current) => ({
+      ...current,
+      stops: current.stops.map((stop) => (stop.id === id ? { ...stop, ...patch } : stop)),
+    }));
+  }
+
   function pickPickup(place: PlaceHit) {
     setPickupFromPin(true);
     setForm((current) => ({
@@ -134,29 +165,19 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
       pickupLat: place.lat,
       pickupLng: place.lng,
     }));
-    setPinFocus("dropoff");
+    setPinFocus(nextTourFocus(form.stops));
     goTo(place.lat, place.lng);
   }
 
-  function pickDropoff(place: PlaceHit) {
-    setDropoffFromPin(true);
-    setForm((current) => ({
-      ...current,
-      dropoffAddress: place.label,
-      dropoffLat: place.lat,
-      dropoffLng: place.lng,
-    }));
+  function pickStop(id: string, place: PlaceHit) {
+    setStopFromPin((current) => ({ ...current, [id]: true }));
+    patchStop(id, { address: place.label, lat: place.lat, lng: place.lng });
     goTo(place.lat, place.lng);
   }
 
-  async function placePin(
-    kind: "pickup" | "dropoff",
-    lat: number,
-    lng: number,
-    options: { fly?: boolean; switchFocus?: boolean } = {},
-  ) {
+  async function placePin(kind: PinFocus, lat: number, lng: number, options: { fly?: boolean; switchFocus?: boolean } = {}) {
     const place = await lookupAddress(lat, lng);
-    if (kind === "pickup") {
+    if (kind === "voyage") {
       setPickupFromPin(true);
       setForm((current) => ({
         ...current,
@@ -164,17 +185,29 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
         pickupLat: lat,
         pickupLng: lng,
       }));
-      if (options.switchFocus !== false) setPinFocus("dropoff");
+      if (options.switchFocus !== false) {
+        setPinFocus(nextTourFocus(form.stops));
+      }
     } else {
-      setDropoffFromPin(true);
-      setForm((current) => ({
-        ...current,
-        dropoffAddress: place.label,
-        dropoffLat: lat,
-        dropoffLng: lng,
-      }));
+      setStopFromPin((current) => ({ ...current, [kind]: true }));
+      patchStop(kind, { address: place.label, lat, lng });
     }
     if (options.fly) goTo(lat, lng);
+  }
+
+  function addStop() {
+    if (form.stops.length >= MAX_TOUR_STOPS) return;
+    const next = emptyStop();
+    setForm((current) => ({ ...current, stops: [...current.stops, next] }));
+    setPinFocus(next.id);
+    setError("");
+  }
+
+  function removeStop(id: string) {
+    if (form.stops.length <= 1) return;
+    const next = form.stops.filter((stop) => stop.id !== id);
+    setForm((current) => ({ ...current, stops: next }));
+    if (pinFocus === id) setPinFocus(next[next.length - 1]?.id ?? "voyage");
   }
 
   useEffect(() => {
@@ -192,42 +225,46 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
   }, [open, onClose]);
 
   useEffect(() => {
-    if (form.pickupLat == null || form.pickupLng == null || form.dropoffLat == null || form.dropoffLng == null) {
-      return;
-    }
-    const fromLat = form.pickupLat;
-    const fromLng = form.pickupLng;
-    const toLat = form.dropoffLat;
-    const toLng = form.dropoffLng;
+    if (!requestKey) return;
+    const points = requestKey.split("|").map((part) => {
+      const [lat, lng] = part.split(",").map(Number);
+      return { lat, lng };
+    });
     let cancelled = false;
     const timer = window.setTimeout(async () => {
       try {
-        const res = await fetch(
-          `/api/routes?fromLat=${fromLat}&fromLng=${fromLng}&toLat=${toLat}&toLng=${toLng}`,
-        );
+        const res = await fetch(`/api/routes?points=${encodeURIComponent(requestKey)}`);
         const data = (await res.json()) as { path?: [number, number][] };
         if (cancelled) return;
-        setRoutePath(data.path && data.path.length >= 2 ? data.path : [[fromLat, fromLng], [toLat, toLng]]);
+        setFetchedPath(
+          data.path && data.path.length >= 2
+            ? data.path
+            : points.map((point) => [point.lat, point.lng] as [number, number]),
+        );
+        setFetchedKey(requestKey);
       } catch {
-        if (!cancelled) setRoutePath([[fromLat, fromLng], [toLat, toLng]]);
+        if (cancelled) return;
+        setFetchedPath(points.map((point) => [point.lat, point.lng] as [number, number]));
+        setFetchedKey(requestKey);
       }
     }, 350);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [form.pickupLat, form.pickupLng, form.dropoffLat, form.dropoffLng, open]);
+  }, [requestKey]);
 
   async function createJob(event: FormEvent) {
     event.preventDefault();
     if (form.pickupLat == null || form.pickupLng == null) {
-      setError("Placez le point de départ sur la carte (recherche ou clic).");
-      setPinFocus("pickup");
+      setError("Placez le point de voyage sur la carte (recherche ou clic).");
+      setPinFocus("voyage");
       return;
     }
-    if (form.dropoffLat == null || form.dropoffLng == null) {
-      setError("Placez le point de livraison sur la carte (recherche ou clic).");
-      setPinFocus("dropoff");
+    const destinations = form.stops.filter((stop) => stop.address.trim() && stop.lat != null && stop.lng != null);
+    if (!destinations.length) {
+      setError("Ajoutez au moins une destination au tour de ville.");
+      setPinFocus(nextTourFocus(form.stops));
       return;
     }
     if (form.assignedDeviceId) {
@@ -237,6 +274,7 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
         return;
       }
     }
+    const last = destinations[destinations.length - 1];
     setSaving(true);
     setError("");
     try {
@@ -244,7 +282,16 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          clientName: form.clientName,
+          clientPhone: form.clientPhone,
+          pickupAddress: form.pickupAddress,
+          pickupLat: form.pickupLat,
+          pickupLng: form.pickupLng,
+          dropoffAddress: last.address,
+          dropoffLat: last.lat,
+          dropoffLng: last.lng,
+          stops: destinations,
+          notes: form.notes,
           scheduledAt: form.scheduledAt || null,
           assignedDeviceId: form.assignedDeviceId || null,
           vehicleType: form.assignedDeviceId ? form.vehicleType : null,
@@ -270,12 +317,14 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
 
   const pickup =
     form.pickupLat != null && form.pickupLng != null
-      ? { lat: form.pickupLat, lng: form.pickupLng, label: form.pickupAddress || "Départ" }
+      ? { lat: form.pickupLat, lng: form.pickupLng, label: form.pickupAddress || "Voyage" }
       : null;
-  const dropoff =
-    form.dropoffLat != null && form.dropoffLng != null
-      ? { lat: form.dropoffLat, lng: form.dropoffLng, label: form.dropoffAddress || "Arrivée" }
-      : null;
+  const mapStops = placedStops.map((stop) => ({
+    id: stop.id,
+    lat: stop.lat as number,
+    lng: stop.lng as number,
+    label: stop.address || "Destination",
+  }));
 
   return (
     <div className="fixed inset-0 z-[90] flex flex-col bg-[#0c1028] text-[#1c2268]">
@@ -283,9 +332,9 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
         <div>
           <div className="text-sm font-semibold">Nouvelle course</div>
           <p className="text-[11px] text-blue-200">
-            {pinFocus === "pickup"
-              ? "Recherchez le départ : la carte s’y rend. Glissez le pin pour l’ajuster."
-              : "Recherchez la livraison, ou glissez le pin Arrivée."}
+            {pinFocus === "voyage"
+              ? "Recherchez le point de voyage : la carte s’y rend. Glissez le pin pour l’ajuster."
+              : "Placez une destination du tour de ville, ou ajoutez-en une autre."}
           </p>
         </div>
         <Button variant="secondary" size="sm" className="rounded-xl" onClick={onClose}>
@@ -297,13 +346,13 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
       <div className="relative min-h-0 flex-1">
         <CourseComposerMap
           pickup={pickup}
-          dropoff={dropoff}
+          stops={mapStops}
           routePath={routePath}
           flyTo={flyTo}
           flyKey={flyKey}
-          onMapClick={(lat, lng) => void placePin(pinFocus, lat, lng, { switchFocus: pinFocus === "pickup" })}
-          onPickupMove={(lat, lng) => void placePin("pickup", lat, lng, { switchFocus: false })}
-          onDropoffMove={(lat, lng) => void placePin("dropoff", lat, lng, { switchFocus: false })}
+          onMapClick={(lat, lng) => void placePin(pinFocus, lat, lng, { switchFocus: pinFocus === "voyage" })}
+          onPickupMove={(lat, lng) => void placePin("voyage", lat, lng, { switchFocus: false })}
+          onStopMove={(id, lat, lng) => void placePin(id, lat, lng, { switchFocus: false })}
         />
 
         <form
@@ -313,27 +362,35 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
           <div className="mb-3 flex gap-2">
             <button
               type="button"
-              onClick={() => setPinFocus("pickup")}
+              onClick={() => setPinFocus("voyage")}
               className={`flex-1 rounded-xl px-3 py-2 text-left text-xs font-semibold ${
-                pinFocus === "pickup" ? "bg-[#e7f6fd] text-[#2b308f] ring-2 ring-[#00a4e8]" : "bg-[#f4f7fc] text-[#5b6294]"
+                pinFocus === "voyage" ? "bg-[#e7f6fd] text-[#2b308f] ring-2 ring-[#00a4e8]" : "bg-[#f4f7fc] text-[#5b6294]"
               }`}
             >
-              1. Départ
+              1. Voyage
               <div className="mt-0.5 truncate font-normal">
                 {pickup ? form.pickupAddress || "Point placé" : "Recherche ou clic sur la carte"}
               </div>
             </button>
             <button
               type="button"
-              onClick={() => setPinFocus("dropoff")}
+              onClick={() => setPinFocus(nextTourFocus(form.stops))}
               className={`flex-1 rounded-xl px-3 py-2 text-left text-xs font-semibold ${
-                pinFocus === "dropoff" ? "bg-[#e7f6fd] text-[#2b308f] ring-2 ring-[#2b308f]" : "bg-[#f4f7fc] text-[#5b6294]"
+                pinFocus !== "voyage" ? "bg-[#e7f6fd] text-[#2b308f] ring-2 ring-[#2b308f]" : "bg-[#f4f7fc] text-[#5b6294]"
               }`}
             >
-              2. Livraison
-              <div className="mt-0.5 truncate font-normal">
-                {dropoff ? form.dropoffAddress || "Point placé" : "Recherche ou clic sur la carte"}
-              </div>
+              2. Tour de ville
+              <div className="mt-0.5 truncate font-normal">{tourSummary}</div>
+            </button>
+            <button
+              type="button"
+              onClick={addStop}
+              disabled={form.stops.length >= MAX_TOUR_STOPS}
+              aria-label="Ajouter une destination"
+              title="Ajouter une destination"
+              className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-[#2b308f] text-white disabled:opacity-40"
+            >
+              <Plus className="size-5" />
             </button>
           </div>
 
@@ -355,14 +412,14 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
                 placeholder="+237 6…"
               />
             </Field>
-            <Field label="Lieu de départ" htmlFor="composer-pickup">
+            <Field label="Point de voyage" htmlFor="composer-pickup">
               <PlaceSuggest
                 id="composer-pickup"
                 required
                 suppressLookup={pickupFromPin}
                 value={form.pickupAddress}
-                placeholder="Tapez une adresse, puis choisissez une suggestion"
-                onFocus={() => setPinFocus("pickup")}
+                placeholder="Point de voyage — adresse ou clic sur la carte"
+                onFocus={() => setPinFocus("voyage")}
                 onChange={(pickupAddress) => {
                   setPickupFromPin(false);
                   setForm({ ...form, pickupAddress });
@@ -370,25 +427,56 @@ export default function CourseComposer({ open, onClose, roster, courses, liveByI
                 onSelect={(place) => pickPickup(place)}
               />
             </Field>
-            <Field label="Lieu de livraison" htmlFor="composer-dropoff">
-              <PlaceSuggest
-                id="composer-dropoff"
-                required
-                suppressLookup={dropoffFromPin}
-                value={form.dropoffAddress}
-                placeholder="Adresse d’arrivée"
-                onFocus={() => setPinFocus("dropoff")}
-                onChange={(dropoffAddress) => {
-                  setDropoffFromPin(false);
-                  setForm({ ...form, dropoffAddress });
-                }}
-                onSelect={(place) => pickDropoff(place)}
-              />
-            </Field>
-            <p className="text-[11px] leading-4 text-[#5b6294]">
-              Quand vous choisissez une adresse, la carte s’y rend et pose le pin. Vous pouvez ensuite le glisser, ou
-              cliquer la carte (mode {pinFocus === "pickup" ? "Départ" : "Livraison"}).
-            </p>
+            <div className="grid gap-2">
+              <div className="text-sm font-medium">Tour de ville</div>
+              {form.stops.map((stop, index) => (
+                <div key={stop.id} className="flex items-start gap-2">
+                  <div className="min-w-0 flex-1">
+                    <Field label={`Destination ${index + 1}`} htmlFor={`composer-stop-${stop.id}`}>
+                      <PlaceSuggest
+                        id={`composer-stop-${stop.id}`}
+                        required={index === 0}
+                        suppressLookup={Boolean(stopFromPin[stop.id])}
+                        value={stop.address}
+                        placeholder={index === 0 ? "Première destination" : "Destination suivante"}
+                        onFocus={() => setPinFocus(stop.id)}
+                        onChange={(address) => {
+                          setStopFromPin((current) => ({ ...current, [stop.id]: false }));
+                          patchStop(stop.id, { address });
+                        }}
+                        onSelect={(place) => pickStop(stop.id, place)}
+                      />
+                    </Field>
+                  </div>
+                  {form.stops.length > 1 ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="mt-6 size-8 shrink-0 text-[#5b6294]"
+                      onClick={() => removeStop(stop.id)}
+                      aria-label={`Retirer la destination ${index + 1}`}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-9 rounded-xl"
+                disabled={form.stops.length >= MAX_TOUR_STOPS}
+                onClick={addStop}
+              >
+                <Plus className="size-4" />
+                Ajouter une destination
+              </Button>
+              <p className="text-[11px] leading-4 text-[#5b6294]">
+                Posez le voyage, puis les arrêts du tour. Le + ajoute une destination. Cliquez la carte ou glissez un pin
+                pour ajuster.
+              </p>
+            </div>
             <Field label="Heure prévue" htmlFor="composer-when">
               <Input
                 id="composer-when"
@@ -483,7 +571,7 @@ export function NewCourseButton({ onClick }: { onClick: () => void }) {
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold">Nouvelle course</span>
         <span className="mt-0.5 block text-xs text-blue-100">
-          Carte plein écran · placer départ et livraison
+          Voyage, puis tour de ville — plusieurs destinations
         </span>
       </span>
       <MapPinned className="size-5 shrink-0 text-[#7dd8f7]" />

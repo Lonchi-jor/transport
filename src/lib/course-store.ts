@@ -1,11 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import path from "path";
-import type { Course, CourseDraft, CoursePatch, CourseStatus, VehicleType } from "./types";
-import { COURSE_STATUSES } from "./types";
+import type { Course, CourseDraft, CoursePatch, CourseStatus, CourseStop, VehicleType } from "./types";
+import { COURSE_STATUSES, MAX_TOUR_STOPS } from "./types";
 import { getDevice } from "./fleet-store";
 import { getDriver, isVehicleType, normalizePlate } from "./driver-store";
 import { addNotification } from "./notification-store";
-import { shortPlace } from "./format";
+import { tourLine } from "./format";
 import {
   assignmentBlockedMessage,
   CourseAssignError,
@@ -24,21 +24,55 @@ type StoredFile = {
   courses?: Partial<Course>[];
 };
 
+function normalizeStops(
+  item: Pick<Partial<Course>, "stops" | "dropoffAddress" | "dropoffLat" | "dropoffLng">,
+): CourseStop[] {
+  const raw = Array.isArray(item.stops) ? item.stops : [];
+  const fromDraft = raw
+    .map((stop) => ({
+      id: stop?.id?.trim() || crypto.randomUUID(),
+      address: (stop?.address ?? "").trim(),
+      lat: stop?.lat ?? null,
+      lng: stop?.lng ?? null,
+    }))
+    .filter((stop) => stop.address || (stop.lat != null && stop.lng != null))
+    .slice(0, MAX_TOUR_STOPS);
+  if (fromDraft.length) return fromDraft;
+  if (item.dropoffAddress?.trim()) {
+    return [
+      {
+        id: "dropoff",
+        address: item.dropoffAddress.trim(),
+        lat: item.dropoffLat ?? null,
+        lng: item.dropoffLng ?? null,
+      },
+    ];
+  }
+  return [];
+}
+
+function lastStop(stops: CourseStop[]) {
+  return stops[stops.length - 1] ?? null;
+}
+
 function normalizeCourse(item: Partial<Course>): Course | null {
   if (!item?.id || !item.reference) return null;
   const status = isCourseStatus(item.status) ? item.status : "open";
   const vehicleType = isVehicleType(item.vehicleType) ? item.vehicleType : null;
+  const stops = normalizeStops(item);
+  const finish = lastStop(stops);
   return {
     id: item.id,
     reference: item.reference,
     clientName: item.clientName ?? "",
     clientPhone: item.clientPhone ?? "",
     pickupAddress: item.pickupAddress ?? "",
-    dropoffAddress: item.dropoffAddress ?? "",
+    dropoffAddress: finish?.address || item.dropoffAddress || "",
     pickupLat: item.pickupLat ?? null,
     pickupLng: item.pickupLng ?? null,
-    dropoffLat: item.dropoffLat ?? null,
-    dropoffLng: item.dropoffLng ?? null,
+    dropoffLat: finish?.lat ?? item.dropoffLat ?? null,
+    dropoffLng: finish?.lng ?? item.dropoffLng ?? null,
+    stops,
     routePath: Array.isArray(item.routePath) ? item.routePath : [],
     distanceMeters: item.distanceMeters ?? null,
     durationSeconds: item.durationSeconds ?? null,
@@ -200,7 +234,7 @@ function notifyAssigned(course: Course) {
     courseId: course.id,
     reference: course.reference,
     title: `Nouvelle course ${course.reference}`,
-    body: `${course.clientName} · ${shortPlace(course.pickupAddress)} → ${shortPlace(course.dropoffAddress)}`,
+    body: `${course.clientName} · ${tourLine(course)}`,
     targetRole: "driver",
     targetId: course.assignedDeviceId,
     unique: "unread",
@@ -229,17 +263,25 @@ export function createCourse(draft: CourseDraft): Course {
   const reference = `CCMM-${String(nextNumber).padStart(3, "0")}`;
   nextNumber += 1;
   const now = Date.now();
+  const stops = normalizeStops({
+    stops: draft.stops,
+    dropoffAddress: draft.dropoffAddress,
+    dropoffLat: draft.dropoffLat,
+    dropoffLng: draft.dropoffLng,
+  });
+  const finish = lastStop(stops);
   let course: Course = {
     id,
     reference,
     clientName: draft.clientName.trim(),
     clientPhone: (draft.clientPhone ?? "").trim(),
     pickupAddress: draft.pickupAddress.trim(),
-    dropoffAddress: draft.dropoffAddress.trim(),
+    dropoffAddress: (finish?.address || draft.dropoffAddress).trim(),
     pickupLat: draft.pickupLat ?? null,
     pickupLng: draft.pickupLng ?? null,
-    dropoffLat: draft.dropoffLat ?? null,
-    dropoffLng: draft.dropoffLng ?? null,
+    dropoffLat: finish?.lat ?? draft.dropoffLat ?? null,
+    dropoffLng: finish?.lng ?? draft.dropoffLng ?? null,
+    stops,
     routePath: draft.routePath ?? [],
     distanceMeters: draft.distanceMeters ?? null,
     durationSeconds: draft.durationSeconds ?? null,

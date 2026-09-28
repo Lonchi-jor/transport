@@ -10,6 +10,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PhoneLink } from "@/components/admin-fields";
 import { DispatchNoteHint } from "@/components/dispatch-note";
+import { CourseItinerary } from "@/components/course-itinerary";
 import { cn } from "@/lib/utils";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
 import type { CourseStatus, FleetSnapshot, VehicleType } from "@/lib/types";
@@ -17,6 +18,7 @@ import { COURSE_STATUSES, VEHICLE_META, VEHICLE_TYPES } from "@/lib/types";
 import {
   COURSE_STATUS_LABEL,
   courseElapsedLabel,
+  courseStops,
   formatKm,
   formatWhen,
   isLiveAssignedCourse,
@@ -98,6 +100,7 @@ export default function CoursesBoard() {
         course.clientPhone,
         course.pickupAddress,
         course.dropoffAddress,
+        ...courseStops(course).map((stop) => stop.address),
         course.bnNumber,
         course.assignedCallSign,
         course.assignedDriverName,
@@ -359,10 +362,7 @@ export default function CoursesBoard() {
                           </div>
                         </td>
                         <td className="max-w-[320px] px-4 py-3">
-                          <div className="text-[11px] font-medium uppercase tracking-wide text-[#5b6294]">Départ</div>
-                          <div className="text-sm leading-snug">{course.pickupAddress}</div>
-                          <div className="mt-2 text-[11px] font-medium uppercase tracking-wide text-[#00a4e8]">Arrivée</div>
-                          <div className="text-sm leading-snug">{course.dropoffAddress}</div>
+                          <CourseItinerary course={course} />
                           <div className="mt-2 flex flex-col gap-0.5 text-xs text-[#5b6294]">
                             {formatKm(course.distanceMeters) ? <span>{formatKm(course.distanceMeters)}</span> : null}
                             {elapsed ? <span className="font-medium text-[#2b308f]">{elapsed}</span> : null}
@@ -394,7 +394,7 @@ export default function CoursesBoard() {
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-xs text-[#5b6294]">
                           <div>Créée {formatWhen(course.createdAt)}</div>
-                          {course.startedAt ? <div>Départ {formatWhen(course.startedAt)}</div> : null}
+                          {course.startedAt ? <div>Début {formatWhen(course.startedAt)}</div> : null}
                           {course.finishedAt ? <div>Fin {formatWhen(course.finishedAt)}</div> : null}
                         </td>
                         <td className="px-4 py-3">
