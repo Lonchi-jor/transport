@@ -92,7 +92,6 @@ export default function NotificationBell({
 
   const openPanel = useCallback(() => {
     if (!open) {
-      if (unreadCount) onMarkRead(unread.map((item) => item.id));
       if (typeof Notification !== "undefined" && Notification.permission === "default") {
         void Notification.requestPermission();
       }
@@ -107,9 +106,9 @@ export default function NotificationBell({
       }
     }
     setOpen((current) => !current);
-  }, [onMarkRead, open, sheet, unread, unreadCount]);
+  }, [open, sheet]);
 
-  const ordered = useMemo(() => items.slice(0, 20), [items]);
+  const ordered = useMemo(() => unread.slice(0, 20), [unread]);
 
   const list = (
     <>

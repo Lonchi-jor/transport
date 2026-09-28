@@ -36,7 +36,7 @@ const PERIODS = [
 ] as const;
 
 export default function CoursesBoard() {
-  const { courses, roster, now, online, applySnapshot, alerts, markAlertsRead } = useAdminFleet();
+  const { courses, roster, now, online, applySnapshot, alerts, markAlertsRead, dismissAlerts } = useAdminFleet();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [query, setQuery] = useState("");
@@ -45,6 +45,10 @@ export default function CoursesBoard() {
   const [bl, setBl] = useState<"all" | "yes" | "no">("all");
   const [vehicleType, setVehicleType] = useState<VehicleType | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  function openCourse(courseId: string) {
+    setSelectedId(courseId);
+    void dismissAlerts({ courseId });
+  }
 
   const chauffeurId = searchParams.get("chauffeur") ?? "";
   const view = parseCourseViewFilter(searchParams.get("filtre"));
@@ -163,7 +167,7 @@ export default function CoursesBoard() {
         online={online}
         alerts={alerts}
         onMarkAlertsRead={(ids) => void markAlertsRead(ids)}
-        onOpenAlert={(item) => setSelectedId(item.courseId)}
+        onOpenAlert={(item) => openCourse(item.courseId)}
       />
 
       <main className="mx-auto max-w-[1400px] space-y-5 px-4 py-5 sm:px-6">
@@ -340,7 +344,7 @@ export default function CoursesBoard() {
                         className={`cursor-pointer border-t border-[#d5dcf0] align-top hover:bg-[#f4f7fc] ${
                           course.id === selectedId ? "bg-[#eef3fb]" : ""
                         }`}
-                        onClick={() => setSelectedId(course.id)}
+                        onClick={() => openCourse(course.id)}
                       >
                         <td className="w-[210px] px-4 py-3">
                           <div className="font-semibold text-[#2b308f]">{course.reference}</div>
@@ -411,6 +415,7 @@ export default function CoursesBoard() {
                               onClick={(event) => {
                                 event.stopPropagation();
                                 setSelectedId(course.id);
+                                void dismissAlerts({ courseId: course.id });
                               }}
                             >
                               Modifier

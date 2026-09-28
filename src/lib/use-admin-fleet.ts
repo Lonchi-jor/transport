@@ -59,21 +59,29 @@ export function useAdminFleet() {
     return () => window.clearInterval(tick);
   }, []);
 
-  const markAlertsRead = useCallback(
-    async (ids: string[], targetId = dispatcherId) => {
-      if (!ids.length || !targetId) return;
+  const dismissAlerts = useCallback(
+    async (input: { ids?: string[]; courseId?: string } = {}, targetId = dispatcherId) => {
+      if (!targetId) return;
+      const ids = input.ids ?? [];
+      if (!ids.length && !input.courseId) return;
       setNotifications((prev) =>
-        prev.map((item) =>
-          ids.includes(item.id) && item.targetId === targetId
-            ? { ...item, readAt: item.readAt ?? Date.now() }
-            : item,
-        ),
+        prev.filter((item) => {
+          if (item.targetId !== targetId) return true;
+          if (ids.length && ids.includes(item.id)) return false;
+          if (input.courseId && item.courseId === input.courseId && item.kind === "course_done") return false;
+          return true;
+        }),
       );
       try {
         const res = await fetch("/api/notifications", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ids, targetId }),
+          body: JSON.stringify({
+            targetId,
+            ids: ids.length ? ids : undefined,
+            courseId: input.courseId,
+            kind: input.courseId ? "course_done" : undefined,
+          }),
         });
         if (res.ok) applySnapshot((await res.json()) as FleetSnapshot);
       } catch {
@@ -83,10 +91,17 @@ export function useAdminFleet() {
     [applySnapshot, dispatcherId],
   );
 
+  const markAlertsRead = useCallback(
+    async (ids: string[], targetId = dispatcherId) => {
+      await dismissAlerts({ ids }, targetId);
+    },
+    [dismissAlerts, dispatcherId],
+  );
+
   const alerts = useMemo(
     () =>
       notifications.filter(
-        (item) => item.kind === "course_done" && item.targetId === dispatcherId,
+        (item) => item.kind === "course_done" && item.targetId === dispatcherId && !item.readAt,
       ),
     [notifications, dispatcherId],
   );
@@ -119,5 +134,6 @@ export function useAdminFleet() {
     onlineCount,
     applySnapshot,
     markAlertsRead,
+    dismissAlerts,
   };
 }

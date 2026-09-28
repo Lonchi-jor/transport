@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
-import { markNotificationsRead } from "@/lib/notification-store";
+import { dismissNotifications } from "@/lib/notification-store";
 import { getDriver } from "@/lib/driver-store";
 import { driverSnapshot, radioSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 
 export async function PATCH(request: Request) {
-  let body: { targetId?: string; ids?: string[] };
+  let body: { targetId?: string; ids?: string[]; courseId?: string; kind?: string };
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -19,7 +19,15 @@ export async function PATCH(request: Request) {
   const ids = Array.isArray(body.ids)
     ? body.ids.filter((id): id is string => typeof id === "string")
     : undefined;
-  markNotificationsRead(targetId, ids);
+  const courseId = typeof body.courseId === "string" ? body.courseId.trim() : "";
+  const kind =
+    body.kind === "course_assigned" || body.kind === "course_done" ? body.kind : undefined;
+  dismissNotifications({
+    targetId,
+    ids,
+    courseId: courseId || undefined,
+    kind,
+  });
   const snapshot = getDriver(targetId) ? driverSnapshot(targetId) : radioSnapshot();
   return NextResponse.json(snapshot);
 }

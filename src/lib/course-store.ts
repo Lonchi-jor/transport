@@ -4,7 +4,7 @@ import type { Course, CourseDraft, CoursePatch, CourseStatus, CourseStop, Vehicl
 import { COURSE_STATUSES, MAX_TOUR_STOPS } from "./types";
 import { getDevice } from "./fleet-store";
 import { getDriver, isVehicleType, normalizePlate, normalizeTrailerPlates } from "./driver-store";
-import { addNotification } from "./notification-store";
+import { addNotification, dismissNotifications } from "./notification-store";
 import { tourLine } from "./format";
 import {
   assignmentBlockedMessage,
@@ -379,6 +379,12 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
   save();
   if (next.assignedDeviceId && next.assignedDeviceId !== previousAssigned) {
     notifyAssigned(next);
+  }
+  if (
+    previousStatus === "assigned" &&
+    (next.status === "en_route" || next.status === "done" || next.status === "cancelled")
+  ) {
+    dismissNotifications({ courseId: next.id, kind: "course_assigned" });
   }
   if (next.status === "done" && previousStatus !== "done") {
     notifyDone(next);

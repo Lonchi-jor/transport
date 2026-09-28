@@ -51,7 +51,7 @@ export function listNotifications(): AppNotification[] {
 export function listNotificationsFor(targetId: string): AppNotification[] {
   const key = targetId.trim();
   if (!key) return [];
-  return listNotifications().filter((item) => item.targetId === key);
+  return listNotifications().filter((item) => item.targetId === key && item.readAt == null);
 }
 
 export function addNotification(input: {
@@ -105,5 +105,28 @@ export function markNotificationsRead(targetId: string, ids?: string[]) {
     changed = true;
   }
   if (changed) save();
+  return listNotifications();
+}
+
+export function dismissNotifications(filter: {
+  targetId?: string;
+  ids?: string[];
+  courseId?: string;
+  kind?: NotificationKind;
+}) {
+  const targetId = filter.targetId?.trim() ?? "";
+  const idSet = filter.ids?.length ? new Set(filter.ids) : null;
+  if (!targetId && !idSet && !filter.courseId) return listNotifications();
+  const next = items.filter((item) => {
+    if (targetId && item.targetId !== targetId) return true;
+    if (idSet && !idSet.has(item.id)) return true;
+    if (filter.courseId && item.courseId !== filter.courseId) return true;
+    if (filter.kind && item.kind !== filter.kind) return true;
+    return false;
+  });
+  if (next.length === items.length) return listNotifications();
+  items.length = 0;
+  items.push(...next);
+  save();
   return listNotifications();
 }

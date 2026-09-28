@@ -21,7 +21,7 @@ type Props = {
 };
 
 export default function AdminDashboard({ googleMapsApiKey }: Props) {
-  const { devices, courses, roster, now, online, liveById, alerts, applySnapshot, markAlertsRead } =
+  const { devices, courses, roster, now, online, liveById, alerts, applySnapshot, markAlertsRead, dismissAlerts } =
     useAdminFleet();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
@@ -73,7 +73,10 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
         online={online}
         alerts={alerts}
         onMarkAlertsRead={(ids) => void markAlertsRead(ids)}
-        onOpenAlert={(item) => setSelectedCourseId(item.courseId)}
+        onOpenAlert={(item) => {
+          setSelectedCourseId(item.courseId);
+          void dismissAlerts({ courseId: item.courseId });
+        }}
         extra={
           <Button
             type="button"
@@ -174,7 +177,10 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                   <li key={course.id}>
                     <button
                       type="button"
-                      onClick={() => setSelectedCourseId(course.id)}
+                      onClick={() => {
+                        setSelectedCourseId(course.id);
+                        void dismissAlerts({ courseId: course.id });
+                      }}
                       className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-[#f4f7fc]"
                     >
                       <div>

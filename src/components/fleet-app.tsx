@@ -160,13 +160,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     async (ids: string[]) => {
       const targetId = sessionRef.current?.id;
       if (!ids.length || !targetId) return;
-      setNotifications((prev) =>
-        prev.map((item) =>
-          ids.includes(item.id) && item.targetId === targetId
-            ? { ...item, readAt: item.readAt ?? Date.now() }
-            : item,
-        ),
-      );
+      setNotifications((prev) => prev.filter((item) => !ids.includes(item.id)));
       try {
         const res = await fetch("/api/notifications", {
           method: "PATCH",
@@ -467,7 +461,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const myAlerts = useMemo(
     () =>
       notifications.filter(
-        (item) => item.kind === "course_assigned" && item.targetId === session?.id,
+        (item) => item.kind === "course_assigned" && item.targetId === session?.id && !item.readAt,
       ),
     [notifications, session?.id],
   );
