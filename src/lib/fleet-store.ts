@@ -1,3 +1,4 @@
+import { recordDriverPresence } from "./presence-store";
 import type { FleetDevice, HeartbeatPayload, VehicleType } from "./types";
 
 const STALE_MS = 20_000;
@@ -156,6 +157,7 @@ function upsertDemoPositions() {
       sharing: true,
       simulated: true,
       lastSeen: Date.now(),
+      connected: true,
     });
   }
 }
@@ -192,8 +194,17 @@ export function heartbeat(payload: HeartbeatPayload): FleetDevice {
     sharing: payload.sharing ?? existing?.sharing ?? false,
     simulated: payload.simulated ?? existing?.simulated ?? false,
     lastSeen: Date.now(),
+    connected: true,
   };
   devices.set(device.id, device);
+  if (device.role === "driver") {
+    recordDriverPresence(device.id, {
+      lat: device.lat,
+      lng: device.lng,
+      heading: device.heading,
+      accuracy: device.accuracy,
+    });
+  }
   return device;
 }
 

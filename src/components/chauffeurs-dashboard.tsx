@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ClipboardList, Pencil, Radio, Trash2, UserPlus, X } from "lucide-react";
 import AdminChrome from "@/components/admin-chrome";
 import { Field, PhoneLink, Stat, VehicleFields } from "@/components/admin-fields";
+import { PresenceBadge, PresenceLegend } from "@/components/presence-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,11 +16,13 @@ import type { FleetSnapshot, VehicleType } from "@/lib/types";
 import {
   COURSE_STATUS_LABEL,
   courseElapsedLabel,
+  formatCoords,
   formatKm,
+  formatWhen,
   kph,
-  statusLabel,
   vehicleLine,
 } from "@/lib/format";
+import { presenceKind } from "@/lib/presence";
 
 const emptyDriver = {
   callSign: "",
@@ -147,6 +150,29 @@ export default function ChauffeursDashboard() {
   const selectedActive = selected
     ? liveJobs.filter((course) => course.assignedDeviceId === selected.id)
     : [];
+  const selectedLastSeen = selectedLive?.lastSeen ?? selected?.lastSeenAt ?? null;
+  const selectedCoords = formatCoords(
+    selectedLive?.lat ?? selected?.lastLat,
+    selectedLive?.lng ?? selected?.lastLng,
+  );
+  const presenceStats = useMemo(() => {
+    let recent = 0;
+    let stale = 0;
+    let unknown = 0;
+    for (const driver of roster) {
+      const kind = presenceKind(
+        {
+          connected: liveById.has(driver.id),
+          lastSeen: liveById.get(driver.id)?.lastSeen ?? driver.lastSeenAt ?? null,
+        },
+        now,
+      );
+      if (kind === "recent") recent += 1;
+      else if (kind === "stale") stale += 1;
+      else if (kind === "unknown") unknown += 1;
+    }
+    return { recent, stale, unknown };
+  }, [roster, liveById, now]);
 
   return (
     <div className="min-h-dvh bg-[#f4f7fc] text-[#1c2268]">
@@ -160,10 +186,11 @@ export default function ChauffeursDashboard() {
 
       <main className="mx-auto grid max-w-[1400px] gap-5 px-4 py-5 sm:px-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <section className="space-y-5">
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Stat label="Enregistrés" value={String(roster.length)} icon={<UserPlus className="size-4" />} />
             <Stat label="En ligne" value={String(onlineCount)} icon={<Radio className="size-4" />} />
-            <Stat label="Courses actives" value={String(liveJobs.length)} icon={<ClipboardList className="size-4" />} />
+            <Stat label="Vu < 30 min" value={String(presenceStats.recent)} icon={<Radio className="size-4" />} />
+            <Stat label="Hors ligne" value={String(presenceStats.stale + presenceStats.unknown)} icon={<ClipboardList className="size-4" />} />
           </div>
 
           <form onSubmit={saveDriver} className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
@@ -253,7 +280,8 @@ export default function ChauffeursDashboard() {
           </form>
 
           <div className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
-            <h2 className="mb-3 text-base font-semibold text-[#2b308f]">Tous les chauffeurs</h2>
+            <h2 className="mb-1 text-base font-semibold text-[#2b308f]">Tous les chauffeurs</h2>
+            <PresenceLegend className="mb-3" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -272,7 +300,8 @@ export default function ChauffeursDashboard() {
                   const live = liveById.get(driver.id);
                   const jobs = courses.filter((c) => c.assignedDeviceId === driver.id);
                   const active = liveJobs.filter((c) => c.assignedDeviceId === driver.id);
-                  const isOnline = Boolean(live);
+                  const lastSeen = live?.lastSeen ?? driver.lastSeenAt ?? null;
+                  const coords = formatCoords(live?.lat ?? driver.lastLat, live?.lng ?? driver.lastLng);
                   const focused = selected?.id === driver.id;
                   return (
                     <li key={driver.id}>
@@ -294,13 +323,11 @@ export default function ChauffeursDashboard() {
                             )}
                             <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(driver)}</div>
                           </div>
-                          <span
-                            className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                              isOnline ? "bg-[#e7f6fd] text-[#00a4e8]" : "bg-[#eef3fb] text-[#5b6294]"
-                            }`}
-                          >
-                            {isOnline && live ? statusLabel(live, now) : "Hors ligne"}
-                          </span>
+                          <PresenceBadge connected={Boolean(live)} lastSeen={lastSeen} now={now} />
+                        </div>
+                        <div className="mt-1 text-xs text-[#5b6294]">
+                          {formatWhen(lastSeen) ? `Dernière connexion ${formatWhen(lastSeen)}` : "Aucune connexion enregistrée"}
+                          {coords ? ` · GPS ${coords}` : " · pas encore de GPS"}
                         </div>
                         <div className="mt-1 text-xs text-[#5b6294]">
                           {jobs.length} course{jobs.length > 1 ? "s" : ""}
@@ -344,13 +371,29 @@ export default function ChauffeursDashboard() {
                       PIN téléphone :{" "}
                       <span className="font-mono font-semibold text-[#2b308f]">{selected.pin ?? "••••"}</span>
                     </p>
-                    <p className="mt-1 text-sm text-[#5b6294]">
-                      {selectedLive
-                        ? `${statusLabel(selectedLive, now)}${
-                            kph(selectedLive.speedMps) != null ? ` · ${kph(selectedLive.speedMps)} km/h` : ""
-                          }`
-                        : "Pas connecté sur le téléphone pour le moment."}
-                    </p>
+                    <div className="mt-3 rounded-xl border border-[#d5dcf0] bg-[#f8faff] px-3 py-2">
+                      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-[#5b6294]">
+                        Connexion
+                      </div>
+                      <PresenceBadge
+                        connected={Boolean(selectedLive)}
+                        lastSeen={selectedLastSeen}
+                        now={now}
+                      />
+                      <p className="mt-1 text-sm text-[#5b6294]">
+                        {formatWhen(selectedLastSeen)
+                          ? `Dernière connexion : ${formatWhen(selectedLastSeen)}`
+                          : "Ce chauffeur ne s’est jamais connecté sur le téléphone."}
+                      </p>
+                      <p className="mt-0.5 text-sm text-[#5b6294]">
+                        {selectedCoords
+                          ? `Dernière position : ${selectedCoords}`
+                          : "Aucune position GPS enregistrée pour le moment."}
+                        {selectedLive && kph(selectedLive.speedMps) != null
+                          ? ` · ${kph(selectedLive.speedMps)} km/h`
+                          : ""}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button type="button" variant="secondary" className="rounded-xl" onClick={() => startEditDriver(selected)}>

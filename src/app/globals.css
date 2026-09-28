@@ -178,3 +178,17 @@
   transform-origin: top center;
   animation: ccmm-bell 0.7s ease-in-out 2;
 }
+
+.leaflet-tooltip.fleet-hover {
+  background: #151a45;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.35);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.leaflet-tooltip-top.fleet-hover::before {
+  border-top-color: #151a45;
+}

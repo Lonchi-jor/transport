@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { FleetDevice } from "@/lib/types";
-import { VEHICLE_META } from "@/lib/types";
-import { DEFAULT_CENTER, devicesWithPosition, kph, statusLabel, type MapFollow, type MapRoute } from "@/lib/format";
+import { DEFAULT_CENTER, devicesWithPosition, formatWhen, kph, type MapFollow, type MapRoute } from "@/lib/format";
+import { PRESENCE_COLOR, presenceHoverText, presenceKind, presenceLabel } from "@/lib/presence";
 
-function markerIcon(device: FleetDevice, selected: boolean, isSelf: boolean) {
-  const color = isSelf ? "#00a4e8" : VEHICLE_META[device.vehicleType].color;
+function markerIcon(device: FleetDevice, selected: boolean, isSelf: boolean, now: number) {
+  const kind = presenceKind({ connected: device.connected, lastSeen: device.lastSeen }, now);
+  const color = isSelf ? "#00a4e8" : PRESENCE_COLOR[kind === "unknown" ? "stale" : kind];
   const ring = selected || isSelf ? "#fff" : "rgba(255,255,255,0.35)";
   const label = isSelf ? "YOU" : device.callSign;
   const text = isSelf ? "#ffffff" : "#0b1220";
@@ -176,9 +177,17 @@ export default function LeafletFleetMap({
         <Marker
           key={device.id}
           position={[device.lat as number, device.lng as number]}
-          icon={markerIcon(device, device.id === selectedId, device.id === selfId)}
+          icon={markerIcon(device, device.id === selectedId, device.id === selfId, now)}
           eventHandlers={{ click: () => onSelect(device.id) }}
         >
+          <Tooltip direction="top" offset={[0, -28]} opacity={1} className="fleet-hover">
+            <div className="min-w-36 text-xs leading-5">
+              <div className="font-semibold">
+                {device.callSign} · {device.driverName}
+              </div>
+              <div>{presenceHoverText(presenceKind({ connected: device.connected, lastSeen: device.lastSeen }, now), device.lastSeen, now)}</div>
+            </div>
+          </Tooltip>
           <Popup>
             <div className="min-w-40 text-sm">
               <div className="font-semibold">{device.callSign}</div>
@@ -189,9 +198,16 @@ export default function LeafletFleetMap({
                 </div>
               ) : null}
               <div>
-                {statusLabel(device, now)}
+                {presenceLabel(
+                  presenceKind({ connected: device.connected, lastSeen: device.lastSeen }, now),
+                  device.lastSeen,
+                  now,
+                )}
                 {kph(device.speedMps) != null ? ` · ${kph(device.speedMps)} km/h` : ""}
               </div>
+              {formatWhen(device.lastSeen) ? (
+                <div>Horodatage : {formatWhen(device.lastSeen)}</div>
+              ) : null}
               {device.simulated ? <div>Training / fake GPS</div> : null}
             </div>
           </Popup>

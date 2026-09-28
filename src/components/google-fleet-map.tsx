@@ -3,8 +3,8 @@
 import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps";
 import { useEffect, useMemo } from "react";
 import type { FleetDevice } from "@/lib/types";
-import { VEHICLE_META } from "@/lib/types";
 import { DEFAULT_CENTER, devicesWithPosition, type MapFollow, type MapRoute } from "@/lib/format";
+import { PRESENCE_COLOR, presenceHoverText, presenceKind } from "@/lib/presence";
 
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
   { featureType: "poi", stylers: [{ visibility: "off" }] },
@@ -119,6 +119,7 @@ function Camera({
 
 type InnerProps = {
   devices: FleetDevice[];
+  now: number;
   selectedId: string | null;
   onSelect: (id: string) => void;
   follow: MapFollow | null;
@@ -132,6 +133,7 @@ type InnerProps = {
 
 function GoogleMapInner({
   devices,
+  now,
   selectedId,
   onSelect,
   follow,
@@ -174,11 +176,14 @@ function GoogleMapInner({
       />
       {positioned.map((device) => {
         const isSelf = device.id === selfId;
+        const kind = presenceKind({ connected: device.connected, lastSeen: device.lastSeen }, now);
+        const color = isSelf ? "#00a4e8" : PRESENCE_COLOR[kind === "unknown" ? "stale" : kind];
+        const hover = presenceHoverText(kind, device.lastSeen, now);
         return (
           <Marker
             key={device.id}
             position={{ lat: device.lat as number, lng: device.lng as number }}
-            title={isSelf ? `You · ${device.callSign}` : `${device.callSign} · ${device.driverName}`}
+            title={`${device.callSign} · ${device.driverName} · ${hover}`}
             label={{
               text: isSelf ? "YOU" : device.callSign,
               color: isSelf ? "#ffffff" : "#0b1220",
@@ -188,7 +193,7 @@ function GoogleMapInner({
             icon={{
               path: google.maps.SymbolPath.CIRCLE,
               scale: isSelf || device.id === selectedId ? 14 : 11,
-              fillColor: isSelf ? "#00a4e8" : VEHICLE_META[device.vehicleType].color,
+              fillColor: color,
               fillOpacity: 1,
               strokeColor: "#ffffff",
               strokeWeight: 2,
@@ -204,6 +209,7 @@ function GoogleMapInner({
 export default function GoogleFleetMap({
   apiKey,
   devices,
+  now,
   selectedId,
   onSelect,
   follow,
@@ -213,11 +219,12 @@ export default function GoogleFleetMap({
   selfId,
   route,
   frameSelfAndRoute = false,
-}: InnerProps & { apiKey: string; now: number }) {
+}: InnerProps & { apiKey: string }) {
   return (
     <APIProvider apiKey={apiKey}>
       <GoogleMapInner
         devices={devices}
+        now={now}
         selectedId={selectedId}
         onSelect={onSelect}
         follow={follow}

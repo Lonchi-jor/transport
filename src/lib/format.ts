@@ -110,12 +110,17 @@ export function shortPlace(value: string) {
 }
 
 export function formatWhen(ts: number | null | undefined) {
-  if (ts == null || !Number.isFinite(ts)) return null;
+  if (ts == null || !Number.isFinite(ts) || ts <= 0) return null;
   return new Intl.DateTimeFormat("fr-FR", {
     dateStyle: "short",
     timeStyle: "short",
     timeZone: "Africa/Douala",
   }).format(new Date(ts));
+}
+
+export function formatCoords(lat: number | null | undefined, lng: number | null | undefined) {
+  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
 }
 
 export function courseElapsedLabel(course: Course, now: number) {

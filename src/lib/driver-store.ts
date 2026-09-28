@@ -15,7 +15,12 @@ export type DriverAccount = {
   updatedAt: number;
 };
 
-export type DriverPublic = Omit<DriverAccount, "pin">;
+export type DriverPublic = Omit<DriverAccount, "pin"> & {
+  lastLat?: number | null;
+  lastLng?: number | null;
+  lastFixAt?: number | null;
+  lastSeenAt?: number | null;
+};
 
 const FILE = path.join(process.cwd(), ".data", "drivers.json");
 const drivers = new Map<string, DriverAccount>();

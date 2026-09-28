@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MapPinned, Maximize2, X } from "lucide-react";
 import FleetMap from "@/components/fleet-map";
+import { PresenceLegend } from "@/components/presence-badge";
 import { Button } from "@/components/ui/button";
 import type { Course, FleetDevice } from "@/lib/types";
 import { COURSE_STATUS_LABEL, formatKm, formatMinutes, type MapRoute } from "@/lib/format";
@@ -160,7 +161,7 @@ export default function DispatchMap({
                 Carte de la flotte
               </div>
               <p className="mt-0.5 text-xs text-blue-100">
-                Cliquez pour le plein écran · {drivers.length} chauffeur{drivers.length > 1 ? "s" : ""}
+                Cliquez pour le plein écran · dernière position de chaque chauffeur, connecté ou non
               </p>
             </div>
             <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-medium group-hover:bg-white/25">
@@ -168,6 +169,9 @@ export default function DispatchMap({
               Plein écran
             </span>
           </div>
+        </div>
+        <div className="pointer-events-none absolute left-3 top-3 z-20 rounded-xl bg-white/95 px-3 py-2 shadow-sm">
+          <PresenceLegend />
         </div>
       </button>
 
@@ -177,6 +181,7 @@ export default function DispatchMap({
             <div>
               <div className="text-sm font-semibold">Carte — tous les chauffeurs</div>
               <p className="text-[11px] text-blue-200">{hint}</p>
+              <PresenceLegend className="mt-1 text-blue-100" />
             </div>
             <Button variant="secondary" size="sm" className="rounded-xl" onClick={() => onOpenChange(false)}>
               <X className="size-4" />

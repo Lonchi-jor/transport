@@ -20,6 +20,8 @@ export type FleetDevice = {
   sharing: boolean;
   simulated: boolean;
   lastSeen: number;
+  /** True while the phone is sending heartbeats. Last GPS is kept even when false. */
+  connected?: boolean;
 };
 
 export type HeartbeatPayload = {
@@ -139,6 +141,10 @@ export type FleetSnapshot = {
     vehicleType: VehicleType;
     vehiclePlate?: string;
     pin?: string;
+    lastLat?: number | null;
+    lastLng?: number | null;
+    lastFixAt?: number | null;
+    lastSeenAt?: number | null;
   }[];
   now: number;
   demo?: boolean;

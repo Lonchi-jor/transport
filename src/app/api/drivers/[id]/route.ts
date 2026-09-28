@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { deleteDriver, getDriver, isVehicleType, updateDriver } from "@/lib/driver-store";
 import { removeDevice } from "@/lib/fleet-store";
+import { deletePresence } from "@/lib/presence-store";
 import { adminSnapshot } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
@@ -52,6 +53,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Chauffeur introuvable" }, { status: 404 });
   }
   removeDevice(id);
+  deletePresence(id);
   deleteDriver(id);
   return NextResponse.json({ ok: true, ...adminSnapshot() });
 }

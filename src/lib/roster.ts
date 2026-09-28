@@ -8,4 +8,8 @@ export type RosterDriver = {
   vehicleType: VehicleType;
   vehiclePlate?: string;
   pin?: string;
+  lastLat?: number | null;
+  lastLng?: number | null;
+  lastFixAt?: number | null;
+  lastSeenAt?: number | null;
 };

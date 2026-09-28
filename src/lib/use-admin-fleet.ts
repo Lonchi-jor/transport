@@ -12,7 +12,7 @@ export function useAdminFleet() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [roster, setRoster] = useState<RosterDriver[]>([]);
-  const [now, setNow] = useState(0);
+  const [now, setNow] = useState(() => Date.now());
   const [online, setOnline] = useState(true);
 
   const applySnapshot = useCallback((snapshot: FleetSnapshot) => {
@@ -54,6 +54,11 @@ export function useAdminFleet() {
     return () => source.close();
   }, [applySnapshot]);
 
+  useEffect(() => {
+    const tick = window.setInterval(() => setNow(Date.now()), 15_000);
+    return () => window.clearInterval(tick);
+  }, []);
+
   const markAlertsRead = useCallback(
     async (ids: string[], targetId = dispatcherId) => {
       if (!ids.length || !targetId) return;
@@ -90,7 +95,7 @@ export function useAdminFleet() {
   const liveById = useMemo(() => {
     const map = new Map<string, FleetDevice>();
     for (const device of devices) {
-      if (device.role === "driver") map.set(device.id, device);
+      if (device.role === "driver" && device.connected) map.set(device.id, device);
     }
     return map;
   }, [devices]);
