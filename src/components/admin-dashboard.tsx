@@ -73,10 +73,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
         online={online}
         alerts={alerts}
         onMarkAlertsRead={(ids) => void markAlertsRead(ids)}
-        onOpenAlert={(item) => {
-          setSelectedCourseId(item.courseId);
-          void dismissAlerts({ courseId: item.courseId });
-        }}
         extra={
           <Button
             type="button"

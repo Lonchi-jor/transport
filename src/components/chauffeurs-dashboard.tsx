@@ -228,7 +228,6 @@ export default function ChauffeursDashboard() {
         online={online}
         alerts={alerts}
         onMarkAlertsRead={(ids) => void markAlertsRead(ids)}
-        onOpenAlert={() => router.push("/admin/courses")}
       />
 
       <main className="mx-auto grid max-w-[1400px] gap-5 px-4 py-5 sm:px-6 xl:grid-cols-[360px_minmax(0,1fr)]">

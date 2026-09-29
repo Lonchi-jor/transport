@@ -51,6 +51,14 @@ export function parseCourseViewFilter(value: string | null | undefined): CourseV
   return value === "live" || value === "done" ? value : "all";
 }
 
+/** Dispatch bell → finished job on the courses board, with BL download. */
+export function finishedCourseHref(courseId: string) {
+  const params = new URLSearchParams();
+  params.set("filtre", "done");
+  params.set("focus", courseId);
+  return `/admin/courses?${params.toString()}`;
+}
+
 export function isLiveAssignedCourse(course: Course) {
   return course.status === "assigned" || course.status === "en_route";
 }

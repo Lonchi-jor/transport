@@ -2,10 +2,12 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ClipboardList, LayoutDashboard, Truck } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import NotificationBell from "@/components/notification-bell";
 import { buttonVariants } from "@/components/ui/button";
+import { finishedCourseHref } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AppNotification } from "@/lib/types";
 
@@ -26,6 +28,8 @@ export default function AdminChrome({
   onMarkAlertsRead,
   onOpenAlert,
 }: Props) {
+  const router = useRouter();
+
   return (
     <header className="border-b border-[#d5dcf0] bg-white">
       <div className="mx-auto flex max-w-[1400px] flex-col gap-3 px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
@@ -67,9 +71,12 @@ export default function AdminChrome({
             items={alerts}
             label="Courses terminées"
             empty="Aucune course terminée pour le moment."
-            hint="La cloche sonne dès qu’un chauffeur termine une course."
+            hint="Cliquez une alerte pour ouvrir la course terminée et télécharger le BL."
             onMarkRead={(ids) => onMarkAlertsRead?.(ids)}
-            onOpenItem={onOpenAlert}
+            onOpenItem={(item) => {
+              onOpenAlert?.(item);
+              if (item.courseId) router.push(finishedCourseHref(item.courseId));
+            }}
           />
           <Link
             href="/admin/courses"

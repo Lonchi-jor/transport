@@ -83,12 +83,17 @@ export default function NotificationBell({
       if (announced.current.has(item.id)) continue;
       announced.current.add(item.id);
       try {
-        new Notification(item.title, { body: compactBody(item.body), icon: "/icon-192.png" });
+        const toast = new Notification(item.title, { body: compactBody(item.body), icon: "/icon-192.png" });
+        toast.onclick = () => {
+          window.focus();
+          if (!item.readAt) onMarkRead([item.id]);
+          onOpenItem?.(item);
+        };
       } catch {
         /* ignore */
       }
     }
-  }, [items]);
+  }, [items, onMarkRead, onOpenItem]);
 
   const openPanel = useCallback(() => {
     if (!open) {
