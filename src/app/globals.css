@@ -210,6 +210,14 @@
   cursor: grabbing;
   transform: scale(1.06);
 }
+.composer-pin-hit.is-static {
+  cursor: default;
+  touch-action: auto;
+}
+.composer-pin-hit.is-static:active {
+  cursor: default;
+  transform: none;
+}
 .composer-pin-label {
   color: #fff;
   font-weight: 800;

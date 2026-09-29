@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { CircleMarker, MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { FleetDevice } from "@/lib/types";
 import { DEFAULT_CENTER, devicesWithPosition, formatWhen, kph, type MapFollow, type MapRoute } from "@/lib/format";
+import { numberedMapIcon } from "@/lib/leaflet-pins";
 import { PRESENCE_COLOR, presenceHoverText, presenceKind, presenceLabel } from "@/lib/presence";
 
 function markerIcon(device: FleetDevice, selected: boolean, isSelf: boolean, now: number) {
@@ -137,6 +138,12 @@ export default function LeafletFleetMap({
   assignBlockedMessage,
 }: Props) {
   const positioned = useMemo(() => devicesWithPosition(devices), [devices]);
+  const voyageIcon = useMemo(() => numberedMapIcon("voyage"), []);
+  const stopList = route?.stops?.length ? route.stops : route ? [route.dropoff] : [];
+  const stopIcons = useMemo(
+    () => stopList.map((_, index) => numberedMapIcon("stop", index)),
+    [stopList.length],
+  );
 
   return (
     <MapContainer
@@ -165,28 +172,26 @@ export default function LeafletFleetMap({
             positions={route.path}
             pathOptions={{ color: "#2b308f", weight: 6, opacity: 0.9 }}
           />
-          <CircleMarker
-            center={[route.pickup.lat, route.pickup.lng]}
-            radius={9}
-            pathOptions={{ color: "#2b308f", fillColor: "#00a4e8", fillOpacity: 1 }}
+          <Marker
+            position={[route.pickup.lat, route.pickup.lng]}
+            icon={voyageIcon}
+            draggable={false}
+            zIndexOffset={500}
           >
             <Popup>Voyage · {route.pickup.label}</Popup>
-          </CircleMarker>
-          {(route.stops?.length ? route.stops : [route.dropoff]).map((stop, index) => (
-            <CircleMarker
+          </Marker>
+          {stopList.map((stop, index) => (
+            <Marker
               key={`tour-${index}-${stop.lat}-${stop.lng}`}
-              center={[stop.lat, stop.lng]}
-              radius={8}
-              pathOptions={{
-                color: "#2b308f",
-                fillColor: index === (route.stops?.length ?? 1) - 1 ? "#2b308f" : "#4d7fe8",
-                fillOpacity: 1,
-              }}
+              position={[stop.lat, stop.lng]}
+              icon={stopIcons[index] ?? numberedMapIcon("stop", index)}
+              draggable={false}
+              zIndexOffset={600 + index}
             >
               <Popup>
                 Destination {index + 1} · {stop.label}
               </Popup>
-            </CircleMarker>
+            </Marker>
           ))}
         </>
       ) : null}

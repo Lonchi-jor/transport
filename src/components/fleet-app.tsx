@@ -21,7 +21,6 @@ import {
   courseToMapRoute,
   formatKm,
   formatWhen,
-  tourLine,
   vehicleLine,
   type MapRoute,
 } from "@/lib/format";
@@ -468,37 +467,38 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const onUserPan = useCallback(() => setStickToMe(false), []);
   const mapProvider = googleMapsApiKey ? "Google Maps" : "OpenStreetMap";
 
+  const navJob = runningJob ?? currentJob;
   const fromKey =
     runningJob && myPos
       ? `${roundCoord(myPos.lat)},${roundCoord(myPos.lng)}`
-      : runningJob?.pickupLat != null && runningJob.pickupLng != null
-        ? `p:${roundCoord(runningJob.pickupLat)},${roundCoord(runningJob.pickupLng)}`
+      : navJob?.pickupLat != null && navJob.pickupLng != null
+        ? `p:${roundCoord(navJob.pickupLat)},${roundCoord(navJob.pickupLng)}`
         : "";
-  const destKey = runningJob
-    ? `${runningJob.id}:${courseStops(runningJob)
+  const destKey = navJob
+    ? `${navJob.id}:${courseStops(navJob)
         .map((stop) => `${stop.lat},${stop.lng}`)
         .join("|")}`
     : "";
 
   useEffect(() => {
-    if (!runningJob) {
+    if (!navJob) {
       setLiveRoute(null);
       return;
     }
-    const stops = courseStops(runningJob).filter(
+    const stops = courseStops(navJob).filter(
       (stop) => stop.lat != null && stop.lng != null,
     );
     if (!stops.length) {
       setLiveRoute(null);
       return;
     }
-    const fromLat = myPos?.lat ?? runningJob.pickupLat;
-    const fromLng = myPos?.lng ?? runningJob.pickupLng;
+    const fromLat = runningJob && myPos ? myPos.lat : navJob.pickupLat;
+    const fromLng = runningJob && myPos ? myPos.lng : navJob.pickupLng;
     if (fromLat == null || fromLng == null) return;
     const last = stops[stops.length - 1];
     const points = [{ lat: fromLat, lng: fromLng }, ...stops.map((stop) => ({ lat: stop.lat as number, lng: stop.lng as number }))];
     const dropLabel = last.address;
-    const fromLabel = myPos ? "Votre position" : runningJob.pickupAddress;
+    const fromLabel = runningJob && myPos ? "Votre position" : navJob.pickupAddress;
     const mappedStops = stops.map((stop) => ({
       lat: stop.lat as number,
       lng: stop.lng as number,
@@ -541,10 +541,10 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destKey, fromKey]);
 
-  const mapRoute = runningJob
-    ? liveRoute && liveRoute.dropoff.label === runningJob.dropoffAddress
+  const mapRoute = navJob
+    ? liveRoute && liveRoute.dropoff.label === navJob.dropoffAddress
       ? liveRoute
-      : courseToMapRoute(runningJob)
+      : courseToMapRoute(navJob)
     : null;
 
   const mapDevices = useMemo(() => {
@@ -990,8 +990,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                     </span>
                   </div>
                   <div className="mt-1 text-blue-100">{currentJob.clientName}</div>
-                  <div className="mt-1 text-blue-100">
-                    {tourLine(currentJob)}
+                  <div className="mt-2">
+                    <CourseItinerary course={currentJob} tone="dark" />
                   </div>
                   {currentJob.bnNumber ? (
                     <div className="mt-1 font-medium text-white">BN {currentJob.bnNumber}</div>
@@ -1030,8 +1030,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                 <div className="mt-2 rounded-2xl border border-white/15 bg-black/20 px-3 py-2 text-xs text-blue-50">
                   <div className="font-medium text-[#7dd8f7]">Prochaine course · {queuedJob.reference}</div>
                   <div className="mt-1 text-blue-100">{queuedJob.clientName}</div>
-                  <div className="mt-1 text-blue-100">
-                    {tourLine(queuedJob)}
+                  <div className="mt-2">
+                    <CourseItinerary course={queuedJob} tone="dark" />
                   </div>
                   {queuedJob.notes ? (
                     <div className="mt-2">

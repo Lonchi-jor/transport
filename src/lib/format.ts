@@ -92,9 +92,11 @@ export function courseStops(
 }
 
 export function tourLine(course: Course) {
-  const parts = [course.pickupAddress, ...courseStops(course).map((stop) => stop.address)]
-    .map((value) => shortPlace(value))
-    .filter(Boolean);
+  const dests = courseStops(course).map((stop, index) => {
+    const name = shortPlace(stop.address);
+    return name ? `${index + 1}. ${name}` : "";
+  });
+  const parts = [shortPlace(course.pickupAddress), ...dests].filter(Boolean);
   return parts.join(" → ");
 }
 

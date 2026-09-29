@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { DEFAULT_CENTER } from "@/lib/format";
+import { numberedMapIcon } from "@/lib/leaflet-pins";
 
 export type ComposerPin = {
   id?: string;
@@ -13,20 +14,7 @@ export type ComposerPin = {
 };
 
 function pinIcon(kind: "voyage" | "stop", index?: number) {
-  const color = kind === "voyage" ? "#00a4e8" : "#2b308f";
-  const text = kind === "voyage" ? "Voyage" : String((index ?? 0) + 1);
-  const width = kind === "voyage" ? 88 : 44;
-  const html = `
-    <div class="composer-pin-hit" style="width:${width}px">
-      <div class="composer-pin-label" style="background:${color}">${text}</div>
-      <div class="composer-pin-pointer" style="border-top-color:${color}"></div>
-    </div>`;
-  return L.divIcon({
-    className: "composer-pin",
-    html,
-    iconSize: [width, 48],
-    iconAnchor: [width / 2, 48],
-  });
+  return numberedMapIcon(kind, index, true);
 }
 
 function MapChrome({

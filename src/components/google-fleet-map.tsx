@@ -34,7 +34,7 @@ function RouteLayer({
     const start = new google.maps.Marker({
       position: { lat: route.pickup.lat, lng: route.pickup.lng },
       map,
-      label: "V",
+      label: { text: "V", color: "#ffffff", fontWeight: "700" },
       title: `Voyage · ${route.pickup.label}`,
     });
     const stopList = route.stops?.length ? route.stops : [route.dropoff];
@@ -43,7 +43,7 @@ function RouteLayer({
         new google.maps.Marker({
           position: { lat: stop.lat, lng: stop.lng },
           map,
-          label: String(index + 1),
+          label: { text: String(index + 1), color: "#ffffff", fontWeight: "800" },
           title: `Destination ${index + 1} · ${stop.label}`,
         }),
     );
