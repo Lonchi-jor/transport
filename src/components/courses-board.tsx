@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FileDown } from "lucide-react";
@@ -17,6 +18,7 @@ import { useAdminFleet } from "@/lib/use-admin-fleet";
 import type { Course, CourseStatus, FleetSnapshot, VehicleType } from "@/lib/types";
 import { COURSE_STATUSES, VEHICLE_META, VEHICLE_TYPES } from "@/lib/types";
 import {
+  canCancelCourse,
   COURSE_STATUS_LABEL,
   courseElapsedLabel,
   courseStops,
@@ -46,6 +48,9 @@ export default function CoursesBoard() {
   const [bl, setBl] = useState<"all" | "yes" | "no">("all");
   const [vehicleType, setVehicleType] = useState<VehicleType | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [pendingCancel, setPendingCancel] = useState<Course | null>(null);
+  const [canceling, setCanceling] = useState(false);
+  const [cancelError, setCancelError] = useState("");
   function openCourse(courseId: string) {
     setSelectedId(courseId);
     void dismissAlerts({ courseId });
@@ -197,6 +202,38 @@ export default function CoursesBoard() {
     applySnapshot(data);
     return null;
   }
+
+  function askCancel(course: Course) {
+    setCancelError("");
+    setPendingCancel(course);
+  }
+
+  async function confirmCancel() {
+    if (!pendingCancel) return;
+    setCanceling(true);
+    setCancelError("");
+    const message = await patchCourse(pendingCancel.id, { status: "cancelled" });
+    setCanceling(false);
+    if (message) {
+      setCancelError(message);
+      return;
+    }
+    setPendingCancel(null);
+  }
+
+  useEffect(() => {
+    if (!pendingCancel) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !canceling) setPendingCancel(null);
+    }
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [pendingCancel, canceling]);
 
   return (
     <div className="min-h-dvh bg-[#f4f7fc] text-[#1c2268]">
@@ -494,13 +531,13 @@ export default function CoursesBoard() {
                             >
                               Ouvrir
                             </Button>
-                            {course.status !== "cancelled" && course.status !== "done" ? (
+                            {canCancelCourse(course) ? (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={(event) => {
                                   event.stopPropagation();
-                                  void patchCourse(course.id, { status: "cancelled" });
+                                  askCancel(course);
                                 }}
                               >
                                 Annuler
@@ -517,6 +554,60 @@ export default function CoursesBoard() {
           )}
         </div>
       </main>
+      {pendingCancel && typeof document !== "undefined"
+        ? createPortal(
+            <div className="fixed inset-0 z-[90] flex items-end justify-center sm:items-center sm:p-4">
+              <button
+                type="button"
+                className="absolute inset-0 bg-[#10143a]/45"
+                aria-label="Fermer"
+                disabled={canceling}
+                onClick={() => {
+                  if (!canceling) setPendingCancel(null);
+                }}
+              />
+              <div
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="cancel-course-title"
+                className="relative z-10 w-full max-w-md rounded-t-3xl bg-white p-5 shadow-2xl sm:rounded-3xl"
+              >
+                <h2 id="cancel-course-title" className="text-base font-semibold text-[#2b308f]">
+                  Annuler la course
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-[#1c2268]">
+                  Voulez-vous réellement annuler cette course ?
+                </p>
+                <p className="mt-1 text-sm text-[#5b6294]">
+                  {pendingCancel.reference}
+                  {pendingCancel.clientName ? ` · ${pendingCancel.clientName}` : ""}
+                </p>
+                {cancelError ? <p className="mt-3 text-sm text-red-600">{cancelError}</p> : null}
+                <div className="mt-5 flex flex-wrap justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="h-10 rounded-xl"
+                    disabled={canceling}
+                    onClick={() => setPendingCancel(null)}
+                  >
+                    Non
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    className="h-10 rounded-xl"
+                    disabled={canceling}
+                    onClick={() => void confirmCancel()}
+                  >
+                    {canceling ? "Annulation…" : "Oui, annuler"}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

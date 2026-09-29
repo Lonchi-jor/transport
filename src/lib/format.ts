@@ -59,6 +59,10 @@ export function finishedCourseHref(courseId: string) {
   return `/admin/courses?${params.toString()}`;
 }
 
+export function canCancelCourse(course: Pick<Course, "status">) {
+  return course.status === "open" || course.status === "assigned";
+}
+
 export function isLiveAssignedCourse(course: Course) {
   return course.status === "assigned" || course.status === "en_route";
 }

@@ -433,6 +433,12 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
     next.bnNumber = patch.bnNumber.trim();
   }
   if (patch.status) {
+    if (patch.status === "cancelled" && existing.status === "en_route") {
+      throw new CourseEditError("Cette course a déjà commencé ; elle ne peut plus être annulée.");
+    }
+    if (patch.status === "cancelled" && existing.status === "done") {
+      throw new CourseEditError("Cette course est terminée ; elle ne peut plus être annulée.");
+    }
     if (patch.status === "en_route" && !next.bnNumber) {
       return null;
     }

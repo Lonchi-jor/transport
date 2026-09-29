@@ -52,6 +52,17 @@ export async function PATCH(
       );
     }
   }
+  if (body.status === "cancelled" && (current.status === "en_route" || current.status === "done")) {
+    return NextResponse.json(
+      {
+        error:
+          current.status === "en_route"
+            ? "Cette course a déjà commencé ; elle ne peut plus être annulée."
+            : "Cette course est terminée ; elle ne peut plus être annulée.",
+      },
+      { status: 409 },
+    );
+  }
   if (body.status === "done" && !current.hasDeliveryScan) {
     return NextResponse.json(
       { error: "Joignez la photo du bon de livraison avant de terminer la course." },
