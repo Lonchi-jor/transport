@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, type MutableRefObject } from "react";
-import { MapContainer, Marker, Polyline, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
+import { MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import { DEFAULT_CENTER } from "@/lib/format";
 
@@ -15,43 +15,38 @@ export type ComposerPin = {
 function pinIcon(kind: "voyage" | "stop", index?: number) {
   const color = kind === "voyage" ? "#00a4e8" : "#2b308f";
   const text = kind === "voyage" ? "Voyage" : String((index ?? 0) + 1);
+  const width = kind === "voyage" ? 88 : 44;
   const html = `
-    <div style="
-      transform: translate(-50%, -100%);
-      display:flex; flex-direction:column; align-items:center; font-family: Inter, system-ui, sans-serif;
-    ">
-      <div style="
-        background:${color}; color:#fff; font-weight:800; font-size:11px; letter-spacing:.04em;
-        padding:4px 8px; border-radius:999px; border:2px solid #fff; box-shadow:0 8px 20px rgba(0,0,0,.35);
-        white-space:nowrap;
-      ">${text}</div>
-      <div style="
-        width:0; height:0; border-left:7px solid transparent; border-right:7px solid transparent;
-        border-top:9px solid ${color}; margin-top:-1px;
-      "></div>
+    <div class="composer-pin-hit" style="width:${width}px">
+      <div class="composer-pin-label" style="background:${color}">${text}</div>
+      <div class="composer-pin-pointer" style="border-top-color:${color}"></div>
     </div>`;
-  return L.divIcon({ className: "composer-pin", html, iconSize: [0, 0], iconAnchor: [0, 0] });
+  return L.divIcon({
+    className: "composer-pin",
+    html,
+    iconSize: [width, 48],
+    iconAnchor: [width / 2, 48],
+  });
 }
 
 function MapChrome({
   flyTo,
   flyKey,
-  skipClickRef,
+  skipUntilRef,
+  draggingRef,
   onClick,
 }: {
   flyTo: { lat: number; lng: number } | null;
   flyKey: number;
-  skipClickRef: MutableRefObject<boolean>;
+  skipUntilRef: MutableRefObject<number>;
+  draggingRef: MutableRefObject<boolean>;
   onClick: (lat: number, lng: number) => void;
 }) {
   const map = useMap();
 
   useMapEvents({
     click(event) {
-      if (skipClickRef.current) {
-        skipClickRef.current = false;
-        return;
-      }
+      if (draggingRef.current || Date.now() < skipUntilRef.current) return;
       onClick(event.latlng.lat, event.latlng.lng);
     },
   });
@@ -62,11 +57,84 @@ function MapChrome({
   }, [map, flyKey]);
 
   useEffect(() => {
-    if (!flyTo) return;
+    if (!flyTo || draggingRef.current) return;
     map.flyTo([flyTo.lat, flyTo.lng], Math.max(map.getZoom(), 16), { duration: 0.85 });
-  }, [map, flyTo, flyKey]);
+  }, [map, flyTo, flyKey, draggingRef]);
 
   return null;
+}
+
+function DraggablePin({
+  lat,
+  lng,
+  icon,
+  title,
+  skipUntilRef,
+  draggingRef,
+  onMoved,
+}: {
+  lat: number;
+  lng: number;
+  icon: L.DivIcon;
+  title: string;
+  skipUntilRef: MutableRefObject<number>;
+  draggingRef: MutableRefObject<boolean>;
+  onMoved: (lat: number, lng: number) => void;
+}) {
+  const map = useMap();
+  const markerRef = useRef<L.Marker | null>(null);
+  const dragging = useRef(false);
+  const onMovedRef = useRef(onMoved);
+  onMovedRef.current = onMoved;
+  const position = useMemo(() => L.latLng(lat, lng), [lat, lng]);
+  const eventHandlers = useMemo(
+    () => ({
+      dragstart: () => {
+        dragging.current = true;
+        draggingRef.current = true;
+        skipUntilRef.current = Date.now() + 1200;
+        map.dragging.disable();
+      },
+      dragend: (event: L.LeafletEvent) => {
+        const ll = (event.target as L.Marker).getLatLng();
+        dragging.current = false;
+        draggingRef.current = false;
+        skipUntilRef.current = Date.now() + 600;
+        if (!map.dragging.enabled()) map.dragging.enable();
+        onMovedRef.current(ll.lat, ll.lng);
+      },
+    }),
+    [map, draggingRef, skipUntilRef],
+  );
+
+  useEffect(() => {
+    if (dragging.current) return;
+    markerRef.current?.setLatLng(position);
+  }, [position]);
+
+  useEffect(() => {
+    return () => {
+      draggingRef.current = false;
+      if (!map.dragging.enabled()) map.dragging.enable();
+    };
+  }, [map, draggingRef]);
+
+  return (
+    <Marker
+      ref={(marker) => {
+        markerRef.current = marker;
+      }}
+      position={position}
+      icon={icon}
+      title={title}
+      draggable
+      autoPan
+      zIndexOffset={900}
+      autoPanPadding={[48, 48]}
+      bubblingMouseEvents={false}
+      eventHandlers={eventHandlers}
+    />
+  );
 }
 
 type Props = {
@@ -90,7 +158,10 @@ export default function CourseComposerMap({
   onPickupMove,
   onStopMove,
 }: Props) {
-  const skipClickRef = useRef(false);
+  const skipUntilRef = useRef(0);
+  const draggingRef = useRef(false);
+  const voyageIcon = useMemo(() => pinIcon("voyage"), []);
+  const stopIcons = useMemo(() => stops.map((_, index) => pinIcon("stop", index)), [stops.length]);
   const path =
     routePath && routePath.length >= 2
       ? routePath
@@ -110,7 +181,13 @@ export default function CourseComposerMap({
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <MapChrome flyTo={flyTo} flyKey={flyKey} skipClickRef={skipClickRef} onClick={onMapClick} />
+      <MapChrome
+        flyTo={flyTo}
+        flyKey={flyKey}
+        skipUntilRef={skipUntilRef}
+        draggingRef={draggingRef}
+        onClick={onMapClick}
+      />
       {path && path.length >= 2 ? (
         <Polyline
           positions={path}
@@ -123,52 +200,30 @@ export default function CourseComposerMap({
         />
       ) : null}
       {pickup ? (
-        <Marker
-          position={[pickup.lat, pickup.lng]}
-          draggable
-          icon={pinIcon("voyage")}
-          eventHandlers={{
-            dragstart: () => {
-              skipClickRef.current = true;
-            },
-            dragend: (event) => {
-              skipClickRef.current = true;
-              const ll = event.target.getLatLng();
-              onPickupMove(ll.lat, ll.lng);
-            },
-          }}
-        >
-          <Popup>
-            Voyage
-            <div className="text-xs">{pickup.label}</div>
-            <div className="mt-1 text-[11px] text-[#5b6294]">Glissez le point pour le déplacer.</div>
-          </Popup>
-        </Marker>
+        <DraggablePin
+          lat={pickup.lat}
+          lng={pickup.lng}
+          icon={voyageIcon}
+          title="Glissez pour déplacer le point de voyage"
+          skipUntilRef={skipUntilRef}
+          draggingRef={draggingRef}
+          onMoved={onPickupMove}
+        />
       ) : null}
-      {stops.map((stop, index) => (
-        <Marker
-          key={stop.id ?? `${stop.lat}-${stop.lng}-${index}`}
-          position={[stop.lat, stop.lng]}
-          draggable
-          icon={pinIcon("stop", index)}
-          eventHandlers={{
-            dragstart: () => {
-              skipClickRef.current = true;
-            },
-            dragend: (event) => {
-              skipClickRef.current = true;
-              const ll = event.target.getLatLng();
-              if (stop.id) onStopMove(stop.id, ll.lat, ll.lng);
-            },
-          }}
-        >
-          <Popup>
-            Destination {index + 1}
-            <div className="text-xs">{stop.label}</div>
-            <div className="mt-1 text-[11px] text-[#5b6294]">Glissez le point pour le déplacer.</div>
-          </Popup>
-        </Marker>
-      ))}
+      {stops.map((stop, index) =>
+        stop.id ? (
+          <DraggablePin
+            key={stop.id}
+            lat={stop.lat}
+            lng={stop.lng}
+            icon={stopIcons[index] ?? pinIcon("stop", index)}
+            title={`Glissez pour déplacer la destination ${index + 1}`}
+            skipUntilRef={skipUntilRef}
+            draggingRef={draggingRef}
+            onMoved={(lat, lng) => onStopMove(stop.id as string, lat, lng)}
+          />
+        ) : null,
+      )}
     </MapContainer>
   );
 }

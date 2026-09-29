@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { MapPinned, Plus, Trash2, X } from "lucide-react";
@@ -124,6 +124,8 @@ export default function CourseComposer({
   const [flyKey, setFlyKey] = useState(0);
   const [fetchedPath, setFetchedPath] = useState<[number, number][] | null>(null);
   const [fetchedKey, setFetchedKey] = useState("");
+  const formRef = useRef(form);
+  formRef.current = form;
 
   const assignedDriver = roster.find((item) => item.id === form.assignedDeviceId) ?? null;
   const placedStops = form.stops.filter((stop) => stop.lat != null && stop.lng != null);
@@ -202,25 +204,70 @@ export default function CourseComposer({
     goTo(place.lat, place.lng);
   }
 
-  async function placePin(kind: PinFocus, lat: number, lng: number, options: { fly?: boolean; switchFocus?: boolean } = {}) {
-    const place = await lookupAddress(lat, lng);
-    if (kind === "voyage") {
-      setPickupFromPin(true);
+  const placePin = useCallback(
+    async (kind: PinFocus, lat: number, lng: number, options: { fly?: boolean; switchFocus?: boolean } = {}) => {
+      const fallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      if (kind === "voyage") {
+        setPickupFromPin(true);
+        setForm((current) => ({
+          ...current,
+          pickupLat: lat,
+          pickupLng: lng,
+          pickupAddress: current.pickupAddress.trim() || fallback,
+        }));
+        if (options.switchFocus !== false) {
+          setPinFocus(nextTourFocus(formRef.current.stops));
+        }
+      } else {
+        setStopFromPin((current) => ({ ...current, [kind]: true }));
+        setForm((current) => ({
+          ...current,
+          stops: current.stops.map((stop) =>
+            stop.id === kind
+              ? { ...stop, lat, lng, address: stop.address.trim() || fallback }
+              : stop,
+          ),
+        }));
+      }
+      if (options.fly) goTo(lat, lng);
+      const place = await lookupAddress(lat, lng);
+      if (kind === "voyage") {
+        setForm((current) => {
+          if (current.pickupLat !== lat || current.pickupLng !== lng) return current;
+          return { ...current, pickupAddress: place.label };
+        });
+        return;
+      }
       setForm((current) => ({
         ...current,
-        pickupAddress: place.label,
-        pickupLat: lat,
-        pickupLng: lng,
+        stops: current.stops.map((stop) =>
+          stop.id === kind && stop.lat === lat && stop.lng === lng ? { ...stop, address: place.label } : stop,
+        ),
       }));
-      if (options.switchFocus !== false) {
-        setPinFocus(nextTourFocus(form.stops));
-      }
-    } else {
-      setStopFromPin((current) => ({ ...current, [kind]: true }));
-      patchStop(kind, { address: place.label, lat, lng });
-    }
-    if (options.fly) goTo(lat, lng);
-  }
+    },
+    [goTo],
+  );
+
+  const handleMapClick = useCallback(
+    (lat: number, lng: number) => {
+      void placePin(pinFocus, lat, lng, { switchFocus: pinFocus === "voyage" });
+    },
+    [placePin, pinFocus],
+  );
+
+  const handlePickupMove = useCallback(
+    (lat: number, lng: number) => {
+      void placePin("voyage", lat, lng, { switchFocus: false });
+    },
+    [placePin],
+  );
+
+  const handleStopMove = useCallback(
+    (id: string, lat: number, lng: number) => {
+      void placePin(id, lat, lng, { switchFocus: false });
+    },
+    [placePin],
+  );
 
   function addStop() {
     if (form.stops.length >= MAX_TOUR_STOPS) return;
@@ -363,8 +410,8 @@ export default function CourseComposer({
             {assignDriverId && assignedDriver
               ? `${assignedDriver.callSign} est déjà attribué. Placez le voyage, puis le tour de ville.`
               : pinFocus === "voyage"
-                ? "Recherchez le point de voyage : la carte s’y rend. Glissez le pin pour l’ajuster."
-                : "Placez une destination du tour de ville, ou ajoutez-en une autre."}
+                ? "Glissez le pin Voyage, ou cliquez la carte. Le pin reste où vous le posez."
+                : "Glissez 1, 2… pour une destination, ou cliquez la carte pour la placer."}
           </p>
         </div>
         <Button variant="secondary" size="sm" className="rounded-xl" onClick={onClose}>
@@ -380,10 +427,13 @@ export default function CourseComposer({
           routePath={routePath}
           flyTo={flyTo}
           flyKey={flyKey}
-          onMapClick={(lat, lng) => void placePin(pinFocus, lat, lng, { switchFocus: pinFocus === "voyage" })}
-          onPickupMove={(lat, lng) => void placePin("voyage", lat, lng, { switchFocus: false })}
-          onStopMove={(id, lat, lng) => void placePin(id, lat, lng, { switchFocus: false })}
+          onMapClick={handleMapClick}
+          onPickupMove={handlePickupMove}
+          onStopMove={handleStopMove}
         />
+        <p className="pointer-events-none absolute top-3 left-1/2 z-10 w-[min(26rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-full bg-[#151a45]/90 px-3 py-1.5 text-center text-[11px] font-medium text-white shadow-lg">
+          Glissez Voyage ou 1, 2… pour déplacer le départ ou une destination
+        </p>
 
         <form
           onSubmit={(event) => void createJob(event)}
@@ -513,8 +563,8 @@ export default function CourseComposer({
                 Ajouter une destination
               </Button>
               <p className="text-[11px] leading-4 text-[#5b6294]">
-                Posez le voyage, puis les arrêts du tour. Le + ajoute une destination. Cliquez la carte ou glissez un pin
-                pour ajuster.
+                Posez le voyage, puis les arrêts du tour. Le + ajoute une destination. Glissez un pin pour le
+                déplacer — il reste à l’endroit où vous le lâchez.
               </p>
             </div>
             <Field label="Heure prévue" htmlFor="composer-when">
