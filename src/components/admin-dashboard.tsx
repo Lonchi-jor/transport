@@ -11,7 +11,7 @@ import CourseComposer, { NewCourseButton } from "@/components/course-composer";
 import { DispatchNoteHint } from "@/components/dispatch-note";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { FleetSnapshot, VehicleType } from "@/lib/types";
+import type { CourseStop, FleetSnapshot, VehicleType } from "@/lib/types";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
 import { COURSE_STATUS_LABEL, tourLine, vehicleLine } from "@/lib/format";
 import { isDriverAtCapacity } from "@/lib/assignment";
@@ -53,6 +53,8 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
       status?: string;
       vehicleType?: VehicleType | null;
       vehiclePlate?: string | null;
+      notes?: string;
+      stops?: CourseStop[];
     },
   ) {
     const res = await fetch(`/api/courses/${id}`, {

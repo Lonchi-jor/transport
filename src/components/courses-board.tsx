@@ -183,6 +183,8 @@ export default function CoursesBoard() {
       status?: string;
       vehicleType?: VehicleType | null;
       vehiclePlate?: string | null;
+      notes?: string;
+      stops?: Course["stops"];
     },
   ) {
     const res = await fetch(`/api/courses/${id}`, {

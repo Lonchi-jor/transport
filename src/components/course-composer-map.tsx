@@ -192,7 +192,7 @@ export default function CourseComposerMap({
           lat={pickup.lat}
           lng={pickup.lng}
           icon={voyageIcon}
-          title="Glissez pour déplacer le point de voyage"
+          title="Glissez pour déplacer le point de départ"
           skipUntilRef={skipUntilRef}
           draggingRef={draggingRef}
           onMoved={onPickupMove}

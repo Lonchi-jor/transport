@@ -277,7 +277,7 @@ export default function DispatchMap({
                     </p>
                   ) : (
                     <p className="mt-3 text-xs text-[#5b6294]">
-                      La fiche chauffeur sera déjà remplie. Il restera le voyage et les destinations.
+                      La fiche chauffeur sera déjà remplie. Il restera le départ et les destinations.
                     </p>
                   )}
                   <Button

@@ -76,6 +76,12 @@ export type MapRoute = {
   stops?: { lat: number; lng: number; label: string }[];
 };
 
+export function stopsFingerprint(stops: CourseStop[]) {
+  return stops
+    .map((stop) => `${stop.address.trim()}|${stop.lat ?? ""}|${stop.lng ?? ""}`)
+    .join(";;");
+}
+
 export function courseStops(
   course: Pick<Course, "stops" | "dropoffAddress" | "dropoffLat" | "dropoffLng">,
 ): CourseStop[] {

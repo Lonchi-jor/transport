@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { createCourse } from "@/lib/course-store";
 import { getDriver, isVehicleType } from "@/lib/driver-store";
-import { drivingItinerary, resolvePlace } from "@/lib/geo";
+import { resolvePlace } from "@/lib/geo";
+import { geocodeTourStops, itineraryForTour } from "@/lib/build-course-route";
 import { radioSnapshot } from "@/lib/snapshot";
 import { isCourseRuleError } from "@/lib/assignment";
-import type { CourseDraft, CourseStop, VehicleType } from "@/lib/types";
-import { MAX_TOUR_STOPS } from "@/lib/types";
+import type { CourseDraft, VehicleType } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
   }
   if (!body?.clientName?.trim() || !body?.pickupAddress?.trim()) {
     return NextResponse.json(
-      { error: "Le client et le point de voyage sont obligatoires." },
+      { error: "Le client et le point de départ sont obligatoires." },
       { status: 400 },
     );
   }
@@ -54,17 +54,7 @@ export async function POST(request: Request) {
     typeof body.createdByAdminId === "string" ? body.createdByAdminId.trim().slice(0, 80) : "";
 
   const pickup = await resolvePlace(body.pickupAddress, body.pickupLat, body.pickupLng);
-  const stops: CourseStop[] = [];
-  for (const stop of rawStops.slice(0, MAX_TOUR_STOPS)) {
-    if (!stop.address?.trim() && stop.lat == null) continue;
-    const place = await resolvePlace(stop.address || "", stop.lat, stop.lng);
-    stops.push({
-      id: stop.id?.trim() || crypto.randomUUID(),
-      address: place.label || stop.address.trim(),
-      lat: Number.isFinite(place.lat) ? place.lat : null,
-      lng: Number.isFinite(place.lng) ? place.lng : null,
-    });
-  }
+  const stops = await geocodeTourStops(rawStops);
   const last = stops[stops.length - 1];
   if (!last) {
     return NextResponse.json(
@@ -73,14 +63,10 @@ export async function POST(request: Request) {
     );
   }
 
-  const waypoints = [
-    { lat: pickup.lat, lng: pickup.lng },
-    ...stops
-      .filter((stop) => stop.lat != null && stop.lng != null)
-      .map((stop) => ({ lat: stop.lat as number, lng: stop.lng as number })),
-  ];
-  const hasCoords = waypoints.length >= 2 && waypoints.every((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
-  const route = hasCoords ? await drivingItinerary(waypoints) : null;
+  const route = await itineraryForTour(
+    { lat: Number.isFinite(pickup.lat) ? pickup.lat : null, lng: Number.isFinite(pickup.lng) ? pickup.lng : null },
+    stops,
+  );
 
   const vehicleType: VehicleType | null = isVehicleType(body.vehicleType) ? body.vehicleType : null;
 

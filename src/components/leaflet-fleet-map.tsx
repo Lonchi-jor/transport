@@ -178,7 +178,7 @@ export default function LeafletFleetMap({
             draggable={false}
             zIndexOffset={500}
           >
-            <Popup>Voyage · {route.pickup.label}</Popup>
+            <Popup>Départ · {route.pickup.label}</Popup>
           </Marker>
           {stopList.map((stop, index) => (
             <Marker

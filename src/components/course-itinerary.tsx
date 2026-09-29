@@ -21,11 +21,11 @@ export function CourseItinerary({
     <ol className="space-y-2">
       <li className="flex items-start gap-2">
         <span className="mt-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[#00a4e8] px-1.5 text-[10px] font-bold text-white">
-          V
+          D
         </span>
         <div className="min-w-0">
           <div className={cn("text-[11px] font-medium uppercase tracking-wide", dark ? "text-[#7dd8f7]" : "text-[#5b6294]")}>
-            Voyage
+            Départ
           </div>
           <div className={cn("text-sm leading-snug", dark ? "text-white" : "text-[#1c2268]")}>
             {course.pickupAddress}

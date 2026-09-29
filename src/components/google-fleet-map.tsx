@@ -34,8 +34,8 @@ function RouteLayer({
     const start = new google.maps.Marker({
       position: { lat: route.pickup.lat, lng: route.pickup.lng },
       map,
-      label: { text: "V", color: "#ffffff", fontWeight: "700" },
-      title: `Voyage · ${route.pickup.label}`,
+      label: { text: "D", color: "#ffffff", fontWeight: "700" },
+      title: `Départ · ${route.pickup.label}`,
     });
     const stopList = route.stops?.length ? route.stops : [route.dropoff];
     const stopMarkers = stopList.map(

@@ -18,14 +18,16 @@ export async function PATCH(request: Request) {
     : undefined;
   const courseId = typeof body.courseId === "string" ? body.courseId.trim() : "";
   const kind =
-    body.kind === "course_assigned" || body.kind === "course_done" ? body.kind : undefined;
+    body.kind === "course_assigned" || body.kind === "course_done" || body.kind === "course_updated"
+      ? body.kind
+      : undefined;
   const driver = targetId ? getDriver(targetId) : null;
   if (driver) {
     dismissNotifications({
       targetId,
       ids,
       courseId: courseId || undefined,
-      kind: kind === "course_assigned" ? kind : undefined,
+      kind: kind === "course_assigned" || kind === "course_updated" ? kind : undefined,
     });
     return NextResponse.json(driverSnapshot(targetId));
   }

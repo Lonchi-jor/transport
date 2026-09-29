@@ -131,9 +131,13 @@ export type CoursePatch = {
   vehicleType?: VehicleType | null;
   vehiclePlate?: string | null;
   trailerPlates?: string[];
+  stops?: CourseStop[];
+  routePath?: [number, number][];
+  distanceMeters?: number | null;
+  durationSeconds?: number | null;
 };
 
-export const NOTIFICATION_KINDS = ["course_assigned", "course_done"] as const;
+export const NOTIFICATION_KINDS = ["course_assigned", "course_done", "course_updated"] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 /** Shared inbox so every dispatch desk sees a finished job, not only the browser that created it. */
 export const DISPATCH_INBOX = "dispatch";

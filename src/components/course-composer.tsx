@@ -331,7 +331,7 @@ export default function CourseComposer({
   async function createJob(event: FormEvent) {
     event.preventDefault();
     if (form.pickupLat == null || form.pickupLng == null) {
-      setError("Placez le point de voyage sur la carte (recherche ou clic).");
+      setError("Placez le point de départ sur la carte (recherche ou clic).");
       setPinFocus("voyage");
       return;
     }
@@ -392,7 +392,7 @@ export default function CourseComposer({
 
   const pickup =
     form.pickupLat != null && form.pickupLng != null
-      ? { lat: form.pickupLat, lng: form.pickupLng, label: form.pickupAddress || "Voyage" }
+      ? { lat: form.pickupLat, lng: form.pickupLng, label: form.pickupAddress || "Départ" }
       : null;
   const mapStops = placedStops.map((stop) => ({
     id: stop.id,
@@ -408,9 +408,9 @@ export default function CourseComposer({
           <div className="text-sm font-semibold">Nouvelle course</div>
           <p className="text-[11px] text-blue-200">
             {assignDriverId && assignedDriver
-              ? `${assignedDriver.callSign} est déjà attribué. Placez le voyage, puis le tour de ville.`
+              ? `${assignedDriver.callSign} est déjà attribué. Placez le départ, puis le tour de ville.`
               : pinFocus === "voyage"
-                ? "Glissez le pin Voyage, ou cliquez la carte. Le pin reste où vous le posez."
+                ? "Glissez le pin Départ, ou cliquez la carte. Le pin reste où vous le posez."
                 : "Glissez 1, 2… pour une destination, ou cliquez la carte pour la placer."}
           </p>
         </div>
@@ -432,7 +432,7 @@ export default function CourseComposer({
           onStopMove={handleStopMove}
         />
         <p className="pointer-events-none absolute top-3 left-1/2 z-10 w-[min(26rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-full bg-[#151a45]/90 px-3 py-1.5 text-center text-[11px] font-medium text-white shadow-lg">
-          Glissez Voyage ou 1, 2… pour déplacer le départ ou une destination
+          Glissez Départ ou 1, 2… pour déplacer le départ ou une destination
         </p>
 
         <form
@@ -447,7 +447,7 @@ export default function CourseComposer({
                 pinFocus === "voyage" ? "bg-[#e7f6fd] text-[#2b308f] ring-2 ring-[#00a4e8]" : "bg-[#f4f7fc] text-[#5b6294]"
               }`}
             >
-              1. Voyage
+              1. Départ
               <div className="mt-0.5 truncate font-normal">
                 {pickup ? form.pickupAddress || "Point placé" : "Recherche ou clic sur la carte"}
               </div>
@@ -481,7 +481,7 @@ export default function CourseComposer({
                 {" · "}
                 {assignedDriver.driverName}
                 <div className="mt-0.5 font-normal text-[#5b6294]">
-                  Chauffeur déjà renseigné. Entrez le voyage et les destinations du tour.
+                  Chauffeur déjà renseigné. Entrez le départ et les destinations du tour.
                 </div>
               </div>
             ) : null}
@@ -502,13 +502,13 @@ export default function CourseComposer({
                 placeholder="+237 6…"
               />
             </Field>
-            <Field label="Point de voyage" htmlFor="composer-pickup">
+            <Field label="Point de départ" htmlFor="composer-pickup">
               <PlaceSuggest
                 id="composer-pickup"
                 required
                 suppressLookup={pickupFromPin}
                 value={form.pickupAddress}
-                placeholder="Point de voyage — adresse ou clic sur la carte"
+                placeholder="Point de départ — adresse ou clic sur la carte"
                 onFocus={() => setPinFocus("voyage")}
                 onChange={(pickupAddress) => {
                   setPickupFromPin(false);
@@ -563,7 +563,7 @@ export default function CourseComposer({
                 Ajouter une destination
               </Button>
               <p className="text-[11px] leading-4 text-[#5b6294]">
-                Posez le voyage, puis les arrêts du tour. Le + ajoute une destination. Glissez un pin pour le
+                Posez le départ, puis les arrêts du tour. Le + ajoute une destination. Glissez un pin pour le
                 déplacer — il reste à l’endroit où vous le lâchez.
               </p>
             </div>
@@ -661,7 +661,7 @@ export function NewCourseButton({ onClick }: { onClick: () => void }) {
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-semibold">Nouvelle course</span>
         <span className="mt-0.5 block text-xs text-blue-100">
-          Voyage, puis tour de ville — plusieurs destinations
+          Départ, puis tour de ville — plusieurs destinations
         </span>
       </span>
       <MapPinned className="size-5 shrink-0 text-[#7dd8f7]" />

@@ -5,10 +5,11 @@ import { COURSE_STATUSES, DISPATCH_INBOX, MAX_TOUR_STOPS } from "./types";
 import { getDevice } from "./fleet-store";
 import { getDriver, isVehicleType, normalizePlate, normalizeTrailerPlates } from "./driver-store";
 import { addNotification, dismissNotifications } from "./notification-store";
-import { tourLine } from "./format";
+import { stopsFingerprint, tourLine } from "./format";
 import {
   assignmentBlockedMessage,
   CourseAssignError,
+  CourseEditError,
   CourseStartError,
   inProgressJobForDriver,
   isDriverAtCapacity,
@@ -266,6 +267,52 @@ function notifyDone(course: Course) {
   });
 }
 
+function clipNote(text: string) {
+  const trimmed = text.trim();
+  return trimmed.length > 160 ? `${trimmed.slice(0, 159)}…` : trimmed;
+}
+
+function describeCourseUpdate(previous: Course, next: Course) {
+  const parts: string[] = [];
+  const prevCount = previous.stops.length;
+  const nextCount = next.stops.length;
+  if (stopsFingerprint(previous.stops) !== stopsFingerprint(next.stops)) {
+    if (nextCount < prevCount) {
+      parts.push(`Destination retirée. Nouveau tour : ${tourLine(next)}`);
+    } else if (nextCount > prevCount) {
+      parts.push(`Destination ajoutée. Nouveau tour : ${tourLine(next)}`);
+    } else {
+      parts.push(`Itinéraire modifié. Nouveau tour : ${tourLine(next)}`);
+    }
+  }
+  if (previous.notes.trim() !== next.notes.trim()) {
+    if (!next.notes.trim()) parts.push("Note retirée.");
+    else if (!previous.notes.trim()) parts.push(`Note : ${clipNote(next.notes)}`);
+    else parts.push(`Note mise à jour : ${clipNote(next.notes)}`);
+  }
+  return parts.join(" ") || `Course ${next.reference} mise à jour.`;
+}
+
+function notifyUpdated(course: Course, body: string) {
+  if (!course.assignedDeviceId) return;
+  if (course.status !== "assigned" && course.status !== "en_route") return;
+  dismissNotifications({
+    courseId: course.id,
+    kind: "course_updated",
+    targetId: course.assignedDeviceId,
+  });
+  addNotification({
+    kind: "course_updated",
+    courseId: course.id,
+    reference: course.reference,
+    title: `Course ${course.reference} mise à jour`,
+    body,
+    targetRole: "driver",
+    targetId: course.assignedDeviceId,
+    unique: "unread",
+  });
+}
+
 export function createCourse(draft: CourseDraft): Course {
   const id = crypto.randomUUID();
   const reference = `CCMM-${String(nextNumber).padStart(3, "0")}`;
@@ -332,6 +379,20 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
   if (!existing) return null;
   const previousAssigned = existing.assignedDeviceId;
   const previousStatus = existing.status;
+  const locked = existing.status === "done" || existing.status === "cancelled";
+  const wantsItinerary =
+    patch.stops !== undefined ||
+    patch.routePath !== undefined ||
+    patch.distanceMeters !== undefined ||
+    patch.durationSeconds !== undefined;
+  const wantsNotes = patch.notes !== undefined;
+  if (locked && (wantsItinerary || wantsNotes)) {
+    throw new CourseEditError(
+      existing.status === "done"
+        ? "Cette course est terminée ; l’itinéraire et la note ne sont plus modifiables."
+        : "Cette course est annulée ; l’itinéraire et la note ne sont plus modifiables.",
+    );
+  }
   let next = { ...existing, updatedAt: Date.now() };
   if (patch.assignedDeviceId !== undefined) {
     if (patch.assignedDeviceId && patch.assignedDeviceId !== existing.assignedDeviceId) {
@@ -351,6 +412,20 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
       next.trailerPlates = normalizeTrailerPlates(patch.trailerPlates);
     }
   }
+  if (patch.stops !== undefined) {
+    const stops = normalizeStops({ stops: patch.stops });
+    if (!stops.length) {
+      throw new CourseEditError("Gardez au moins une destination.");
+    }
+    const finish = lastStop(stops);
+    next.stops = stops;
+    next.dropoffAddress = finish?.address || next.dropoffAddress;
+    next.dropoffLat = finish?.lat ?? null;
+    next.dropoffLng = finish?.lng ?? null;
+  }
+  if (patch.routePath !== undefined) next.routePath = patch.routePath;
+  if (patch.distanceMeters !== undefined) next.distanceMeters = patch.distanceMeters;
+  if (patch.durationSeconds !== undefined) next.durationSeconds = patch.durationSeconds;
   if (patch.notes !== undefined) {
     next.notes = patch.notes.trim();
   }
@@ -378,6 +453,12 @@ export function updateCourse(id: string, patch: CoursePatch): Course | null {
   save();
   if (next.assignedDeviceId && next.assignedDeviceId !== previousAssigned) {
     notifyAssigned(next);
+  } else {
+    const itineraryChanged = stopsFingerprint(existing.stops) !== stopsFingerprint(next.stops);
+    const notesChanged = existing.notes.trim() !== next.notes.trim();
+    if (itineraryChanged || notesChanged) {
+      notifyUpdated(next, describeCourseUpdate(existing, next));
+    }
   }
   if (
     previousStatus === "assigned" &&

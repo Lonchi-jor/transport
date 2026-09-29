@@ -18,6 +18,14 @@ export class CourseStartError extends Error {
   }
 }
 
+export class CourseEditError extends Error {
+  readonly code = "COURSE_LOCKED" as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "CourseEditError";
+  }
+}
+
 export function isHandsFullStatus(status: Course["status"]) {
   return status === "assigned" || status === "en_route";
 }
@@ -85,6 +93,15 @@ export function isCourseStartError(error: unknown): error is CourseStartError {
   );
 }
 
-export function isCourseRuleError(error: unknown): error is CourseAssignError | CourseStartError {
-  return isCourseAssignError(error) || isCourseStartError(error);
+export function isCourseEditError(error: unknown): error is CourseEditError {
+  return (
+    error instanceof CourseEditError ||
+    (error instanceof Error && (error as { code?: string }).code === "COURSE_LOCKED")
+  );
+}
+
+export function isCourseRuleError(
+  error: unknown,
+): error is CourseAssignError | CourseStartError | CourseEditError {
+  return isCourseAssignError(error) || isCourseStartError(error) || isCourseEditError(error);
 }

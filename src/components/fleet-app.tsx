@@ -451,7 +451,10 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
   const myAlerts = useMemo(
     () =>
       notifications.filter(
-        (item) => item.kind === "course_assigned" && item.targetId === session?.id && !item.readAt,
+        (item) =>
+          (item.kind === "course_assigned" || item.kind === "course_updated") &&
+          item.targetId === session?.id &&
+          !item.readAt,
       ),
     [notifications, session?.id],
   );
@@ -605,8 +608,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
             mode="sheet"
             items={myAlerts}
             label="Vos courses"
-            empty="Pas de nouvelle course pour le moment."
-            hint="Une alerte apparaît ici quand le bureau vous donne une course."
+            empty="Pas de nouvelle alerte pour le moment."
+            hint="Une alerte apparaît ici quand le bureau vous donne une course, ou quand il la modifie (destination, note)."
             onMarkRead={(ids) => void markAlertsRead(ids)}
             onOpenItem={() => {
               setJobsView("now");
