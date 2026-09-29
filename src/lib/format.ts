@@ -63,6 +63,10 @@ export function canCancelCourse(course: Pick<Course, "status">) {
   return course.status === "open" || course.status === "assigned";
 }
 
+export function canEditCourse(course: Pick<Course, "status">) {
+  return course.status !== "done" && course.status !== "cancelled";
+}
+
 export function isLiveAssignedCourse(course: Course) {
   return course.status === "assigned" || course.status === "en_route";
 }

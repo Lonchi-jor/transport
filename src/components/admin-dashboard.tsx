@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { CourseStop, FleetSnapshot, VehicleType } from "@/lib/types";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
-import { COURSE_STATUS_LABEL, tourLine, vehicleLine } from "@/lib/format";
+import { COURSE_STATUS_LABEL, canEditCourse, tourLine, vehicleLine } from "@/lib/format";
 import { isDriverAtCapacity } from "@/lib/assignment";
 
 type Props = {
@@ -24,7 +24,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
   const { devices, courses, roster, now, online, liveById, alerts, applySnapshot, markAlertsRead, dismissAlerts } =
     useAdminFleet();
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [prefillDriverId, setPrefillDriverId] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
     setPrefillDriverId(null);
   }
 
-  const selectedCourse = courses.find((course) => course.id === selectedCourseId) ?? null;
+  const editingCourse = courses.find((course) => course.id === editingId) ?? null;
   const runningJobs = courses
     .filter((course) => course.status === "en_route")
     .sort((a, b) => (b.startedAt ?? b.updatedAt) - (a.startedAt ?? a.updatedAt));
@@ -145,12 +145,14 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
             onAssignCourse={(driverId) => openComposer(driverId)}
           />
 
-          {selectedCourse ? (
+          {editingCourse ? (
             <CourseEditor
-              key={`${selectedCourse.id}-${selectedCourse.updatedAt}`}
-              course={selectedCourse}
+              key={editingCourse.id}
+              open
+              course={editingCourse}
               roster={roster}
               courses={courses}
+              onClose={() => setEditingId(null)}
               onSave={(id, body) => patchCourse(id, body)}
             />
           ) : null}
@@ -172,39 +174,43 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
             ) : (
               <ul className="divide-y divide-[#d5dcf0]">
                 {runningJobs.map((course) => (
-                  <li key={course.id}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedCourseId(course.id);
-                        void dismissAlerts({ courseId: course.id });
-                      }}
-                      className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-[#f4f7fc]"
-                    >
-                      <div>
-                        <div className="font-semibold text-[#2b308f]">{course.reference}</div>
-                        <div className="text-sm">{course.clientName}</div>
-                        <div className="mt-1 text-xs text-[#5b6294]">
-                          {tourLine(course)}
-                        </div>
-                        <div className="mt-1 text-xs text-[#2b308f]">
-                          {course.assignedCallSign
-                            ? `${course.assignedCallSign} · ${vehicleLine(course)}`
-                            : "Non attribué"}
-                        </div>
-                        {course.assignedDriverPhone ? (
-                          <div className="mt-1 text-xs text-[#00a4e8]">{course.assignedDriverPhone}</div>
-                        ) : null}
-                        {course.notes ? (
-                          <div className="mt-2 text-left">
-                            <DispatchNoteHint notes={course.notes} />
-                          </div>
-                        ) : null}
+                  <li key={course.id} className="flex items-start justify-between gap-3 px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-[#2b308f]">{course.reference}</div>
+                      <div className="text-sm">{course.clientName}</div>
+                      <div className="mt-1 text-xs text-[#5b6294]">{tourLine(course)}</div>
+                      <div className="mt-1 text-xs text-[#2b308f]">
+                        {course.assignedCallSign
+                          ? `${course.assignedCallSign} · ${vehicleLine(course)}`
+                          : "Non attribué"}
                       </div>
+                      {course.assignedDriverPhone ? (
+                        <div className="mt-1 text-xs text-[#00a4e8]">{course.assignedDriverPhone}</div>
+                      ) : null}
+                      {course.notes ? (
+                        <div className="mt-2 text-left">
+                          <DispatchNoteHint notes={course.notes} />
+                        </div>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
                       <Badge variant={course.status === "open" ? "outline" : "secondary"}>
                         {COURSE_STATUS_LABEL[course.status]}
                       </Badge>
-                    </button>
+                      {canEditCourse(course) ? (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => {
+                            setEditingId(course.id);
+                            void dismissAlerts({ courseId: course.id });
+                          }}
+                        >
+                          Modifier
+                        </Button>
+                      ) : null}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -224,7 +230,6 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
           assignDriverId={prefillDriverId}
           onCreated={(data: FleetSnapshot) => {
             applySnapshot(data);
-            setSelectedCourseId(data.courses?.[0]?.id ?? null);
           }}
         />
       ) : null}

@@ -2,17 +2,15 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DriverAssignSelect, VehicleFields } from "@/components/admin-fields";
 import PlaceSuggest from "@/components/place-suggest";
-import { DispatchNoteHint } from "@/components/dispatch-note";
 import type { Course, CourseStop, VehicleType } from "@/lib/types";
 import { MAX_TOUR_STOPS } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
 import { assignmentBlockedMessage, isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
 import { COURSE_STATUS_LABEL, courseStops, destinationMark, destinationTitle } from "@/lib/format";
-import { CourseItinerary } from "@/components/course-itinerary";
 import { cn } from "@/lib/utils";
 
 export type CourseEditorSaveBody = {
@@ -58,15 +56,17 @@ export default function CourseEditor({
   course,
   roster,
   courses,
+  open,
+  onClose,
   onSave,
 }: {
   course: Course;
   roster: RosterDriver[];
   courses: Course[];
+  open: boolean;
+  onClose: () => void;
   onSave: (id: string, body: CourseEditorSaveBody) => Promise<string | null>;
 }) {
-  const locked = course.status === "done" || course.status === "cancelled";
-  const [editing, setEditing] = useState(false);
   const [assignedDeviceId, setAssignedDeviceId] = useState(course.assignedDeviceId ?? "");
   const [vehicleType, setVehicleType] = useState<VehicleType>(course.vehicleType ?? "van");
   const [vehiclePlate, setVehiclePlate] = useState(course.vehiclePlate ?? "");
@@ -87,11 +87,18 @@ export default function CourseEditor({
   const closeEditor = useCallback(() => {
     if (saving) return;
     resetFromCourse();
-    setEditing(false);
-  }, [saving, course]);
+    onClose();
+  }, [saving, course, onClose]);
 
   useEffect(() => {
-    if (!editing) return;
+    if (!open) return;
+    resetFromCourse();
+    // Fresh fields each time the panel opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, course.id, course.updatedAt]);
+
+  useEffect(() => {
+    if (!open) return;
     function onKey(event: KeyboardEvent) {
       if (event.key === "Escape") closeEditor();
     }
@@ -102,7 +109,7 @@ export default function CourseEditor({
       document.body.style.overflow = previous;
       document.removeEventListener("keydown", onKey);
     };
-  }, [editing, closeEditor]);
+  }, [open, closeEditor]);
 
   function pickDriver(id: string) {
     if (id) {
@@ -174,11 +181,11 @@ export default function CourseEditor({
       return;
     }
     setSaving(false);
-    setEditing(false);
+    onClose();
   }
 
   const overlay =
-    editing && typeof document !== "undefined" ? (
+    open && typeof document !== "undefined" ? (
       <div className="fixed inset-0 z-[85] flex items-end justify-center sm:items-center sm:p-4">
         <button
           type="button"
@@ -322,34 +329,6 @@ export default function CourseEditor({
       </div>
     ) : null;
 
-  return (
-    <div className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h3 className="text-base font-semibold text-[#2b308f]">
-            {course.reference}
-            <span className="ml-2 text-sm font-normal text-[#5b6294]">
-              {COURSE_STATUS_LABEL[course.status]}
-            </span>
-          </h3>
-          <p className="mt-0.5 text-xs text-[#5b6294]">{course.clientName}</p>
-        </div>
-        {course.notes ? <DispatchNoteHint notes={course.notes} /> : null}
-      </div>
-      <div className="mt-3 mb-3">
-        <CourseItinerary course={course} />
-      </div>
-
-      {locked ? (
-        <p className="text-xs text-[#5b6294]">Cette course n’est plus modifiable.</p>
-      ) : (
-        <Button type="button" className="h-9" onClick={() => setEditing(true)}>
-          <Pencil className="size-4" />
-          Modifier la course
-        </Button>
-      )}
-
-      {overlay ? createPortal(overlay, document.body) : null}
-    </div>
-  );
+  if (!open) return null;
+  return overlay ? createPortal(overlay, document.body) : null;
 }

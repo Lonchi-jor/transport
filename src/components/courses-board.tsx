@@ -19,6 +19,7 @@ import type { Course, CourseStatus, FleetSnapshot, VehicleType } from "@/lib/typ
 import { COURSE_STATUSES, VEHICLE_META, VEHICLE_TYPES } from "@/lib/types";
 import {
   canCancelCourse,
+  canEditCourse,
   COURSE_STATUS_LABEL,
   courseElapsedLabel,
   courseStops,
@@ -48,6 +49,7 @@ export default function CoursesBoard() {
   const [bl, setBl] = useState<"all" | "yes" | "no">("all");
   const [vehicleType, setVehicleType] = useState<VehicleType | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingCancel, setPendingCancel] = useState<Course | null>(null);
   const [canceling, setCanceling] = useState(false);
   const [cancelError, setCancelError] = useState("");
@@ -173,7 +175,7 @@ export default function CoursesBoard() {
     };
   }, [courses, chauffeurId, filtered]);
 
-  const selected = courses.find((course) => course.id === selectedId) ?? null;
+  const editing = courses.find((course) => course.id === editingId) ?? null;
   const focused = (focusId && courses.find((course) => course.id === focusId)) || null;
   const selectedDriver = roster.find((driver) => driver.id === chauffeurId) ?? null;
 
@@ -380,12 +382,14 @@ export default function CoursesBoard() {
 
         {focused ? <FocusedFinishedCourse course={focused} onClear={clearFocus} /> : null}
 
-        {selected && selected.id !== focused?.id ? (
+        {editing ? (
           <CourseEditor
-            key={`${selected.id}-${selected.updatedAt}`}
-            course={selected}
+            key={editing.id}
+            open
+            course={editing}
             roster={roster}
             courses={courses}
+            onClose={() => setEditingId(null)}
             onSave={(id, body) => patchCourse(id, body)}
           />
         ) : null}
@@ -531,6 +535,20 @@ export default function CoursesBoard() {
                             >
                               Ouvrir
                             </Button>
+                            {canEditCourse(course) ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  setSelectedId(course.id);
+                                  setEditingId(course.id);
+                                  void dismissAlerts({ courseId: course.id });
+                                }}
+                              >
+                                Modifier
+                              </Button>
+                            ) : null}
                             {canCancelCourse(course) ? (
                               <Button
                                 variant="ghost"
