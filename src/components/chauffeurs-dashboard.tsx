@@ -115,6 +115,9 @@ export default function ChauffeursDashboard() {
       pin: "",
     });
     openDriver(driver.id);
+    window.requestAnimationFrame(() => {
+      document.getElementById("chauffeur-form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function cancelEditDriver() {
@@ -239,7 +242,73 @@ export default function ChauffeursDashboard() {
             <Stat label="Hors ligne" value={String(presenceStats.stale + presenceStats.unknown)} icon={<ClipboardList className="size-4" />} />
           </div>
 
-          <form onSubmit={saveDriver} className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
+          <div className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
+            <h2 className="mb-1 text-base font-semibold text-[#2b308f]">Tous les chauffeurs</h2>
+            <PresenceLegend className="mb-3" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher un nom, un indicatif, un téléphone, une plaque…"
+              className="mb-3"
+            />
+            {filtered.length === 0 ? (
+              <p className="text-sm text-[#5b6294]">
+                {roster.length === 0
+                  ? "Aucun chauffeur enregistré. Créez-en un ci-dessous."
+                  : "Aucun résultat pour cette recherche."}
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {filtered.map((driver) => {
+                  const live = liveById.get(driver.id);
+                  const jobs = courses.filter((c) => c.assignedDeviceId === driver.id);
+                  const active = jobs.filter(isLiveAssignedCourse);
+                  const lastSeen = live?.lastSeen ?? driver.lastSeenAt ?? null;
+                  const coords = formatCoords(live?.lat ?? driver.lastLat, live?.lng ?? driver.lastLng);
+                  const focused = selected?.id === driver.id;
+                  return (
+                    <li key={driver.id}>
+                      <button
+                        type="button"
+                        onClick={() => openDriver(driver.id)}
+                        className={`w-full rounded-xl border px-3 py-2 text-left ${
+                          focused ? "border-[#00a4e8] bg-[#e7f6fd]" : "border-[#d5dcf0] hover:bg-[#f4f7fc]"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="font-semibold">{driver.callSign}</div>
+                            <div className="text-xs text-[#5b6294]">{driver.driverName}</div>
+                            {driver.phone ? (
+                              <div className="mt-0.5 text-xs text-[#00a4e8]">{driver.phone}</div>
+                            ) : (
+                              <div className="mt-0.5 text-xs text-red-600">Téléphone manquant</div>
+                            )}
+                            <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(driver)}</div>
+                          </div>
+                          <PresenceBadge connected={Boolean(live)} lastSeen={lastSeen} now={now} />
+                        </div>
+                        <div className="mt-1 text-xs text-[#5b6294]">
+                          {formatWhen(lastSeen) ? `Dernière connexion ${formatWhen(lastSeen)}` : "Aucune connexion enregistrée"}
+                          {coords ? ` · GPS ${coords}` : " · pas encore de GPS"}
+                        </div>
+                        <div className="mt-1 text-xs text-[#5b6294]">
+                          {jobs.length} course{jobs.length > 1 ? "s" : ""}
+                          {active.length ? ` · ${active.length} en cours` : ""}
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          <form
+            id="chauffeur-form"
+            onSubmit={saveDriver}
+            className="scroll-mt-4 rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm"
+          >
             <h2 className="mb-1 flex items-center gap-2 text-base font-semibold text-[#2b308f]">
               {editingDriverId ? <Pencil className="size-4 text-[#00a4e8]" /> : <UserPlus className="size-4 text-[#00a4e8]" />}
               {editingDriverId ? "Modifier le chauffeur" : "Enregistrer un chauffeur"}
@@ -338,68 +407,6 @@ export default function ChauffeursDashboard() {
               </div>
             </div>
           </form>
-
-          <div className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
-            <h2 className="mb-1 text-base font-semibold text-[#2b308f]">Tous les chauffeurs</h2>
-            <PresenceLegend className="mb-3" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher un nom, un indicatif, un téléphone, une plaque…"
-              className="mb-3"
-            />
-            {filtered.length === 0 ? (
-              <p className="text-sm text-[#5b6294]">
-                {roster.length === 0
-                  ? "Aucun chauffeur enregistré. Créez-en un ci-dessus."
-                  : "Aucun résultat pour cette recherche."}
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {filtered.map((driver) => {
-                  const live = liveById.get(driver.id);
-                  const jobs = courses.filter((c) => c.assignedDeviceId === driver.id);
-                  const active = jobs.filter(isLiveAssignedCourse);
-                  const lastSeen = live?.lastSeen ?? driver.lastSeenAt ?? null;
-                  const coords = formatCoords(live?.lat ?? driver.lastLat, live?.lng ?? driver.lastLng);
-                  const focused = selected?.id === driver.id;
-                  return (
-                    <li key={driver.id}>
-                      <button
-                        type="button"
-                        onClick={() => openDriver(driver.id)}
-                        className={`w-full rounded-xl border px-3 py-2 text-left ${
-                          focused ? "border-[#00a4e8] bg-[#e7f6fd]" : "border-[#d5dcf0] hover:bg-[#f4f7fc]"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <div className="font-semibold">{driver.callSign}</div>
-                            <div className="text-xs text-[#5b6294]">{driver.driverName}</div>
-                            {driver.phone ? (
-                              <div className="mt-0.5 text-xs text-[#00a4e8]">{driver.phone}</div>
-                            ) : (
-                              <div className="mt-0.5 text-xs text-red-600">Téléphone manquant</div>
-                            )}
-                            <div className="mt-1 text-xs text-[#2b308f]">{vehicleLine(driver)}</div>
-                          </div>
-                          <PresenceBadge connected={Boolean(live)} lastSeen={lastSeen} now={now} />
-                        </div>
-                        <div className="mt-1 text-xs text-[#5b6294]">
-                          {formatWhen(lastSeen) ? `Dernière connexion ${formatWhen(lastSeen)}` : "Aucune connexion enregistrée"}
-                          {coords ? ` · GPS ${coords}` : " · pas encore de GPS"}
-                        </div>
-                        <div className="mt-1 text-xs text-[#5b6294]">
-                          {jobs.length} course{jobs.length > 1 ? "s" : ""}
-                          {active.length ? ` · ${active.length} en cours` : ""}
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
         </section>
 
         <section className="space-y-5">
