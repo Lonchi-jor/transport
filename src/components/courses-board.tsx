@@ -269,21 +269,22 @@ export default function CoursesBoard() {
         </div>
 
         <div className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
-            <label className="grid gap-1 text-xs font-medium text-[#5b6294]">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,0.75fr)_7.75rem_minmax(17.5rem,1.15fr)_8rem] lg:items-end">
+            <label className="grid min-w-0 gap-1 text-xs font-medium text-[#5b6294]">
               Recherche
               <Input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Client, réf., BN, plaque, adresse…"
+                className="min-w-0 px-2"
               />
             </label>
-            <label className="grid gap-1 text-xs font-medium text-[#5b6294]">
+            <label className="grid min-w-0 gap-1 text-xs font-medium text-[#5b6294]">
               Chauffeur
               <select
                 value={chauffeurId}
                 onChange={(e) => setChauffeur(e.target.value)}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 text-sm"
               >
                 <option value="">Tous les chauffeurs</option>
                 <option value="__none__">Sans chauffeur</option>
@@ -294,7 +295,7 @@ export default function CoursesBoard() {
                 ))}
               </select>
             </label>
-            <label className="grid gap-1 text-xs font-medium text-[#5b6294]">
+            <label className="grid min-w-0 gap-1 text-xs font-medium text-[#5b6294]">
               Statut
               <select
                 value={status}
@@ -302,7 +303,7 @@ export default function CoursesBoard() {
                   replaceParams((params) => params.delete("filtre"));
                   setStatus(e.target.value as CourseStatus | "all");
                 }}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 text-sm"
               >
                 <option value="all">Tous</option>
                 {COURSE_STATUSES.map((item) => (
@@ -312,34 +313,36 @@ export default function CoursesBoard() {
                 ))}
               </select>
             </label>
-            <div className="grid gap-1 text-xs font-medium text-[#5b6294] md:col-span-2">
+            <div className="grid min-w-0 gap-1 text-xs font-medium text-[#5b6294] sm:col-span-2 lg:col-span-1">
               Période
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5">
                 <Input
                   type="date"
                   aria-label="Du"
                   value={fromDate}
                   max={toDate || undefined}
                   onChange={(e) => setFromDate(e.target.value)}
+                  className="min-w-0 px-1.5"
                 />
-                <span className="text-[11px] font-normal text-[#5b6294]">à</span>
+                <span className="shrink-0 text-[11px] font-normal text-[#5b6294]">à</span>
                 <Input
                   type="date"
                   aria-label="Au"
                   value={toDate}
                   min={fromDate || undefined}
                   onChange={(e) => setToDate(e.target.value)}
+                  className="min-w-0 px-1.5"
                 />
               </div>
             </div>
-            <label className="grid gap-1 text-xs font-medium text-[#5b6294]">
+            <label className="grid min-w-0 gap-1 text-xs font-medium text-[#5b6294]">
               Véhicule
               <select
                 value={vehicleType}
                 onChange={(e) => setVehicleType(e.target.value as VehicleType | "all")}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
+                className="h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 text-sm"
               >
-                <option value="all">Tous les types</option>
+                <option value="all">Tous</option>
                 {VEHICLE_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {VEHICLE_META[type].label}
