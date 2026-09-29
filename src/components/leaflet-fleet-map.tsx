@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import type { FleetDevice } from "@/lib/types";
-import { DEFAULT_CENTER, devicesWithPosition, formatWhen, kph, type MapFollow, type MapRoute } from "@/lib/format";
+import { DEFAULT_CENTER, destinationTitle, devicesWithPosition, formatWhen, kph, type MapFollow, type MapRoute } from "@/lib/format";
 import { numberedMapIcon } from "@/lib/leaflet-pins";
 import { PRESENCE_COLOR, presenceHoverText, presenceKind, presenceLabel } from "@/lib/presence";
 
@@ -141,7 +141,7 @@ export default function LeafletFleetMap({
   const voyageIcon = useMemo(() => numberedMapIcon("voyage"), []);
   const stopList = route?.stops?.length ? route.stops : route ? [route.dropoff] : [];
   const stopIcons = useMemo(
-    () => stopList.map((_, index) => numberedMapIcon("stop", index)),
+    () => stopList.map((_, index) => numberedMapIcon("stop", index, false, stopList.length)),
     [stopList.length],
   );
 
@@ -184,12 +184,12 @@ export default function LeafletFleetMap({
             <Marker
               key={`tour-${index}-${stop.lat}-${stop.lng}`}
               position={[stop.lat, stop.lng]}
-              icon={stopIcons[index] ?? numberedMapIcon("stop", index)}
+              icon={stopIcons[index] ?? numberedMapIcon("stop", index, false, stopList.length)}
               draggable={false}
               zIndexOffset={600 + index}
             >
               <Popup>
-                Destination {index + 1} · {stop.label}
+                {destinationTitle(index, stopList.length)} · {stop.label}
               </Popup>
             </Marker>
           ))}

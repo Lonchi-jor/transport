@@ -3,7 +3,7 @@
 import { APIProvider, Map, Marker, useMap } from "@vis.gl/react-google-maps";
 import { useEffect, useMemo } from "react";
 import type { FleetDevice } from "@/lib/types";
-import { DEFAULT_CENTER, devicesWithPosition, type MapFollow, type MapRoute } from "@/lib/format";
+import { DEFAULT_CENTER, destinationTitle, devicesWithPosition, type MapFollow, type MapRoute } from "@/lib/format";
 import { PRESENCE_COLOR, presenceHoverText, presenceKind } from "@/lib/presence";
 
 const MAP_STYLES: google.maps.MapTypeStyle[] = [
@@ -43,8 +43,12 @@ function RouteLayer({
         new google.maps.Marker({
           position: { lat: stop.lat, lng: stop.lng },
           map,
-          label: { text: String(index + 1), color: "#ffffff", fontWeight: "800" },
-          title: `Destination ${index + 1} · ${stop.label}`,
+          label: {
+            text: stopList.length > 1 ? String(index + 1) : " ",
+            color: "#ffffff",
+            fontWeight: "800",
+          },
+          title: `${destinationTitle(index, stopList.length)} · ${stop.label}`,
         }),
     );
     const frame = (!follow || frameSelfAndRoute) && stickToMe;

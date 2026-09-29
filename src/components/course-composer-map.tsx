@@ -13,8 +13,8 @@ export type ComposerPin = {
   label: string;
 };
 
-function pinIcon(kind: "voyage" | "stop", index?: number) {
-  return numberedMapIcon(kind, index, true);
+function pinIcon(kind: "voyage" | "stop", index?: number, stopCount = 1) {
+  return numberedMapIcon(kind, index, true, stopCount);
 }
 
 function MapChrome({
@@ -149,7 +149,10 @@ export default function CourseComposerMap({
   const skipUntilRef = useRef(0);
   const draggingRef = useRef(false);
   const voyageIcon = useMemo(() => pinIcon("voyage"), []);
-  const stopIcons = useMemo(() => stops.map((_, index) => pinIcon("stop", index)), [stops.length]);
+  const stopIcons = useMemo(
+    () => stops.map((_, index) => pinIcon("stop", index, stops.length)),
+    [stops.length],
+  );
   const path =
     routePath && routePath.length >= 2
       ? routePath
@@ -204,8 +207,12 @@ export default function CourseComposerMap({
             key={stop.id}
             lat={stop.lat}
             lng={stop.lng}
-            icon={stopIcons[index] ?? pinIcon("stop", index)}
-            title={`Glissez pour déplacer la destination ${index + 1}`}
+            icon={stopIcons[index] ?? pinIcon("stop", index, stops.length)}
+            title={
+              stops.length > 1
+                ? `Glissez pour déplacer la destination ${index + 1}`
+                : "Glissez pour déplacer la destination"
+            }
             skipUntilRef={skipUntilRef}
             draggingRef={draggingRef}
             onMoved={(lat, lng) => onStopMove(stop.id as string, lat, lng)}

@@ -15,6 +15,7 @@ import type { RosterDriver } from "@/lib/roster";
 import type { PlaceHit } from "@/lib/geo";
 import { ensureDispatcherId } from "@/lib/dispatcher";
 import { assignmentBlockedMessage, isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
+import { destinationTitle } from "@/lib/format";
 
 const CourseComposerMap = dynamic(() => import("@/components/course-composer-map"), {
   ssr: false,
@@ -411,7 +412,9 @@ export default function CourseComposer({
               ? `${assignedDriver.callSign} est déjà attribué. Placez le départ, puis le tour de ville.`
               : pinFocus === "voyage"
                 ? "Glissez le pin Départ, ou cliquez la carte. Le pin reste où vous le posez."
-                : "Glissez 1, 2… pour une destination, ou cliquez la carte pour la placer."}
+                : form.stops.length > 1
+                  ? "Glissez 1, 2… pour une destination, ou cliquez la carte pour la placer."
+                  : "Glissez le pin Destination, ou cliquez la carte. Le pin reste où vous le posez."}
           </p>
         </div>
         <Button variant="secondary" size="sm" className="rounded-xl" onClick={onClose}>
@@ -432,7 +435,7 @@ export default function CourseComposer({
           onStopMove={handleStopMove}
         />
         <p className="pointer-events-none absolute top-3 left-1/2 z-10 w-[min(26rem,calc(100%-1.5rem))] -translate-x-1/2 rounded-full bg-[#151a45]/90 px-3 py-1.5 text-center text-[11px] font-medium text-white shadow-lg">
-          Glissez Départ ou 1, 2… pour déplacer le départ ou une destination
+          Glissez Départ ou Destination. Avec plusieurs arrêts, ils s’affichent 1, 2…
         </p>
 
         <form
@@ -522,7 +525,7 @@ export default function CourseComposer({
               {form.stops.map((stop, index) => (
                 <div key={stop.id} className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <Field label={`Destination ${index + 1}`} htmlFor={`composer-stop-${stop.id}`}>
+                    <Field label={destinationTitle(index, form.stops.length)} htmlFor={`composer-stop-${stop.id}`}>
                       <PlaceSuggest
                         id={`composer-stop-${stop.id}`}
                         required={index === 0}
@@ -545,7 +548,7 @@ export default function CourseComposer({
                       size="icon"
                       className="mt-6 size-8 shrink-0 text-[#5b6294]"
                       onClick={() => removeStop(stop.id)}
-                      aria-label={`Retirer la destination ${index + 1}`}
+                      aria-label={`Retirer ${destinationTitle(index, form.stops.length)}`}
                     >
                       <Trash2 className="size-4" />
                     </Button>

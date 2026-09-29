@@ -10,7 +10,7 @@ import type { Course, CourseStop, VehicleType } from "@/lib/types";
 import { MAX_TOUR_STOPS } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
 import { assignmentBlockedMessage, isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
-import { COURSE_STATUS_LABEL, courseStops } from "@/lib/format";
+import { COURSE_STATUS_LABEL, courseStops, destinationTitle } from "@/lib/format";
 import { CourseItinerary } from "@/components/course-itinerary";
 
 export type CourseEditorSaveBody = {
@@ -180,11 +180,11 @@ export default function CourseEditor({
           </p>
           <div className="grid gap-3">
             <div className="grid gap-2">
-              <div className="text-sm font-medium">Destinations</div>
+              <div className="text-sm font-medium">{stops.length > 1 ? "Destinations" : "Destination"}</div>
               {stops.map((stop, index) => (
                 <div key={stop.id} className="flex items-start gap-2">
                   <div className="min-w-0 flex-1">
-                    <Field label={`Destination ${index + 1}`} htmlFor={`edit-stop-${course.id}-${stop.id}`}>
+                    <Field label={destinationTitle(index, stops.length)} htmlFor={`edit-stop-${course.id}-${stop.id}`}>
                       <PlaceSuggest
                         id={`edit-stop-${course.id}-${stop.id}`}
                         required={index === 0}
@@ -204,7 +204,7 @@ export default function CourseEditor({
                       size="icon"
                       className="mt-6 size-8 shrink-0 text-[#5b6294]"
                       onClick={() => removeStop(stop.id)}
-                      aria-label={`Retirer la destination ${index + 1}`}
+                      aria-label={`Retirer ${destinationTitle(index, stops.length)}`}
                     >
                       <Trash2 className="size-4" />
                     </Button>

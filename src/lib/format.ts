@@ -97,11 +97,23 @@ export function courseStops(
   ];
 }
 
+export function destinationTitle(index: number, stopCount: number) {
+  return stopCount > 1 ? `Destination ${index + 1}` : "Destination";
+}
+
+export function destinationMark(index: number, stopCount: number) {
+  return stopCount > 1 ? String(index + 1) : "";
+}
+
+export function destinationLine(address: string, index: number, stopCount: number) {
+  const name = address.trim();
+  if (!name) return "";
+  return stopCount > 1 ? `${index + 1}. ${name}` : name;
+}
+
 export function tourLine(course: Course) {
-  const dests = courseStops(course).map((stop, index) => {
-    const name = shortPlace(stop.address);
-    return name ? `${index + 1}. ${name}` : "";
-  });
+  const stops = courseStops(course);
+  const dests = stops.map((stop, index) => destinationLine(shortPlace(stop.address), index, stops.length));
   const parts = [shortPlace(course.pickupAddress), ...dests].filter(Boolean);
   return parts.join(" → ");
 }
