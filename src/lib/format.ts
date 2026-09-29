@@ -224,8 +224,45 @@ export function formatWhen(ts: number | null | undefined) {
   return new Intl.DateTimeFormat("fr-FR", {
     dateStyle: "short",
     timeStyle: "short",
-    timeZone: "Africa/Douala",
+    timeZone: BUSINESS_TIME_ZONE,
   }).format(new Date(ts));
+}
+
+/** Calendar dates in the desk UI (Cameroon). */
+export const BUSINESS_TIME_ZONE = "Africa/Douala";
+
+function offsetMsAt(utcMs: number, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(utcMs));
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+  const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+  return asUtc - utcMs;
+}
+
+function zonedDateMs(isoDate: string, hours: number, minutes: number, seconds: number, ms: number) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return null;
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const asUtc = Date.UTC(year, month - 1, day, hours, minutes, seconds, ms);
+  return asUtc - offsetMsAt(asUtc, BUSINESS_TIME_ZONE);
+}
+
+/** Inclusive start of a YYYY-MM-DD calendar day in Cameroon. */
+export function calendarDayStartMs(isoDate: string) {
+  return zonedDateMs(isoDate, 0, 0, 0, 0);
+}
+
+/** Inclusive end of a YYYY-MM-DD calendar day in Cameroon. */
+export function calendarDayEndMs(isoDate: string) {
+  return zonedDateMs(isoDate, 23, 59, 59, 999);
 }
 
 export function formatCoords(lat: number | null | undefined, lng: number | null | undefined) {

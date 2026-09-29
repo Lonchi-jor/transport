@@ -20,6 +20,8 @@ import { COURSE_STATUSES, VEHICLE_META, VEHICLE_TYPES } from "@/lib/types";
 import {
   canCancelCourse,
   canEditCourse,
+  calendarDayEndMs,
+  calendarDayStartMs,
   COURSE_STATUS_LABEL,
   courseElapsedLabel,
   courseStops,
@@ -31,20 +33,6 @@ import {
   vehicleLine,
   type CourseViewFilter,
 } from "@/lib/format";
-
-function dayStartMs(isoDate: string) {
-  if (!isoDate) return null;
-  const [year, month, day] = isoDate.split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day).getTime();
-}
-
-function dayEndMs(isoDate: string) {
-  if (!isoDate) return null;
-  const [year, month, day] = isoDate.split("-").map(Number);
-  if (!year || !month || !day) return null;
-  return new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
-}
 
 export default function CoursesBoard() {
   const { courses, roster, now, online, applySnapshot, alerts, markAlertsRead, dismissAlerts } = useAdminFleet();
@@ -113,11 +101,11 @@ export default function CoursesBoard() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    let rangeStart = dayStartMs(fromDate);
-    let rangeEnd = dayEndMs(toDate);
+    let rangeStart = calendarDayStartMs(fromDate);
+    let rangeEnd = calendarDayEndMs(toDate);
     if (rangeStart != null && rangeEnd != null && rangeStart > rangeEnd) {
-      rangeStart = dayStartMs(toDate);
-      rangeEnd = dayEndMs(fromDate);
+      rangeStart = calendarDayStartMs(toDate);
+      rangeEnd = calendarDayEndMs(fromDate);
     }
     const list = courses.filter((course) => {
       if (focusId && course.id === focusId) return true;
