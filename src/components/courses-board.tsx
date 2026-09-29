@@ -492,7 +492,7 @@ export default function CoursesBoard() {
                                 void dismissAlerts({ courseId: course.id });
                               }}
                             >
-                              Modifier
+                              Ouvrir
                             </Button>
                             {course.status !== "cancelled" && course.status !== "done" ? (
                               <Button
