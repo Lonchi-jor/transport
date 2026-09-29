@@ -32,12 +32,19 @@ import {
   type CourseViewFilter,
 } from "@/lib/format";
 
-const PERIODS = [
-  { id: "all", label: "Toutes dates" },
-  { id: "today", label: "Aujourd’hui" },
-  { id: "7d", label: "7 derniers jours" },
-  { id: "30d", label: "30 derniers jours" },
-] as const;
+function dayStartMs(isoDate: string) {
+  if (!isoDate) return null;
+  const [year, month, day] = isoDate.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day).getTime();
+}
+
+function dayEndMs(isoDate: string) {
+  if (!isoDate) return null;
+  const [year, month, day] = isoDate.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  return new Date(year, month - 1, day, 23, 59, 59, 999).getTime();
+}
 
 export default function CoursesBoard() {
   const { courses, roster, now, online, applySnapshot, alerts, markAlertsRead, dismissAlerts } = useAdminFleet();
@@ -45,8 +52,8 @@ export default function CoursesBoard() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<CourseStatus | "all">("all");
-  const [period, setPeriod] = useState<(typeof PERIODS)[number]["id"]>("all");
-  const [bl, setBl] = useState<"all" | "yes" | "no">("all");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [vehicleType, setVehicleType] = useState<VehicleType | "all">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -69,8 +76,8 @@ export default function CoursesBoard() {
     if (!focusId) return;
     setQuery("");
     setStatus("all");
-    setPeriod("all");
-    setBl("all");
+    setFromDate("");
+    setToDate("");
     setVehicleType("all");
     void dismissAlerts({ courseId: focusId });
   }, [focusId, dismissAlerts]);
@@ -106,22 +113,19 @@ export default function CoursesBoard() {
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const cutoff =
-      period === "today"
-        ? new Date(now).setHours(0, 0, 0, 0)
-        : period === "7d"
-          ? now - 7 * 24 * 60 * 60 * 1000
-          : period === "30d"
-            ? now - 30 * 24 * 60 * 60 * 1000
-            : 0;
+    let rangeStart = dayStartMs(fromDate);
+    let rangeEnd = dayEndMs(toDate);
+    if (rangeStart != null && rangeEnd != null && rangeStart > rangeEnd) {
+      rangeStart = dayStartMs(toDate);
+      rangeEnd = dayEndMs(fromDate);
+    }
     const list = courses.filter((course) => {
       if (focusId && course.id === focusId) return true;
       if (chauffeurId === "__none__" && course.assignedDeviceId) return false;
       if (chauffeurId && chauffeurId !== "__none__" && course.assignedDeviceId !== chauffeurId) return false;
       if (vehicleType !== "all" && course.vehicleType !== vehicleType) return false;
-      if (cutoff && course.createdAt < cutoff) return false;
-      if (bl === "yes" && !course.hasDeliveryScan) return false;
-      if (bl === "no" && course.hasDeliveryScan) return false;
+      if (rangeStart != null && course.createdAt < rangeStart) return false;
+      if (rangeEnd != null && course.createdAt > rangeEnd) return false;
       if (view === "live" || view === "done") {
         if (!matchesCourseView(course, view)) return false;
       } else if (status !== "all" && course.status !== status) {
@@ -156,7 +160,7 @@ export default function CoursesBoard() {
       }
     }
     return list;
-  }, [courses, chauffeurId, status, period, bl, query, vehicleType, now, view, focusId]);
+  }, [courses, chauffeurId, status, fromDate, toDate, query, vehicleType, view, focusId]);
 
   const stats = useMemo(() => {
     const scoped = courses.filter((course) => {
@@ -250,7 +254,7 @@ export default function CoursesBoard() {
         <div>
           <h1 className="text-xl font-semibold text-[#2b308f]">Toutes les courses</h1>
           <p className="mt-1 text-sm text-[#5b6294]">
-            Historique de tous les chauffeurs. Filtrez par chauffeur, statut, date, BN/BL ou recherche.
+            Historique de tous les chauffeurs. Filtrez par chauffeur, statut, dates, BN ou recherche.
           </p>
         </div>
 
@@ -277,7 +281,7 @@ export default function CoursesBoard() {
         </div>
 
         <div className="rounded-2xl border border-[#d5dcf0] bg-white p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
             <label className="grid gap-1 text-xs font-medium text-[#5b6294]">
               Recherche
               <Input
@@ -320,20 +324,26 @@ export default function CoursesBoard() {
                 ))}
               </select>
             </label>
-            <label className="grid gap-1 text-xs font-medium text-[#5b6294]">
+            <div className="grid gap-1 text-xs font-medium text-[#5b6294] md:col-span-2">
               Période
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value as (typeof PERIODS)[number]["id"])}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-              >
-                {PERIODS.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+                <Input
+                  type="date"
+                  aria-label="Du"
+                  value={fromDate}
+                  max={toDate || undefined}
+                  onChange={(e) => setFromDate(e.target.value)}
+                />
+                <span className="text-[11px] font-normal text-[#5b6294]">à</span>
+                <Input
+                  type="date"
+                  aria-label="Au"
+                  value={toDate}
+                  min={fromDate || undefined}
+                  onChange={(e) => setToDate(e.target.value)}
+                />
+              </div>
+            </div>
             <label className="grid gap-1 text-xs font-medium text-[#5b6294]">
               Véhicule
               <select
@@ -347,18 +357,6 @@ export default function CoursesBoard() {
                     {VEHICLE_META[type].label}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label className="grid gap-1 text-xs font-medium text-[#5b6294]">
-              Bon de livraison
-              <select
-                value={bl}
-                onChange={(e) => setBl(e.target.value as "all" | "yes" | "no")}
-                className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm"
-              >
-                <option value="all">Tous</option>
-                <option value="yes">BL joint</option>
-                <option value="no">BL manquant</option>
               </select>
             </label>
           </div>
