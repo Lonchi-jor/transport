@@ -7,14 +7,13 @@ import { ClipboardList, Pencil, Radio, Trash2, UserPlus, X } from "lucide-react"
 import AdminChrome from "@/components/admin-chrome";
 import { Field, PhoneLink, Stat, TrailerFields, type TrailerDraft } from "@/components/admin-fields";
 import { PresenceBadge, PresenceLegend } from "@/components/presence-badge";
-import { Badge } from "@/components/ui/badge";
+import CourseStatusBadge from "@/components/course-status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
 import type { RosterDriver } from "@/lib/roster";
 import type { FleetSnapshot, VehicleType } from "@/lib/types";
 import {
-  COURSE_STATUS_LABEL,
   courseElapsedLabel,
   formatCoords,
   formatKm,
@@ -571,9 +570,7 @@ export default function ChauffeursDashboard() {
                                 <div className="text-xs text-[#5b6294]">{course.clientPhone}</div>
                               ) : null}
                             </div>
-                            <Badge variant={course.status === "open" ? "outline" : "secondary"}>
-                              {COURSE_STATUS_LABEL[course.status]}
-                            </Badge>
+                            <CourseStatusBadge status={course.status} />
                           </div>
                           <div className="mt-2">
                             <CourseItinerary course={course} />

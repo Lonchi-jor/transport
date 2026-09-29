@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, ClipboardList, Crosshair, History, LogOut, Smartphone, X } from "lucide-react";
 import BrandLogo from "@/components/brand-logo";
 import "leaflet/dist/leaflet.css";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import FleetMap from "@/components/fleet-map";
@@ -13,6 +12,7 @@ import PhoneAccess from "@/components/phone-access";
 import DeliveryPhoto from "@/components/delivery-photo";
 import DispatchNote from "@/components/dispatch-note";
 import NotificationBell from "@/components/notification-bell";
+import CourseStatusBadge from "@/components/course-status-badge";
 import type { AppNotification, Course, FleetDevice, FleetSnapshot } from "@/lib/types";
 import {
   COURSE_STATUS_LABEL,
@@ -905,7 +905,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                 <li key={job.id} className="rounded-2xl border border-border bg-card p-3">
                                   <div className="flex items-center justify-between gap-2">
                                     <div className="font-semibold text-[#2b308f]">{job.reference}</div>
-                                    <Badge>{COURSE_STATUS_LABEL[job.status]}</Badge>
+                                    <CourseStatusBadge status={job.status} />
                                   </div>
                                   <div className="mt-1 text-sm">{job.clientName}</div>
                                   {job.clientPhone ? (
@@ -960,9 +960,7 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
                                       <CourseItinerary course={job} compact />
                                     </div>
                                   </div>
-                                  <Badge variant="secondary" className="shrink-0">
-                                    {COURSE_STATUS_LABEL[job.status]}
-                                  </Badge>
+                                  <CourseStatusBadge status={job.status} className="shrink-0" />
                                 </div>
                                 <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] leading-4 text-[#5b6294]">
                                   <span>{vehicleLine(job)}</span>
@@ -988,9 +986,8 @@ export default function FleetApp({ googleMapsApiKey }: Props) {
               {currentJob ? (
                 <div className="rounded-2xl bg-white/10 px-3 py-2 text-xs text-blue-50">
                   <div className="flex items-center justify-between gap-2 font-medium">
-                    <span>
-                      {currentJob.reference} · {COURSE_STATUS_LABEL[currentJob.status]}
-                    </span>
+                    <span>{currentJob.reference}</span>
+                    <CourseStatusBadge status={currentJob.status} />
                   </div>
                   <div className="mt-1 text-blue-100">{currentJob.clientName}</div>
                   <div className="mt-2">

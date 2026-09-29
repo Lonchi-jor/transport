@@ -6,11 +6,12 @@ import { Plus, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DriverAssignSelect, VehicleFields } from "@/components/admin-fields";
 import PlaceSuggest from "@/components/place-suggest";
+import CourseStatusBadge from "@/components/course-status-badge";
 import type { Course, CourseStop, VehicleType } from "@/lib/types";
 import { MAX_TOUR_STOPS } from "@/lib/types";
 import type { RosterDriver } from "@/lib/roster";
 import { assignmentBlockedMessage, isDriverAtCapacity, liveJobsForDriver } from "@/lib/assignment";
-import { COURSE_STATUS_LABEL, courseStops, destinationMark, destinationTitle } from "@/lib/format";
+import { courseStops, destinationMark, destinationTitle } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export type CourseEditorSaveBody = {
@@ -202,8 +203,9 @@ export default function CourseEditor({
               <div className="text-base font-semibold text-[#2b308f]">
                 Modifier {course.reference}
               </div>
-              <p className="mt-0.5 truncate text-sm text-[#5b6294]">
-                {course.clientName} · {COURSE_STATUS_LABEL[course.status]}
+              <p className="mt-1 flex min-w-0 items-center gap-2 text-sm text-[#5b6294]">
+                <span className="truncate">{course.clientName}</span>
+                <CourseStatusBadge status={course.status} />
               </p>
               <p className="mt-1 text-xs text-[#00a4e8]">
                 Enregistrez : le chauffeur est prévenu tout de suite.

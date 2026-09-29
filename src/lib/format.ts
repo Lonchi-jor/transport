@@ -41,6 +41,19 @@ export const COURSE_STATUS_LABEL: Record<CourseStatus, string> = {
   cancelled: "Annulée",
 };
 
+/** Traffic-light colors for course status pills. */
+export const COURSE_STATUS_BADGE_CLASS: Record<CourseStatus, string> = {
+  open: "border-[#c5cde6] bg-[#eef3fb] text-[#3d4478]",
+  assigned: "border-[#7ecceb] bg-[#e7f6fd] text-[#0077a8]",
+  en_route: "border-amber-400 bg-amber-400 text-amber-950",
+  done: "border-emerald-600 bg-emerald-600 text-white",
+  cancelled: "border-red-600 bg-red-600 text-white",
+};
+
+export function courseStatusBadgeClass(status: CourseStatus) {
+  return COURSE_STATUS_BADGE_CLASS[status];
+}
+
 export function activeCourses(courses: Course[]) {
   return courses.filter((c) => c.status === "open" || c.status === "assigned" || c.status === "en_route");
 }

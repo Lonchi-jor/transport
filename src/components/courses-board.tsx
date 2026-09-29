@@ -7,8 +7,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { FileDown } from "lucide-react";
 import AdminChrome from "@/components/admin-chrome";
 import CourseEditor from "@/components/course-editor";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import CourseStatusBadge from "@/components/course-status-badge";
 import { Input } from "@/components/ui/input";
 import { PhoneLink } from "@/components/admin-fields";
 import { DispatchNoteHint } from "@/components/dispatch-note";
@@ -500,12 +500,10 @@ export default function CoursesBoard() {
                           {course.finishedAt ? <div>Fin {formatWhen(course.finishedAt)}</div> : null}
                         </td>
                         <td className="px-4 py-3">
-                          <Badge
-                            variant={course.status === "open" ? "outline" : "secondary"}
-                            className={isFocus ? "border-emerald-600 bg-emerald-600 text-white" : undefined}
-                          >
-                            {COURSE_STATUS_LABEL[course.status]}
-                          </Badge>
+                          <CourseStatusBadge
+                            status={course.status}
+                            className={isFocus ? "ring-2 ring-emerald-700 ring-offset-1" : undefined}
+                          />
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex flex-col items-start gap-1">

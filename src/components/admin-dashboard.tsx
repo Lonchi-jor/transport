@@ -9,11 +9,11 @@ import DispatchMap from "@/components/dispatch-map";
 import CourseEditor from "@/components/course-editor";
 import CourseComposer, { NewCourseButton } from "@/components/course-composer";
 import { DispatchNoteHint } from "@/components/dispatch-note";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import CourseStatusBadge from "@/components/course-status-badge";
 import type { CourseStop, FleetSnapshot, VehicleType } from "@/lib/types";
 import { useAdminFleet } from "@/lib/use-admin-fleet";
-import { COURSE_STATUS_LABEL, canEditCourse, tourLine, vehicleLine } from "@/lib/format";
+import { canEditCourse, tourLine, vehicleLine } from "@/lib/format";
 import { isDriverAtCapacity } from "@/lib/assignment";
 
 type Props = {
@@ -194,9 +194,7 @@ export default function AdminDashboard({ googleMapsApiKey }: Props) {
                       ) : null}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-2">
-                      <Badge variant={course.status === "open" ? "outline" : "secondary"}>
-                        {COURSE_STATUS_LABEL[course.status]}
-                      </Badge>
+                      <CourseStatusBadge status={course.status} />
                       {canEditCourse(course) ? (
                         <Button
                           type="button"
